@@ -17,6 +17,7 @@ SCHEDULER_JOB_KINDS = (
     "ai.execute",
     "processing.execute",
     "source.refresh",
+    "setup.trial",
     "search.reindex",
     "search.reindex.incremental",
     "maintenance.library_rebuild",
@@ -36,13 +37,14 @@ USER_SCHEDULER_JOB_KINDS = tuple(
     for kind in SCHEDULER_JOB_KINDS
     if kind not in {
         "ai.execute", "processing.execute", "ocr.execute", "email.intake", "google.intake",
-        "transcript.intake"
+        "transcript.intake", "setup.trial"
     }
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
 SOURCE_SCOPED_JOB_KINDS = frozenset(
     {
         "source.refresh",
+        "setup.trial",
         "processing.execute",
         "maintenance.source_reconcile",
         "email.intake",

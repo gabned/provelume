@@ -351,6 +351,112 @@ class InboxTransit:
             raise ReviewDenied("Current local Inbox authority is disabled")
         return authority
 
+    def admit_trial(self, acquisition, op_id):
+        """Consume a bounded trial permit without changing Source consent."""
+        from .setup_trial_authority import ROOT, SetupTrialAuthority
+
+        authority = SetupTrialAuthority(self.store)
+        permit = authority.read(op_id)
+        authority.ocr_authorization(acquisition["source_id"], acquisition["version_id"],
+                                    {"kind": "setup-trial", "id": op_id,
+                                     "sha256": digest(permit)}, acquisition)
+        selected = next(row["input"] for row in permit["selection"]["inputs"]
+                        if row["input"]["locator"] == acquisition["locator"])
+        value = {"schema": "setup-trial-inbox-admission/v1", "id": op_id,
+                 "instance_id": permit["instance_id"], "acquisition": acquisition,
+                 "input": selected, "permit_sha256": digest(permit)}
+        publish_once(self.store, f"{ROOT}/inbox/{op_id}/{acquisition['id']}-admission.json", value)
+        return value
+
+    def after_trial_job_locked(self, job):
+        from .ocr_jobs import OcrJobManager
+        from .setup_trials import JOB_KIND, SetupTrials
+
+        trials = SetupTrials(self.store)
+        if job["job_kind"] == JOB_KIND:
+            op_id = trials.request_for_job(job)[0]["id"]
+        elif job["job_kind"] == "ocr.execute":
+            authorization = OcrJobManager(self.store)._request_for_job(job).get(
+                "source_authorization", {})
+            permit = authorization.get("permit")
+            if not isinstance(permit, dict) or permit.get("kind") != "setup-trial":
+                return []
+            op_id = permit["id"]
+        else:
+            return []
+        results = []
+        for acquired in trials.acquisitions(op_id):
+            if acquired is None:
+                continue
+            child = trials.child(op_id, acquired)
+            if child is not None and child["status"] == "succeeded":
+                results.append(self._finish_trial_input(op_id, acquired, child))
+        return results
+
+    def _finish_trial_input(self, op_id, acquisition, job):
+        from .setup_trial_authority import ROOT, SetupTrialAuthority, permit_path, read_record
+
+        authority = SetupTrialAuthority(self.store)
+        permit = authority.read(op_id)
+        relative = f"{ROOT}/inbox/{op_id}/{acquisition['id']}"
+        admission = read_record(self.store, relative + "-admission.json")
+        expected = self.admit_trial(acquisition, op_id)
+        if admission != expected:
+            raise ReviewUnavailable("The trial Inbox admission changed")
+        previous = read_record(self.store, relative + "-result.json")
+        if previous is not None:
+            if (previous.get("schema") != "setup-trial-inbox-result/v1"
+                    or previous.get("permit_sha256") != digest(permit)
+                    or previous.get("acquisition_id") != acquisition["id"]):
+                raise ReviewUnavailable("The trial input result has another identity")
+            return previous
+        contribution = describe_contribution(self.store, acquisition["document_id"],
+                                             acquisition["version_id"])[0]
+        proof = resolve_index_contribution(self.store, "processing", job["id"],
+                                           acquisition["document_id"])
+        if (contribution["profile"] not in {"embedded", "ocr-complete"}
+                or contribution["original_sha256"] != acquisition["content_hash"]):
+            raise ReviewUnavailable("The trial needs its actual complete text contribution")
+        root, _revision, _folder = _source(self.store, acquisition["source_id"])
+        if _input(root, acquisition["locator"]) != admission["input"]:
+            raise ReviewStale("The trial input changed after preservation")
+        item = {"selection": {"producer": "processing", "job_id": job["id"],
+                               "acquisition_id": acquisition["id"]},
+                "acquisition": acquisition, "input": admission["input"],
+                "contribution": contribution, "proof": proof}
+        intent = read_record(self.store, relative + "-intent.json")
+        if intent is None:
+            operation = OperationLedger(self.store).start(
+                "inbox.exit" if permit["retention"] == "transit" else "inbox.keep",
+                "Observe the authorized synthetic trial input outcome", parent_operation_id=op_id,
+                related={"source_id": acquisition["source_id"],
+                         "acquisition_id": acquisition["id"]})
+            intent = {"schema": "setup-trial-inbox-intent/v1", "id": op_id,
+                      "operation_id": operation.id, "item": item,
+                      "permit_sha256": digest(permit)}
+            publish_once(self.store, relative + "-intent.json", intent)
+        if (intent.get("item") != item or intent.get("permit_sha256") != digest(permit)
+                or intent.get("schema") != "setup-trial-inbox-intent/v1"):
+            raise ReviewUnavailable("The trial exit intent selects different evidence")
+        removed = 0
+        if permit["retention"] == "transit":
+            removed = self._guarded_exit(
+                item, root, permit["selection"]["root_binding"],
+                lambda: authority.read(op_id),
+                {permit_path(op_id), relative + "-admission.json", relative + "-intent.json",
+                 f"state/operations/records/{op_id}.json"})
+        result = {"schema": "setup-trial-inbox-result/v1", "id": op_id,
+                  "operation_id": intent["operation_id"], "acquisition_id": acquisition["id"],
+                  "permit_sha256": digest(permit), "recorded_at": utc_now(),
+                  "outcome": "input_exited" if permit["retention"] == "transit" else "input_kept",
+                  "empty_directories_removed": removed}
+        publish_once(self.store, relative + "-result.json", result)
+        operation = OperationLedger(self.store).get(intent["operation_id"])
+        if operation is not None and operation["status"] == "running":
+            OperationLedger(self.store).close(intent["operation_id"], status="completed",
+                                              summary="The exact trial input outcome was observed")
+        return result
+
     def admit(self, acquisition):
         """Freeze future-work consent at ingestion, never infer it from a rescan."""
         from .ocr_contract import settings_fingerprint
@@ -484,13 +590,10 @@ class InboxTransit:
             return results
 
     def _exit(self, key, item, receipt_id, *, authority_action="release"):
-        from .inbox_exit_files import guarded_input_exit, remove_empty_directory
-
         source_id = item["acquisition"]["source_id"]
         policy, root, _folder = self.review.current(source_id)
         if policy != item["policy"]:
             raise ReviewStale("Inbox policy changed before exit")
-        path = root / item["input"]["locator"]
         directory = f"{EXITS}/{key}"
         ledger = OperationLedger(self.store)
         intent = read_json(self.store, f"{directory}/intent.json")
@@ -505,16 +608,39 @@ class InboxTransit:
         _validate_exit_intent(intent, key)
         if intent["item"] != item or intent["receipt_id"] != receipt_id:
             raise ReviewUnavailable("Another exact input owns this exit intent")
+        def authority_revalidate():
+            self._authority(source_id, authority_action)
+            if self.review.current(source_id)[0] != policy:
+                raise ReviewStale("Final Inbox policy changed before exit")
+
+        removed = self._guarded_exit(item, root, policy["root_binding"], authority_revalidate)
+        result = {"schema": "inbox-exit-result/v1", "id": key,
+                  "operation_id": intent["operation_id"], "outcome": "input_exited",
+                  "recorded_at": utc_now(), "empty_directories_removed": removed}
+        publish_once(self.store, f"{directory}/result.json", result)
+        operation = ledger.get(intent["operation_id"])
+        if operation["status"] == "running":
+            ledger.close(intent["operation_id"], status="completed",
+                         summary="Verified completed input exited; Original remains preserved",
+                         metrics={"inputs_exited": 1})
+        return result
+
+    def _guarded_exit(self, item, root, root_binding, authority_revalidate,
+                      authority_paths=None):
+        """Shared S06 final proof and physical disposition, never an authority source."""
+        from .inbox_exit_files import guarded_input_exit, remove_empty_directory
+
+        path = root / item["input"]["locator"]
         directories, removed = [], 0
         with ExitStack() as stack:
             opened = stack.enter_context(open_local_directory(root))
-            if opened[1] != policy["root_binding"]:
+            if opened[1] != root_binding:
                 raise ReviewStale("Inbox root changed before exit")
             # Pin the Original and active index against external replacement or
             # writes on Windows, in addition to the application's lifecycle lock.
             original = read_json(self.store,
                                  f"knowledge/originals/{item['contribution']['original_id']}.json")
-            for relative in sorted(_evidence_paths(self.store, item) | {
+            for relative in sorted(_evidence_paths(self.store, item, authority_paths) | {
                     original["storage_ref"], "indexes/search.sqlite3", "provelume.yml"}):
                 stack.enter_context(open_local_file(checked_path(self.store, relative)))
             parent = path.parent
@@ -535,9 +661,7 @@ class InboxTransit:
                     item["acquisition"]["version_id"])[0]
                 if proof != item["proof"] or contribution != item["contribution"]:
                     raise ReviewStale("Final index evidence changed before exit")
-                self._authority(source_id, authority_action)
-                if self.review.current(source_id)[0] != policy:
-                    raise ReviewStale("Final Inbox policy changed before exit")
+                authority_revalidate()
                 remove()
             for parent, binding in directories:
                 try:
@@ -548,16 +672,7 @@ class InboxTransit:
         if path.exists():
             # A new entry or unconfirmed close is not removed by a second action.
             raise ReviewUnavailable("Input disposition outcome requires reconciliation")
-        result = {"schema": "inbox-exit-result/v1", "id": key,
-                  "operation_id": intent["operation_id"], "outcome": "input_exited",
-                  "recorded_at": utc_now(), "empty_directories_removed": removed}
-        publish_once(self.store, f"{directory}/result.json", result)
-        operation = ledger.get(intent["operation_id"])
-        if operation["status"] == "running":
-            ledger.close(intent["operation_id"], status="completed",
-                         summary="Verified completed input exited; Original remains preserved",
-                         metrics={"inputs_exited": 1})
-        return result
+        return removed
 
     def status(self, source_id):
         policy = self.review.policy(source_id)
@@ -610,7 +725,7 @@ def validate_admission(value, acquisition_id, instance_id):
     return value
 
 
-def _evidence_paths(store, item):
+def _evidence_paths(store, item, authority_paths=None):
     """Pin the exact selected proof/text/identity records through final disposition."""
     from .index_evidence import ROOTS
     from .ocr_contract import OCR_ARTIFACT_KIND
@@ -622,9 +737,10 @@ def _evidence_paths(store, item):
              f"knowledge/documents/{acquisition['document_id']}.json",
              f"knowledge/versions/{acquisition['version_id']}.json",
              f"knowledge/originals/{item['contribution']['original_id']}.json",
-             policy_path(acquisition["source_id"]),
              f"state/scheduler/receipts/{item['proof']['receipt_id']}.json",
              f"state/scheduler/jobs/{item['selection']['job_id']}.json"}
+    paths.update({policy_path(acquisition["source_id"])} if authority_paths is None
+                 else authority_paths)
     producer, job_id = item["selection"]["producer"], item["selection"]["job_id"]
     paths.add(f"{ROOTS[producer]}/{job_id}/publication_a"
               f"{item['proof']['publication']['attempt']}.json")

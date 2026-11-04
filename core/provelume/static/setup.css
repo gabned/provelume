@@ -1,0 +1,15 @@
+.setup { max-width: 60rem; margin-inline: auto; min-width: 0; }
+.setup .panel, .setup label, .setup details, .setup dd { min-width: 0; }
+.setup .settings-form { display: grid; gap: 1rem; }
+.setup input, .setup select { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
+.setup button, .setup .button { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
+.setup button, .setup .button, .setup input, .setup select { min-block-size: 44px; }
+.setup-path, .setup dd, .setup p, .setup a { overflow-wrap: anywhere; }
+.setup-index ol, .setup-results { padding-inline-start: 1.5rem; }
+.setup-index li { margin-block: .5rem; }
+.setup [aria-current="step"] { font-weight: 700; text-decoration-thickness: .2em; }
+.setup-buttons { display: flex; flex-wrap: wrap; gap: .75rem; }
+.setup dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .5rem 1rem; }
+.setup dd { margin: 0; }
+.setup :focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+@media (max-width: 30rem) { .setup dl { grid-template-columns: minmax(0, 1fr); } }

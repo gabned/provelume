@@ -310,6 +310,12 @@ def qualify(executable, kit, root, output, build_report, installer):
         faults = [_fault(current / WORKER, temporary, kind) for kind in ("cancel", "timeout")]
         assert _snapshot(instance) == before
         assert not list(instance.ocr.temporary_root.iterdir())
+        setup_trials = [command("setup-qualify", root / ("Setup " + mode),
+                                "--retention", mode, "--kit", kit,
+                                "--expected-sha256", identity["sha256"])
+                        for mode in ("keep", "transit")]
+        assert all(result["result"] == "PASS" and len(result["documents"]) == 2
+                   and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
         assert command("kit-remove")["status"] == "removed"
         assert command("ocr-capability", instance.root)["state"] == "disabled"
@@ -328,6 +334,7 @@ def qualify(executable, kit, root, output, build_report, installer):
             "cases": cases,
             "missing_components": negatives,
             "faults": faults,
+            "s07_setup_trials": setup_trials,
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS",
             "external_python_required": False,

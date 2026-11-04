@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import socket
@@ -14,6 +15,60 @@ pytestmark = pytest.mark.skipif(
     os.environ.get("PROVELUME_REAL_OCR") != "1",
     reason="real local OCR smoke requires explicitly provisioned components",
 )
+
+
+def test_real_setup_coordinator_apply_and_future_source_native_acquisition(tmp_path):
+    from provelume.setup_qualification import qualify_setup
+
+    report = qualify_setup(tmp_path / "synthetic-profile", retention="keep",
+                           ocr_required=True, languages=["eng"])
+    assert report["result"] == "PASS"
+    assert [row["text_kind"] for row in report["documents"]] == ["embedded", "ocr-complete"]
+    assert report["future_native"]["acquired"] and report["future_native"]["original_verified"]
+    assert not report["future_native"]["backlog_acquired"]
+
+
+def test_setup_trial_automatically_admits_real_scan_and_skips_native_pdf(tmp_path, monkeypatch):
+    from provelume.setup_trial_authority import ROOT, read_record
+    from provelume.setup_trials import SetupTrials
+
+    source = tmp_path / "synthetic-inbox"
+    source.mkdir()
+    sentinel = source / "unrelated-sentinel.txt"
+    sentinel.write_bytes(b"UNSELECTED SYNTHETIC SENTINEL")
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    folder = instance.register_folder_source(
+        source, name="Synthetic trial", lifecycle_state="paused")
+    before = instance.store.read_config()
+
+    def forbidden_network(*args, **kwargs):
+        raise AssertionError("A local setup trial must not open a network connection")
+
+    monkeypatch.setattr(socket, "socket", forbidden_network)
+    trials = SetupTrials(instance.store)
+    submitted = trials.start(folder["id"], retention="keep", ocr_required=True,
+                             languages=["eng"], request_key="real-synthetic-trial-001")
+    instance.run_scheduler_cycle(max_jobs=1)
+    acquired = trials.acquisitions(submitted["operation_id"])
+    assert len(acquired) == 2 and all(acquired)
+    instance.run_scheduler_cycle(max_jobs=2)
+    operations = []
+    from provelume.ocr_jobs import OcrJobManager
+
+    for acquisition in acquired:
+        child = trials.child(submitted["operation_id"], acquisition)
+        assert child is not None and child["status"] == "succeeded", child
+        request = OcrJobManager(instance.store)._request_for_job(child)
+        operations.append(request["operation"])
+        verified = instance.document_original(acquisition["document_id"])
+        assert hashlib.sha256(verified["data"]).hexdigest() == acquisition["content_hash"]
+        outcome = read_record(instance.store, f"{ROOT}/inbox/{submitted['operation_id']}/"
+                              f"{acquisition['id']}-result.json")
+        assert outcome is not None and outcome["outcome"] == "input_kept"
+    assert sorted(operations) == ["index-only", "ocr"]
+    assert trials.observations(submitted["operation_id"])["processing_ready"]
+    assert instance.store.read_config() == before
+    assert sentinel.read_bytes() == b"UNSELECTED SYNTHETIC SENTINEL"
 
 
 def _scanned_image():

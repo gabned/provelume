@@ -1,6 +1,7 @@
 {% extends base_layout %}
 {% block title %}{{ document.title }} · {{ t('brand') }}{% endblock %}
 {% block content %}
+<a href="/setup?step=test&amp;lang={{ lang }}">{{ t('setup.title') }}</a>
 {% if return_to and (interface_mode == "preview" or return_to.startswith('/search')) %}<a class="cura-back" href="{{ return_to }}">{{ icon("arrow-left") }}{{ return_label }}</a>{% endif %}
 <nav class="breadcrumb"><a href="/?lang={{ lang }}">{{ t('nav.home') }}</a><span>/</span><a href="/browse?lang={{ lang }}">{{ t('nav.browse') }}</a><span>/</span><span>{{ document.title }}</span></nav>
 <div class="document-header"><div><p class="eyebrow">{{ document.source_name }}</p><h1>{{ document.title }}</h1></div><a class="button secondary" href="{{ document_link(document.id, provenance=True) }}">{{ icon('info') }}{{ t('document.provenance') }}</a></div>

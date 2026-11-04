@@ -1386,6 +1386,15 @@ class SchedulerCoordinator:
 
     def _control_producer(self, job: Mapping[str, Any]) -> Any:
         execution = job.get("execution_plan")
+        if job["job_kind"] == "setup.trial":
+            from .setup_trials import SetupTrials
+
+            try:
+                request, permit = SetupTrials(self.store).request_for_job(job)
+                return {"resumable": True, "restartable": False,
+                        "request": control_digest({"request": request, "permit": permit})}
+            except (ValueError, OSError, KeyError):
+                return {"resumable": False, "restartable": False}
         if job["job_kind"] == "ocr.execute":
             from .ocr_jobs import OcrJobManager
             from .ocr_sources import SourceOcrReview
@@ -1988,6 +1997,16 @@ class SchedulerCoordinator:
                     False,
                 )
             return True, progress, "", "", False, False
+        if job["job_kind"] == "setup.trial":
+            from .setup_trials import SetupTrials
+
+            try:
+                progress = SetupTrials(self.store).execute_locked(job)
+                return True, progress, "", "", False, True
+            except OSError:
+                return False, self._progress(errors=1), "transient", "local_io", False, False
+            except (ValueError, KeyError):
+                return False, self._progress(errors=1), "permanent", "invalid_state", False, False
         if job["job_kind"] == "source.refresh":
             from .folder_source_model import FolderSourceError
             from .folder_sources import FolderSourceManager
@@ -2536,6 +2555,12 @@ class SchedulerCoordinator:
                 canonical_mutation=canonical_mutation,
                 now=completed_at,
             )
+            if (self.store.paths.state / "setup-trials").exists():
+                from .inbox_transit import InboxTransit
+                from .review_effects import ReviewError
+
+                with suppress(ReviewError, OSError):
+                    InboxTransit(self.store).after_trial_job_locked(completed)
             if (self.store.paths.state / "inbox-transit" / "admissions").exists():
                 from .inbox_transit import InboxTransit
                 from .review_effects import ReviewError

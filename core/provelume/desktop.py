@@ -747,6 +747,9 @@ class DesktopShell:
             command=self.open_shell_settings,
         )
         self.shell_settings_button.pack(fill="x", pady=(8, 0))
+        setup_labels = namespace_catalog(resolve_language(self.settings.language), "setup")
+        ttk.Button(shell, text=setup_labels["title"], command=self.open_setup).pack(
+            fill="x", pady=(8, 0))
 
         updates = ttk.LabelFrame(outer, text=self.text["updates"], padding=14)
         updates.pack(fill="x", pady=(0, 14))
@@ -926,21 +929,28 @@ class DesktopShell:
     def create_instance(self) -> None:
         from tkinter import filedialog, messagebox, simpledialog
 
+        from .maintenance_local_files import open_local_directory
+        from .storage import validate_instance_name
+
         selected = filedialog.askdirectory(initialdir=str(self.instance.parent))
         if not selected:
             return
-        name = simpledialog.askstring(
-            "Provelume",
-            self.text["instance"],
-            initialvalue="My Provelume",
-        )
-        if name is None:
-            return
+        setup_labels = namespace_catalog(resolve_language(self.settings.language), "setup")
+        prompt, initial = setup_labels["space"], "Provelume"
+        while True:
+            name = simpledialog.askstring("Provelume", prompt, initialvalue=initial)
+            if name is None:
+                return
+            try:
+                name = validate_instance_name(name)
+                break
+            except ValueError:
+                prompt, initial = setup_labels["invalid_space_name"], name
         try:
-            instance = ProvelumeInstance.initialise(
-                Path(selected),
-                name=name.strip() or "My Provelume",
-            )
+            with open_local_directory(Path(selected)), os.scandir(selected) as entries:
+                if next(entries, None) is not None:
+                    raise ValueError("A new Space needs an empty selected folder")
+                instance = ProvelumeInstance.initialise(Path(selected), name=name)
             config = instance.store.read_config()
             config.setdefault("ui", {})["language"] = self.settings.language
             instance.store.write_config(config)
@@ -1190,6 +1200,9 @@ class DesktopShell:
     def open_shell_settings(self) -> None:
         target = f"/settings/shell?lang={self.settings.language}"
         self.start_server(open_target=target)
+
+    def open_setup(self) -> None:
+        self.start_server(open_target="/setup")
 
     def show_window(self) -> None:
         self.root.deiconify()

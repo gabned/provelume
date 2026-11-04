@@ -1872,6 +1872,9 @@ def inspect_instance(
         from .resource_statistics import resource_statistics_state_findings
         from .review_integrity import review_state_findings
         from .scheduler import scheduler_state_findings
+        from .setup_coordinator import setup_action_findings
+        from .setup_source_scope import baseline_findings
+        from .setup_trials import setup_trial_findings
         from .source_reconciliation import source_reconciliation_state_findings
         from .transcript_jobs import transcript_state_findings
 
@@ -1883,6 +1886,9 @@ def inspect_instance(
         errors.extend(qualification_state_findings(store, records))
         errors.extend(representation_state_findings(store))
         errors.extend(scheduler_state_findings(store))
+        errors.extend(setup_trial_findings(store))
+        errors.extend(setup_action_findings(store))
+        errors.extend(baseline_findings(store))
         errors.extend(source_reconciliation_state_findings(store))
         errors.extend(resource_statistics_state_findings(store))
         errors.extend(review_state_findings(store, records))

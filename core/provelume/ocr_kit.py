@@ -329,6 +329,44 @@ def _authority(archive, build, receipt_path, expected_sha256, development):
     return identity
 
 
+def inspect_kit(archive, *, receipt_path=None, expected_sha256=None, build=None):
+    """Read an explicitly selected kit; never install, execute or enable it."""
+    from .build_info import current_build_info
+
+    build = dict(build if build is not None else current_build_info())
+    archive = _safe(Path(archive))
+    _check(0 < archive.stat().st_size <= MAX_BYTES)
+    identity = _authority(archive, build, receipt_path, expected_sha256,
+                          expected_sha256 is not None and build.get("official") is False)
+    with zipfile.ZipFile(archive) as source:
+        infos = source.infolist()
+        _check(1 < len(infos) <= MAX_FILES + 1)
+        names = [_relative(info.filename) for info in infos]
+        _check(len({name.casefold() for name in names}) == len(names))
+        _check(sum(info.file_size for info in infos) <= MAX_BYTES + 2 * 1024 * 1024)
+        _check(MANIFEST in names)
+        info = source.getinfo(MANIFEST)
+        _check(info.file_size <= 2 * 1024 * 1024 and not info.flag_bits & 1)
+        raw = source.read(info)
+        manifest = validate_manifest(_json(raw), build)
+        expected = {row["path"]: row for row in manifest["files"]}
+        _check(set(names) == set(expected) | {MANIFEST})
+        _check(all(info.file_size == (len(raw) if info.filename == MANIFEST
+                                     else expected[info.filename]["size_bytes"])
+                   for info in infos))
+    _check(file_identity(archive) == identity)
+    return {"status": "previewed", "kit": identity, "build_identity": build_identity(build),
+            "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+            "uncompressed_bytes": sum(row["size_bytes"] for row in manifest["files"]),
+            "files": len(manifest["files"]),
+            "components": [{"path": name, "size_bytes": expected[name]["size_bytes"],
+                            "sha256": expected[name]["sha256"]}
+                           for name in (ENGINE, WORKER, PYTHON_DLL, PDFIUM_DLL, *PACKS.values())],
+            "authority": "release-receipt" if receipt_path is not None else "explicit-sha256",
+            "origin_authentication": "not_established", "network_used": False,
+            "installed": False, "source_authorization_changed": False}
+
+
 def import_kit(
     archive: Path,
     *,
