@@ -35,7 +35,7 @@ automatic retry. No exceedance means NON_REPRODUCTION. Instrumented observations
 remain DIAGNOSTIC_ONLY and cannot establish product qualification, close either
 finding or accept main. Normal `measure` remains byte-identical to main.
 
-Owner: PR #424, `concordia-s01-readiness`. The original binding remains
+Historical S01 owner: PR #424, `concordia-s01-readiness`. The original binding remains
 `1ba49ad7a9bbaa1639126c078bc59dfecf0dcafc8db38b78ce84a588558ee0a6`.
 This experiment does not qualify an application candidate or close a finding.
 
