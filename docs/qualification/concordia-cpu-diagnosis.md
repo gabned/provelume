@@ -635,3 +635,52 @@ The test producer now uses that publication sequence; its 5-second readiness and
 assertion are unchanged. This is a test-control correction, not a PRODUCT change
 or Windows qualification; the original failed job and aggregate refusal remain
 evidence, and the corrected head requires new complete native/remote checks.
+
+## S07 main observer control (5 November 2026)
+
+The current main CPU finding belongs to [#438](https://github.com/gabned/provelume/pull/438),
+source `19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`, run41928461608/attempt1,
+Linux job126918981396. Capture0.467447869s exceeded its own idle-derived
+0.409724258s limit. Original artifact13370559401/evaluator FAIL remain preserved;
+cause is NOT_DEMONSTRATED. The completed source comparison41978421375 retained
+100 probes and four instrumented PASS reports on EPYC9V45, with no reproduced
+exceedance. All100 submit windows lacked two wholly interior sampler snapshots.
+Those diagnostic results do not accept main or transfer the preceding PR PASS.
+
+The separate current-main boundary/extended/extended/boundary control was declared
+in [6653221987](https://github.com/gabned/provelume/pull/438#issuecomment-6653221987)
+and its common pool accounting in
+[6653336825](https://github.com/gabned/provelume/pull/438#issuecomment-6653336825).
+The already attached Intel8573C host passed native hardware, positive scheduler
+and actual strace admission. Its first arm stopped at the unchanged1200s bound,
+after42 corpus cases. All six observed Capture probes met their own1s limit;
+the partial original evaluator reports cold-load/first-output FAIL and other
+incomplete dimensions NOT_RUN. The other three arms never started; tracee and
+native-worker exit were independently observed. Partial originals remain private.
+No equivalent local replay, raised timeout or source correction follows.
+
+The `concordia-s07-cpu-recovery` PR-local owner makes that same predeclared
+observer control executable on existing CI capacity, where the full sequence
+already completed within the original bounds. The existing observer-study input
+gains an optional full `concordia_observer_source` SHA. Before model acquisition,
+the driver checks a clean checkout and equality to freshly fetched `origin/main`,
+native hardware, positive scheduler counters, actual strace and focused controls.
+Unspecified source retains the historical S06/S08 observer experiment unchanged.
+The normal push/PR `measure` job, evaluator, model/configuration, dependencies,
+payload and all numeric qualification limits remain unchanged.
+
+For the explicitly selected main, four fresh equal-depth stores run A/B/B/A once:
+network-only boundary observation; extended sampler plus fsync/fdatasync tracing;
+the same extended bundle; then boundary again. Both modes share the existing
+pool-task wrapper, retaining queue/task CPU, scheduler/I/O counters, actual masks
+and wrapper costs without assigning affinity or subtracting observer time.
+Per-source hashes, actual host and every original result remain recorded.
+Every report stays DIAGNOSTIC_ONLY/qualification_eligible=false. Stop subsequent
+arms on the existing20min arm/85min job limits, application/collection/network
+failure, incomplete required counters or any non-timing failure. The existing
+disposable timing projection classifies only that stop condition; it cannot
+replace an original FAIL. A single bundle contrast does not isolate each observer
+component or prove historical causality. No reproduced relevant failure leaves
+the finding CURRENT/NOT_DEMONSTRATED. Any demonstrated PRODUCT correction needs
+its normal qualification, merge and actual-main acceptance before S08. Manual
+methods remain DEFERRED_BY_MAINTAINER/NOT_RUN until completed/released0.15.

@@ -11,6 +11,7 @@ import contextvars
 import hashlib
 import json
 import os
+import re
 import selectors
 import shutil
 import signal
@@ -34,6 +35,53 @@ S06 = "8b3f467aa9e7c059e23f22644786ef0f87582cc3"
 S08 = "e2c9244df692cdd9dbd636a0109a7d920a21ac1b"
 SCRIPT = Path(__file__).resolve()
 CURRENT = contextvars.ContextVar("concordia_probe", default=None)
+
+
+def observer_source(repository, revision):
+    """Bind an optional observer experiment to the freshly fetched default ref."""
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("observer source requires a full commit SHA")
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=repository):
+        raise ValueError("observer driver source is not clean")
+    actual = subprocess.check_output(
+        ["git", "rev-parse", "refs/remotes/origin/main"], cwd=repository, text=True).strip()
+    if revision != actual:
+        raise ValueError("observer source differs from fetched main")
+    if subprocess.check_output(
+            ["git", "cat-file", "-t", revision], cwd=repository, text=True).strip() != "commit":
+        raise ValueError("observer source is not a commit")
+    tree = subprocess.check_output(
+        ["git", "rev-parse", revision + "^{tree}"], cwd=repository, text=True).strip()
+    return {"source": revision, "tree": tree, "reference": "refs/remotes/origin/main"}
+
+
+def admit_observer(repository, revision, output):
+    """Require source, counters and real tracing before acquiring any model."""
+    if output.exists() or output.is_symlink():
+        raise ValueError("preserve existing observer admission")
+    selected = observer_source(repository, revision)
+    portable = admit_portable(output.with_suffix(".portable.json"))
+    result = {**portable, "selected_source": selected, "status": "CAPABILITY_MISSING"}
+    try:
+        sys.path.insert(0, str(repository / "core"))
+        from provelume.ai_runtime_contract import hardware
+
+        result["native_hardware"] = hardware()
+        with tempfile.TemporaryDirectory(prefix="observer-trace-") as scratch:
+            trace = Path(scratch) / "network"
+            smoke = subprocess.run([
+                "strace", "-ff", "-tt", "-e", "trace=network", "-o", str(trace),
+                sys.executable, "-c", "import socket; s=socket.socket(); s.close()",
+            ], capture_output=True, text=True, timeout=20)
+            traces = [path.read_text() for path in trace.parent.glob("network.*")]
+            result["strace_control"] = {"exit_code": smoke.returncode,
+                                       "stderr": smoke.stderr, "traces": traces}
+            if smoke.returncode or not any("socket(AF_INET" in row for row in traces):
+                raise ValueError("actual observer strace control failed")
+        result["status"] = "OBSERVER_SOURCE_ADMITTED"
+    finally:
+        write_json(output, result)
+    return result
 
 
 def portable_tracer_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
@@ -566,7 +614,9 @@ def observe_operation(original, name):
 
 
 def worker(source, artifacts, output, mode="legacy", placement=None,
-           inherited_affinity=None, tracer_cpu=None):
+           inherited_affinity=None, tracer_cpu=None, pool_accounting=False):
+    if pool_accounting and mode == "legacy":
+        raise ValueError("pool accounting requires operation-boundary counters")
     # The tracer alone receives its one-CPU condition. Restore the child before
     # application imports, hardware checks or any native worker can be created.
     if inherited_affinity is not None:
@@ -655,7 +705,7 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
 
     try:
         with ExitStack() as stack:
-            if placement is not None:
+            if placement is not None or pool_accounting:
                 stack.enter_context(patch.object(ThreadPoolExecutor, "submit",
                     pool_observer(ThreadPoolExecutor.submit)))
             stack.enter_context(patch.object(LocalRuntime, "__init__", runtime_init))
@@ -734,10 +784,17 @@ def verify_digest_accounting(output):
 
 
 def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
-        tracer_study=False, portable_tracer_study=False, digest_study=False):
+        tracer_study=False, portable_tracer_study=False, digest_study=False,
+        observer_revision=None):
     """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
     if digest_study and reverse:
         raise ValueError("bounded digest comparison has one fixed AB/BA order")
+    selected = None
+    if observer_revision is not None:
+        if not observer_study or reverse or any((placement_study, tracer_study,
+                                                portable_tracer_study, digest_study)):
+            raise ValueError("single-source observer control requires its fixed ABBA order")
+        selected = observer_source(repository, observer_revision)
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
                                         text=True).strip()
@@ -750,6 +807,11 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
              ("s08-original", S08, "legacy"), ("candidate", candidate, "legacy")])
     if reverse:
         arms.reverse()
+    if selected is not None:
+        arms = [("main-boundary-a", observer_revision, "boundary"),
+                ("main-extended-b1", observer_revision, "extended"),
+                ("main-extended-b2", observer_revision, "extended"),
+                ("main-boundary-a2", observer_revision, "boundary")]
     placements = {}
     tracer_cpus = {}
     if placement_study:
@@ -794,6 +856,12 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                 "OS cache not flushed", "task exits can truncate task accounting",
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
+    if selected is not None:
+        manifest["experiment"] = "current-main-observer-bundle"
+        manifest["selected_source"] = selected
+        manifest["common_pool_accounting"] = True
+        manifest["limitations"].append("new-task observer cost is retained, never subtracted")
+        write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
     if digest_study:
         manifest["product_comparison"] = digest_comparison(repository, candidate)
@@ -857,6 +925,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     placement_args = ["--placement", placements[name]] \
                         if (placement_study or tracer_study or portable_tracer_study
                             or digest_study) else []
+                    if selected is not None:
+                        placement_args += ["--pool-accounting"]
                     if tracer_study or portable_tracer_study or digest_study:
                         placement_args += ["--inherited-affinity",
                             ",".join(map(str, manifest["placement_plan"]["allowed"])),
@@ -888,6 +958,23 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
+                if selected is not None:
+                    if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
+                        raise RuntimeError("observer_arm_or_collection_failed; no next arm")
+                    report = json.loads((arm_output / "report.json").read_text())
+                    if report.get("network") != "PASS" or report.get("failures"):
+                        raise RuntimeError("observer_network_or_application_failed; no next arm")
+                    arm["accounting_integrity"] = verify_digest_accounting(arm_output)
+                    stop_path = arm_output / "non-timing-stop-control.json"
+                    subprocess.run([sys.executable, str(repository / "scripts" /
+                        "compare_concordia_journal.py"), "inspect", "--source", str(source),
+                        "--report", str(arm_output / "report.json"), "--output", str(stop_path)],
+                        cwd=source, check=True, timeout=60)
+                    stop = json.loads(stop_path.read_text())
+                    arm["non_timing_conjuncts_pass"] = stop["non_capture_conjuncts_checked"]
+                    write_json(output / "manifest.json", manifest)
+                    if not arm["non_timing_conjuncts_pass"]:
+                        raise RuntimeError("observer_non_timing_failure; no next arm")
                 if placement_study or tracer_study or portable_tracer_study or digest_study:
                     if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
                         raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
@@ -919,6 +1006,7 @@ def main():
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
+    measurement.add_argument("--pool-accounting", action="store_true")
     measurement.add_argument("--placement",
                              choices=("same_logical", "smt_sibling", "portable_foreground"))
     measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
@@ -931,6 +1019,10 @@ def main():
     digest = commands.add_parser("digest-admission")
     digest.add_argument("--repository", type=Path, required=True)
     digest.add_argument("--output", type=Path, required=True)
+    observer_admission = commands.add_parser("observer-admission")
+    observer_admission.add_argument("--repository", type=Path, required=True)
+    observer_admission.add_argument("--source", required=True)
+    observer_admission.add_argument("--output", type=Path, required=True)
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -939,6 +1031,7 @@ def main():
     controlled.add_argument("--inputs", type=Path, required=True)
     controlled.add_argument("--output", type=Path, required=True)
     controlled.add_argument("--reverse", action="store_true")
+    controlled.add_argument("--observer-source")
     study = controlled.add_mutually_exclusive_group()
     study.add_argument("--observer-study", action="store_true")
     study.add_argument("--placement-study", action="store_true")
@@ -950,7 +1043,9 @@ def main():
         sample(args.pipe, args.output)
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
-               args.placement, args.inherited_affinity, args.tracer_cpu)
+               args.placement, args.inherited_affinity, args.tracer_cpu, args.pool_accounting)
+    elif args.command == "observer-admission":
+        admit_observer(args.repository.resolve(), args.source, args.output)
     elif args.command == "portable-topology":
         admit_portable(args.output)
     elif args.command == "digest-admission":
@@ -972,7 +1067,7 @@ def main():
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
             args.observer_study, args.placement_study, args.tracer_study,
-            args.portable_tracer_study, args.bounded_digest_study)
+            args.portable_tracer_study, args.bounded_digest_study, args.observer_source)
 
 
 if __name__ == "__main__":

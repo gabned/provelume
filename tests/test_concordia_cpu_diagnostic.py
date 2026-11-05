@@ -75,11 +75,13 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
-@pytest.mark.parametrize("mode,placement", [("legacy", None), ("boundary", None),
-                                         ("extended", None), ("boundary", "same_logical"),
-                                         ("boundary", "portable_foreground")])
+@pytest.mark.parametrize("mode,placement,pool_accounting", [
+    ("legacy", None, False), ("boundary", None, False), ("extended", None, False),
+    ("boundary", "same_logical", False), ("boundary", "portable_foreground", False),
+    ("boundary", None, True), ("extended", None, True),
+])
 def test_final_network_observer_cannot_requalify_instrumented_capture(
-    tmp_path, monkeypatch, mode, placement
+    tmp_path, monkeypatch, mode, placement, pool_accounting
 ):
     # Exercise the real worker and observer import boundaries. No native model is
     # involved; a retained synthetic failure must survive the final evaluator.
@@ -120,7 +122,9 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(
         })
     output = tmp_path / "output"
     output.mkdir()
-    diagnostic.worker(root, tmp_path / "artifacts", output, mode, placement)
+    inherited = sorted(os.sched_getaffinity(0))
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode, placement,
+                      pool_accounting=pool_accounting)
     assert observations == []
     assert not (output / "report.json").exists()
     worker_finished = True
@@ -155,6 +159,69 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(
             assert context["placement"]["restored"] == allowed
             assert all(row["boundary_before"]["cgroups"] is not None
                        for row in context["operations"])
+        if pool_accounting:
+            assert sorted(os.sched_getaffinity(0)) == inherited
+            assert context["pool_tasks"]
+            assert all(task["affinity"] == inherited for task in context["pool_tasks"])
+            assert all(diagnostic._observed_task_counters(task[label])
+                       for task in context["pool_tasks"]
+                       for label in ("counters_before", "counters_after"))
+
+
+@pytest.mark.parametrize("revision", ["main", "A" * 40, "a" * 39, "--help", "$(false)"])
+def test_observer_source_rejects_unbounded_refs_before_git(tmp_path, monkeypatch, revision):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid source must stop before Git or acquisition")
+
+    monkeypatch.setattr(subprocess, "check_output", forbidden)
+    with pytest.raises(ValueError, match="full commit SHA"):
+        diagnostic.observer_source(tmp_path, revision)
+
+
+def test_observer_source_binds_fetched_main_not_driver_head(tmp_path):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    git("init", "-q")
+    git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "main")
+    main = git("rev-parse", "HEAD")
+    git("update-ref", "refs/remotes/origin/main", main)
+    git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "driver")
+    driver = git("rev-parse", "HEAD")
+    selected = diagnostic.observer_source(tmp_path, main)
+    assert selected["source"] == main and selected["tree"] == git("rev-parse", main + "^{tree}")
+    with pytest.raises(ValueError, match="differs from fetched main"):
+        diagnostic.observer_source(tmp_path, driver)
+    (tmp_path / "dirty").write_text("synthetic")
+    with pytest.raises(ValueError, match="not clean"):
+        diagnostic.observer_source(tmp_path, main)
+
+
+def test_single_source_control_refuses_reverse_before_output_or_acquisition(tmp_path):
+    with pytest.raises(ValueError, match="fixed ABBA order"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       reverse=True, observer_study=True, observer_revision="a" * 40)
+    assert not (tmp_path / "output").exists()
+
+
+def test_pool_accounting_refuses_legacy_before_source_import(tmp_path):
+    with pytest.raises(ValueError, match="operation-boundary"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, pool_accounting=True)
+
+
+def test_observer_admission_preserves_existing_evidence_before_git(tmp_path, monkeypatch):
+    output = tmp_path / "admission.json"
+    output.write_text("retained original observation")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("existing evidence must stop before collection or acquisition")
+
+    monkeypatch.setattr(subprocess, "check_output", forbidden)
+    with pytest.raises(ValueError, match="preserve existing"):
+        diagnostic.admit_observer(tmp_path, "a" * 40, output)
+    assert output.read_text() == "retained original observation"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc counters")

@@ -13,6 +13,10 @@ on:
         description: 'Nonqualifying S01 operation-boundary and observer-cost study'
         type: boolean
         default: false
+      concordia_observer_source:
+        description: 'Optional full fetched-main SHA for the nonqualifying observer study'
+        type: string
+        default: ''
       concordia_tracer_study:
         description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
         type: boolean
@@ -113,17 +117,34 @@ jobs:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
+      - name: Admit the selected main observer control before acquisition
+        if: inputs.concordia_observer_source != ''
+        env:
+          CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+        shell: bash
+        run: |
+          sudo sysctl kernel.sched_schedstats=1
+          .venv/bin/python scripts/diagnose_concordia_cpu.py observer-admission --repository "$GITHUB_WORKSPACE" --source "$CONCORDIA_OBSERVER_SOURCE" --output .agent/concordia-observer-admission.json
+          .venv/bin/python -m pytest -q tests/test_concordia_cpu_diagnostic.py tests/test_concordia_cpu_topology.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
         run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
       - name: Enable diagnostic scheduler counters
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
-        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study
+        env:
+          CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+        shell: bash
+        run: |
+          selected=()
+          if test -n "$CONCORDIA_OBSERVER_SOURCE"; then selected=(--observer-source "$CONCORDIA_OBSERVER_SOURCE"); fi
+          .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study "${selected[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-observer-study
-          path: .agent/concordia-observer-study
+          path: |
+            .agent/concordia-observer-study
+            .agent/concordia-observer-admission*.json
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
