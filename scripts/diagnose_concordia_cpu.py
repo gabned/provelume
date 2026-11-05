@@ -676,13 +676,19 @@ def prefix_environment():
 
 
 def worker(source, artifacts, output, mode="legacy", placement=None,
-           inherited_affinity=None, tracer_cpu=None, pool_accounting=False, pool_prefix=False):
+           inherited_affinity=None, tracer_cpu=None, pool_accounting=False, pool_prefix=False,
+           caller_spans=False):
     if pool_prefix and (mode != "boundary" or not pool_accounting or placement is not None
                         or inherited_affinity is not None or tracer_cpu is not None):
         raise ValueError("pool prefix requires boundary accounting without placement changes")
-    if pool_prefix and any((output / name).exists() or (output / name).is_symlink()
-                           for name in ("report-before-observer.json", "probe-accounting.jsonl",
-                                        "prefix-state.json")):
+    if caller_spans and (pool_prefix or mode != "boundary" or not pool_accounting
+                         or placement is not None or inherited_affinity is not None
+                         or tracer_cpu is not None):
+        raise ValueError("caller spans require full boundary accounting without placement changes")
+    if (pool_prefix or caller_spans) and any(
+            (output / name).exists() or (output / name).is_symlink()
+            for name in ("report-before-observer.json", "probe-accounting.jsonl",
+                         "prefix-state.json")):
         raise ValueError("preserve existing prefix evidence")
     if pool_accounting and mode == "legacy":
         raise ValueError("pool accounting requires operation-boundary counters")
@@ -725,7 +731,7 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
         context = {"probe_id": sequence, "sample": number, "operations": [],
                    "caller": Path(sys._getframe(1).f_code.co_filename).name,
                    "before": accounting()}
-        if pool_prefix:
+        if pool_prefix or caller_spans:
             context["spans"] = []
         roles = {"parent": [os.getpid()], "tracer": [os.getppid()],
                  "sampler": [sampler.pid] if sampler else [],
@@ -794,13 +800,15 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
             for name in ("submit", "process"):
                 stack.enter_context(patch.object(CaptureAdapter, name,
                     observe_operation(getattr(CaptureAdapter, name), name)))
-            if pool_prefix:
-                from provelume.ai_model_store import ModelStore
+            if pool_prefix or caller_spans:
                 from provelume.atomic_commit import AtomicInstanceCommit
 
                 for name in ("_prepare", "_publish_entries", "_shutdown_pool"):
                     stack.enter_context(patch.object(AtomicInstanceCommit, name,
                         observe_span(getattr(AtomicInstanceCommit, name), name)))
+            if pool_prefix:
+                from provelume.ai_model_store import ModelStore
+
                 stack.enter_context(patch.object(qualify_ai_runtime, "measure_warm_case",
                     prefix_warm_case(qualify_ai_runtime.measure_warm_case)))
                 stack.enter_context(patch.object(ModelStore, "self_test",
@@ -877,6 +885,30 @@ def verify_digest_accounting(output, expected_probes=25):
             "pool_tasks": pool_count}
 
 
+def method_span_errors(rows):
+    """Require complete same-caller spans inside every original operation."""
+    errors = []
+    for row in rows:
+        spans = row.get("spans", [])
+        if sorted(s["span"] for s in spans) != sorted(
+                ["_prepare", "_publish_entries", "_shutdown_pool"] * 2):
+            errors.append("direct method spans incomplete")
+            break
+        operations = {op["operation"]: op for op in row["operations"]}
+        if any(sorted(s["span"] for s in spans if s["operation"] == name)
+               != ["_prepare", "_publish_entries", "_shutdown_pool"] for name in operations):
+            errors.append("transaction span sequence incomplete")
+        for span in spans:
+            operation = operations.get(span["operation"])
+            before, after = span["before"], span["after"]
+            if (operation is None or before["tid"] != after["tid"]
+                    or before["tid"] != operation["before"]["tid"]
+                    or not operation["before"]["monotonic_ns"] <= before["monotonic_ns"]
+                    <= after["monotonic_ns"] <= operation["after"]["monotonic_ns"]):
+                errors.append("direct span caller or interval mismatch")
+    return errors
+
+
 def inspect_prefix(output):
     """Check collection of the partial prefix without qualifying a full network gate."""
     report = json.loads((output / "report.json").read_text())
@@ -904,24 +936,7 @@ def inspect_prefix(output):
     except ValueError as error:
         counters = None
         errors.append(str(error))
-    for row in rows:
-        spans = row.get("spans", [])
-        if sorted(s["span"] for s in spans) != sorted(
-                ["_prepare", "_publish_entries", "_shutdown_pool"] * 2):
-            errors.append("direct method spans incomplete")
-            break
-        operations = {op["operation"]: op for op in row["operations"]}
-        if any(sorted(s["span"] for s in spans if s["operation"] == name)
-               != ["_prepare", "_publish_entries", "_shutdown_pool"] for name in operations):
-            errors.append("transaction span sequence incomplete")
-        for span in spans:
-            operation = operations.get(span["operation"])
-            before, after = span["before"], span["after"]
-            if (operation is None or before["tid"] != after["tid"]
-                    or before["tid"] != operation["before"]["tid"]
-                    or not operation["before"]["monotonic_ns"] <= before["monotonic_ns"]
-                    <= after["monotonic_ns"] <= operation["after"]["monotonic_ns"]):
-                errors.append("direct span caller or interval mismatch")
+    errors.extend(method_span_errors(rows))
     traces = list(output.glob("network.*"))
     calls = [line for path in traces for line in path.read_text().splitlines()
              if re.search(r"\b(socket|connect|sendto|sendmsg|sendmmsg)\(", line)]
@@ -946,12 +961,14 @@ def inspect_prefix(output):
 
 def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
         tracer_study=False, portable_tracer_study=False, digest_study=False,
-        observer_revision=None, pool_prefix=False):
-    """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
+        observer_revision=None, pool_prefix=False, caller_spans=False):
+    """Run the selected fixed arms once; preserve every outcome without retry."""
     if digest_study and reverse:
         raise ValueError("bounded digest comparison has one fixed AB/BA order")
     if pool_prefix and (not observer_study or observer_revision is None):
         raise ValueError("pool prefix requires an explicit observer source")
+    if caller_spans and (pool_prefix or not observer_study or observer_revision is None):
+        raise ValueError("caller spans require one explicit full observer source")
     selected = None
     if observer_revision is not None:
         if not observer_study or reverse or any((placement_study, tracer_study,
@@ -977,6 +994,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 ("main-boundary-a2", observer_revision, "boundary")]
     if pool_prefix:
         arms = [("main-pool-prefix", observer_revision, "boundary")]
+    if caller_spans:
+        arms = [("main-governed-caller-spans", observer_revision, "boundary")]
     placements = {}
     tracer_cpus = {}
     if placement_study:
@@ -1013,6 +1032,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
                 "experiment": "caller-bound-pool-prefix" if pool_prefix else
+                    "governed-caller-spans" if caller_spans else
                     "bounded-digest-product-comparison" if digest_study else
                     "portable-tracer-placement" if portable_tracer_study else
                     "tracer-placement" if tracer_study else
@@ -1024,6 +1044,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
     write_json(output / "manifest.json", manifest)
     if selected is not None:
         manifest["experiment"] = ("caller-bound-pool-prefix" if pool_prefix
+                                  else "governed-caller-spans" if caller_spans
                                   else "current-main-observer-bundle")
         manifest["selected_source"] = selected
         manifest["common_pool_accounting"] = True
@@ -1099,6 +1120,8 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                         placement_args += ["--pool-accounting"]
                     if pool_prefix:
                         placement_args += ["--pool-prefix"]
+                    if caller_spans:
+                        placement_args += ["--caller-spans"]
                     if tracer_study or portable_tracer_study or digest_study:
                         placement_args += ["--inherited-affinity",
                             ",".join(map(str, manifest["placement_plan"]["allowed"])),
@@ -1111,7 +1134,7 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     if tracer_study or portable_tracer_study or digest_study:
                         command = ["taskset", "--cpu-list", str(tracer_cpus[name]), *command]
                     child_environment = None
-                    if pool_prefix:
+                    if pool_prefix or caller_spans:
                         # Preserve harmless selectors, excluding credentials and proxy headers.
                         child_environment = prefix_environment()
                     process = subprocess.Popen(command, env=child_environment,
@@ -1149,6 +1172,15 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     if report.get("network") != "PASS" or report.get("failures"):
                         raise RuntimeError("observer_network_or_application_failed; no next arm")
                     arm["accounting_integrity"] = verify_digest_accounting(arm_output)
+                    if caller_spans:
+                        rows = [json.loads(line) for line in
+                                (arm_output / "probe-accounting.jsonl").read_text().splitlines()]
+                        errors = method_span_errors(rows)
+                        if errors:
+                            arm["caller_span_errors"] = errors
+                            write_json(output / "manifest.json", manifest)
+                            raise RuntimeError("caller span collection incomplete; no retry")
+                        arm["caller_span_integrity"] = "COMPLETE / diagnostic only"
                     stop_path = arm_output / "non-timing-stop-control.json"
                     subprocess.run([sys.executable, str(repository / "scripts" /
                         "compare_concordia_journal.py"), "inspect", "--source", str(source),
@@ -1192,6 +1224,7 @@ def main():
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
     measurement.add_argument("--pool-accounting", action="store_true")
     measurement.add_argument("--pool-prefix", action="store_true")
+    measurement.add_argument("--caller-spans", action="store_true")
     measurement.add_argument("--placement",
                              choices=("same_logical", "smt_sibling", "portable_foreground"))
     measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
@@ -1218,6 +1251,7 @@ def main():
     controlled.add_argument("--reverse", action="store_true")
     controlled.add_argument("--observer-source")
     controlled.add_argument("--pool-prefix", action="store_true")
+    controlled.add_argument("--caller-spans", action="store_true")
     study = controlled.add_mutually_exclusive_group()
     study.add_argument("--observer-study", action="store_true")
     study.add_argument("--placement-study", action="store_true")
@@ -1230,7 +1264,7 @@ def main():
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
                args.placement, args.inherited_affinity, args.tracer_cpu, args.pool_accounting,
-               args.pool_prefix)
+               args.pool_prefix, args.caller_spans)
     elif args.command == "observer-admission":
         admit_observer(args.repository.resolve(), args.source, args.output)
     elif args.command == "portable-topology":
@@ -1255,7 +1289,7 @@ def main():
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
             args.observer_study, args.placement_study, args.tracer_study,
             args.portable_tracer_study, args.bounded_digest_study, args.observer_source,
-            args.pool_prefix)
+            args.pool_prefix, args.caller_spans)
 
 
 if __name__ == "__main__":

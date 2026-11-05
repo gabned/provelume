@@ -151,11 +151,84 @@ def test_prefix_requires_its_observation_contract_before_source_import(tmp_path,
                           pool_accounting=pool, pool_prefix=True)
 
 
+@pytest.mark.parametrize("explode", [False, True])
+def test_full_span_worker_forwards_later_cases_and_restores_methods_on_failure(
+    tmp_path, monkeypatch, explode
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    from provelume.atomic_commit import AtomicInstanceCommit
+
+    original_prepare = AtomicInstanceCommit._prepare
+    forwarded, finalized = [], []
+
+    def warm(*args):
+        forwarded.append(True)
+        if explode:
+            raise ValueError("application failure retained")
+        return "later phase reached"
+
+    def evaluate(report):
+        report.update(status="FAIL", gates={"s06_governed": "FAIL"})
+        return report
+
+    def measure(artifacts, output):
+        report = {"failures": []}
+        try:
+            assert AtomicInstanceCommit._prepare is not original_prepare
+            assert qualify_ai_runtime.measure_warm_case(1) == "later phase reached"
+        finally:
+            finalized.append(True)
+            qualify_ai_runtime.evaluate(report)
+            output.write_text(json.dumps(report))
+        return report
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure_warm_case", warm)
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    monkeypatch.setattr(qualify_ai_runtime, "evaluate", evaluate)
+    if explode:
+        with pytest.raises(ValueError, match="application failure retained"):
+            diagnostic.worker(root, tmp_path, tmp_path, mode="boundary",
+                              pool_accounting=True, caller_spans=True)
+    else:
+        diagnostic.worker(root, tmp_path, tmp_path, mode="boundary",
+                          pool_accounting=True, caller_spans=True)
+    assert forwarded == finalized == [True]
+    assert AtomicInstanceCommit._prepare is original_prepare
+    assert not (tmp_path / "prefix-state.json").exists()
+    report = json.loads((tmp_path / "report-before-observer.json").read_text())
+    assert report["gates"] == {"s06_governed": "FAIL"}
+    assert report["status"] == "DIAGNOSTIC_ONLY"
+    assert report["qualification_eligible"] is False
+
+
 def test_prefix_requires_explicit_current_source_before_acquisition(tmp_path):
     with pytest.raises(ValueError, match="explicit observer source"):
         diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
                        observer_study=True, pool_prefix=True)
     assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("prefix,source", [(False, None), (True, "f" * 40)])
+def test_full_caller_spans_require_their_own_explicit_admission(tmp_path, prefix, source):
+    with pytest.raises(ValueError, match="one explicit full observer source"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       observer_study=True, observer_revision=source,
+                       pool_prefix=prefix, caller_spans=True)
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("options", [
+    {"mode": "extended", "pool_accounting": True},
+    {"mode": "boundary", "pool_accounting": False},
+    {"mode": "boundary", "pool_accounting": True, "pool_prefix": True},
+])
+def test_full_caller_spans_refuse_incompatible_observation_before_import(tmp_path, options):
+    with pytest.raises(ValueError, match="caller spans require"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, caller_spans=True, **options)
 
 
 @pytest.mark.parametrize("defect", [None, "network_claim", "network_call", "span", "tid", "exit"])

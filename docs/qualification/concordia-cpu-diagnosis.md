@@ -1,5 +1,40 @@
 # S01 CPU diagnostic comparison
 
+## S07 governed Capture caller-span follow-up
+
+The [new ordinary-CI finding](https://github.com/gabned/provelume/pull/439#issuecomment-6670228157)
+is run `42109002130`, attempt 1, Linux job `127531293383`, exact head
+`a713f0141799fea60b7caa1a0e62826f3b373bf9`. Its original Linux ZIP is
+128193 bytes, SHA-256 `be7f3b54678ba52c0abdaaf789ea6f14b2cfe51229bbb3a4159bd5874a54ec4b`.
+All 621 members and the unchanged evaluator/network replay were checked. Only
+`s06_governed` fails: governed Capture samples 1/5 take 0.441381141/0.560081222 s
+against their own 0.364834536 s limit. Submit accounts for 0.317100805 s in sample 1;
+process accounts for 0.523012562 s in sample 5. These inclusive durations do not
+demonstrate a cause. The original main finding remains independently CURRENT.
+
+The earlier five-probe directly timed prefix never reaches governed jobs. The
+new explicit `concordia_caller_spans=true` option requires observer-study mode
+and an admitted exact fetched-main SHA, and is incompatible with pool-prefix
+mode. It runs **one complete original sequence, one arm, one attempt**. Existing
+boundary accounting gains direct same-caller `_prepare`, `_publish_entries` and
+`_shutdown_pool` spans around each Capture transaction, including governed probes.
+The hypothesis is that a newly exceeded governed interval can distinguish pool
+shutdown/coordination time from synchronous prepare/publication time. Thread CPU,
+scheduler/I/O and durability boundaries remain observable; unmatched time stays
+unexplained, and overlapping intervals cannot be added as a causal decomposition.
+
+The application is exact main `19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`, whose
+Core and measurement/evaluation source bytes match the new failed run. No sampler,
+placement change, product correction, model/input/gate change or ABBA replay is
+introduced. The inherited harmless environment selectors are retained without
+operator credentials. The existing 1200 s execution and 60 s observation limits
+remain; acquisition/identity/counter/application/network/non-timing-conjunct errors
+stop collection. All 25 probes must have complete caller-bound method spans and
+original accounting. Missing spans stop the experiment. There is no next arm or
+automatic retry. No exceedance means NON_REPRODUCTION. Instrumented observations
+remain DIAGNOSTIC_ONLY and cannot establish product qualification, close either
+finding or accept main. Normal `measure` remains byte-identical to main.
+
 Owner: PR #424, `concordia-s01-readiness`. The original binding remains
 `1ba49ad7a9bbaa1639126c078bc59dfecf0dcafc8db38b78ce84a588558ee0a6`.
 This experiment does not qualify an application candidate or close a finding.
