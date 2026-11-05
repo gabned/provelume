@@ -17,6 +17,10 @@ on:
         description: 'Optional full fetched-main SHA for the nonqualifying observer study'
         type: string
         default: ''
+      concordia_pool_prefix:
+        description: 'With observer study and exact main: one nonqualifying directly timed prefix'
+        type: boolean
+        default: false
       concordia_tracer_study:
         description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
         type: boolean
@@ -133,10 +137,15 @@ jobs:
       - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
         env:
           CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+          CONCORDIA_POOL_PREFIX: ${{ inputs.concordia_pool_prefix }}
         shell: bash
         run: |
           selected=()
           if test -n "$CONCORDIA_OBSERVER_SOURCE"; then selected=(--observer-source "$CONCORDIA_OBSERVER_SOURCE"); fi
+          if test "$CONCORDIA_POOL_PREFIX" = true; then
+            test -n "$CONCORDIA_OBSERVER_SOURCE"
+            selected+=(--pool-prefix)
+          fi
           .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study "${selected[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()

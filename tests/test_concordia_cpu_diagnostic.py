@@ -16,6 +16,186 @@ pytest.importorskip("resource")
 from scripts import diagnose_concordia_cpu as diagnostic  # noqa: E402
 
 
+def test_direct_span_preserves_exception_and_binds_the_actual_caller():
+    context = {"spans": [], "active_operation": "process"}
+    token = diagnostic.CURRENT.set(context)
+    marker = ValueError("original")
+    try:
+        with pytest.raises(ValueError) as observed:
+            diagnostic.observe_span(lambda: (_ for _ in ()).throw(marker), "_shutdown_pool")()
+    finally:
+        diagnostic.CURRENT.reset(token)
+    assert observed.value is marker
+    row, = context["spans"]
+    assert row["operation"] == "process" and row["error"] == "ValueError"
+    assert row["before"]["tid"] == row["after"]["tid"]
+    assert row["before"]["monotonic_ns"] <= row["after"]["monotonic_ns"]
+    assert row["before"]["thread_cpu_ns"] <= row["after"]["thread_cpu_ns"]
+
+
+def test_prefix_stops_before_any_run1_warm_case_and_preserves_earlier_failures():
+    calls = []
+
+    def warm(*args):
+        calls.append(args[-1])
+        return "forwarded"
+
+    wrapped = diagnostic.prefix_warm_case(warm)
+    report = {"samples": [{"pass": True}] * 20,
+              "deterministic_busy": [{"worker_observed": True}] * 2, "failures": []}
+    assert wrapped(report, None, None, None, None, None, 0) == "forwarded"
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        wrapped(report, None, None, None, None, None, 1)
+    assert stopped.value.reason == "TARGET_PREFIX_COMPLETE" and calls == [0]
+    report["failures"].append("original_failure")
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        wrapped(report, None, None, None, None, None, 1)
+    assert stopped.value.reason == "APPLICATION_FAILURE"
+    assert report["failures"] == ["original_failure"] and calls == [0]
+
+
+@pytest.mark.parametrize("change,reason", [
+    ("missing_case", "INCOMPLETE_PREFIX"), ("missing_concurrency", "MISSING_CONCURRENCY"),
+])
+def test_prefix_refuses_incomplete_boundary(change, reason):
+    report = {"samples": [{}] * 20, "deterministic_busy": [{"worker_observed": True}] * 2}
+    if change == "missing_case":
+        report["samples"].pop()
+    else:
+        report["deterministic_busy"] = [{"worker_observed": True}, {"worker_observed": False}]
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_warm_case(lambda *a: pytest.fail("must stop"))(
+            report, None, None, None, None, None, 1)
+    assert stopped.value.reason == reason
+
+
+def test_prefix_self_test_retains_failed_evidence():
+    class Evidence:
+        result = "FAILED"
+
+        def public_record(self):
+            return {"result": self.result, "original": "preserved"}
+
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_self_test(lambda: Evidence())()
+    assert stopped.value.reason == "SELF_TEST_FAILED"
+    assert stopped.value.evidence == {"result": "FAILED", "original": "preserved"}
+
+
+def test_prefix_environment_omits_operator_credentials_without_changing_host_home(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "synthetic-private")
+    monkeypatch.setenv("HTTPS_PROXY", "synthetic-private-proxy")
+    original_home = os.environ.get("HOME")
+    environment = diagnostic.prefix_environment()
+    assert "GH_TOKEN" not in environment and "HTTPS_PROXY" not in environment
+    assert environment.get("HOME") == original_home == os.environ.get("HOME")
+    assert environment["PYTHONNOUSERSITE"] == "1"
+
+
+def test_prefix_worker_preserves_original_finalization_and_partial_network_gate(
+    tmp_path, monkeypatch
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    finalized = []
+
+    def evaluate(report):
+        report.update(status="FAIL", gates={"retained": "FAIL"})
+        return report
+
+    def measure(artifacts, output):
+        report = {"samples": [{"pass": True, "total_seconds": 1, "memory": {"peak_rss": 1}}] * 20,
+                  "deterministic_busy": [{"worker_observed": True}] * 2, "failures": []}
+        try:
+            qualify_ai_runtime.measure_warm_case(report, None, None, None, None, None, 1)
+            pytest.fail("prefix must not execute run1 warm case")
+        finally:
+            finalized.append(True)
+            qualify_ai_runtime.evaluate(report)
+            output.write_text(json.dumps(report))
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    monkeypatch.setattr(qualify_ai_runtime, "evaluate", evaluate)
+    diagnostic.worker(root, tmp_path, tmp_path, mode="boundary", pool_accounting=True,
+                      pool_prefix=True)
+    assert finalized == [True]
+    report = json.loads((tmp_path / "report-before-observer.json").read_text())
+    assert report["instrumented_evaluated_status"] == "FAIL"
+    assert report["gates"] == {"retained": "FAIL"}
+    state = json.loads((tmp_path / "prefix-state.json").read_text())
+    assert state["stop"] == "TARGET_PREFIX_COMPLETE"
+    diagnostic.observe(root, tmp_path)
+    observed = json.loads((tmp_path / "report.json").read_text())
+    assert observed["network"] == "NOT_RUN"
+    assert observed["network_observation"]["complete_phases"] is False
+    assert observed["qualification_eligible"] is False
+
+
+@pytest.mark.parametrize("mode,pool", [("legacy", True), ("extended", True), ("boundary", False)])
+def test_prefix_requires_its_observation_contract_before_source_import(tmp_path, mode, pool):
+    with pytest.raises(ValueError, match="boundary accounting"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, mode=mode,
+                          pool_accounting=pool, pool_prefix=True)
+
+
+def test_prefix_requires_explicit_current_source_before_acquisition(tmp_path):
+    with pytest.raises(ValueError, match="explicit observer source"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       observer_study=True, pool_prefix=True)
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("defect", [None, "network_claim", "network_call", "span", "tid", "exit"])
+def test_prefix_collection_never_promotes_partial_or_missing_observations(tmp_path, defect):
+    counter = {"schedstat": "1 0 1", "io": "rchar: 0"}
+    rows = []
+    for index in range(5):
+        operations, spans = [], []
+        for name in ["submit", "process"]:
+            boundary = {"tasks": [{"role": "parent", "tid": 42, **counter}]}
+            operations.append({"operation": name,
+                "before": {"tid": 42, "monotonic_ns": 100},
+                "after": {"tid": 42, "monotonic_ns": 900},
+                "boundary_before": boundary, "boundary_after": boundary})
+            for method in ["_prepare", "_publish_entries", "_shutdown_pool"]:
+                spans.append({"span": method, "operation": name,
+                              "before": {"tid": 42, "monotonic_ns": 200},
+                              "after": {"tid": 42, "monotonic_ns": 300}})
+        rows.append({"probe_id": index + 1, "operations": operations, "spans": spans,
+                     "pool_tasks": [{"counters_before": counter, "counters_after": counter}]})
+    report = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
+              "instrumented_evaluated_status": "FAIL", "failures": [],
+              "network": "NOT_RUN", "network_observation": {"complete_phases": False},
+              "deterministic_idle": [{"preserved": True, "search_found": True}] * 3,
+              "deterministic_busy": [{"preserved": True, "search_found": True,
+                                      "worker_observed": True}] * 2,
+              "samples": [{"pass": True}] * 20, "worker_pids": [42]}
+    trace = "1.000000 +++ exited with 0 +++\n"
+    if defect == "network_claim":
+        report["network"] = "PASS"
+    elif defect == "network_call":
+        trace = "1.000000 socket(AF_INET, SOCK_STREAM, 0) = 3\n" + trace
+    elif defect == "span":
+        rows[0]["spans"].pop()
+    elif defect == "tid":
+        rows[0]["spans"][0]["after"]["tid"] = 99
+    elif defect == "exit":
+        trace = ""
+    (tmp_path / "report.json").write_text(json.dumps(report))
+    (tmp_path / "prefix-state.json").write_text(json.dumps({"stop": "TARGET_PREFIX_COMPLETE"}))
+    (tmp_path / "probe-accounting.jsonl").write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n")
+    (tmp_path / "network.42").write_text(trace)
+    result = diagnostic.inspect_prefix(tmp_path)
+    assert result["status"] == ("INCOMPLETE" if defect else "PREFIX_COLLECTION_COMPLETE")
+    assert result["qualification_eligible"] is False
+    assert result["full_phase_network_gate"] == "NOT_RUN"
+    assert result["original_partial_evaluated_status"] == "FAIL"
+
+
 def test_failed_gate_survives_every_observer_evaluation():
     def evaluate(report):
         report["gates"] = {"s06_governed": "FAIL"}

@@ -684,3 +684,59 @@ component or prove historical causality. No reproduced relevant failure leaves
 the finding CURRENT/NOT_DEMONSTRATED. Any demonstrated PRODUCT correction needs
 its normal qualification, merge and actual-main acceptance before S08. Manual
 methods remain DEFERRED_BY_MAINTAINER/NOT_RUN until completed/released0.15.
+
+## Direct pool timing on the original S07 prefix (5 November 2026)
+
+The original scored failure remains run41928461608/attempt1/job126918981396,
+Capture0.467447869s against its own0.409724258s limit. The completed source and
+observer comparisons are non-reproductions; no later PASS accepts that main.
+
+The optional post-score cProfile data cannot establish caller-only attribution.
+The distinct profiled busy901 includes other-thread functions and reports
+posix.fsync own235.55ms above cumulative180.92ms. One synchronized marker control
+on CPython3.12.14 confirms that a parent's Profile.runcall includes a function
+executed only by its child TID. The profiler implementation uses global monitoring
+callbacks and one shared context. These observations do not measure the original
+failed interval. Its scored timing precedes the optional profile, so this diagnostic
+limitation does not explain or clear the original CPU failure.
+
+The new hypothesis is narrower: extra Capture time is spent inside the actual
+caller-bound transaction-pool shutdown, rather than preparation/publication or
+other serial work. Direct monotonic/thread/process CPU envelopes around `_prepare`,
+`_publish_entries` and `_shutdown_pool` distinguish those intervals without a
+cross-thread profile stack. Both existing operation boundaries and pool-task
+counters survive. All original durability calls, payloads and timers remain;
+observer time is retained, never subtracted. Nested intervals must not be added.
+
+One local prefix control stopped during its first native self-test at the original
+60-second request limit, before any concurrent Capture probe. Its three idle
+probes and partial original FAIL survive. Native exit was observed. Its trace also
+contains successful AF_UNIX socket creation with failed nscd connections in the
+parent bootstrap; the original network rule does not accept these calls. No local
+retry or higher deadline follows. This is neither a CPU reproduction nor a main
+acceptance result.
+
+The supported CI observer study gains `concordia_pool_prefix=true`, requiring its
+existing explicit observer-study flag and full fetched-main source SHA. Admission
+and focused controls precede acquisition. The qualifying `measure` job is byte-
+identical. This mode executes exactly one source/prefix: three idle probes;
+run0 self-test/busy0 and all20 original warm corpus cases; run1 self-test/busy1;
+then stop before its first warm case. The unchanged qualifier finalizes its partial
+report and closes native resources. The process remains bounded at1200seconds,
+with canonical request and observation limits unchanged; no extra arm or retry.
+
+The measurement child receives only inherited path/home/locale/temp selectors,
+with user site disabled; credentials and proxy headers are excluded. It keeps the
+original native containment and all-thread network-only strace through exit.
+The original full-phase network evaluator necessarily stays NOT_RUN because the
+prefix omits later phases. Collection additionally requires five complete probe
+records, exact caller-bound method spans, observed native exits, retained Original
+and search results, concurrent workers, twenty original warm cases and no unexpected
+raw network calls. Collection success remains DIAGNOSTIC_ONLY with the original
+partial evaluator verdict and every gate intact. It is never product qualification.
+
+This one CI execution addresses the local host's failure to reach the target
+interval; it cannot reconstruct historical scheduler or I/O observations. A
+non-reproduction leaves the finding CURRENT/NOT_DEMONSTRATED. Any genuine correction
+still needs its appropriate owner, normal qualification and actual-main acceptance
+before S08. Version0.14.0/development, Protocol pin and deferred human methods remain.
