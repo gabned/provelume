@@ -643,12 +643,12 @@ def prefix_warm_case(original):
     def wrapped(report, store, runtime, selection, evidence, case, run):
         if report.get("failures"):
             raise PrefixStop("APPLICATION_FAILURE")
+        busy = report.get("deterministic_busy", [])
+        if not busy or not all(row.get("worker_observed") for row in busy):
+            raise PrefixStop("MISSING_CONCURRENCY")
         if run == 1:
-            busy = report.get("deterministic_busy", [])
             if len(report.get("samples", [])) != 20 or len(busy) != 2:
                 raise PrefixStop("INCOMPLETE_PREFIX")
-            if not all(row.get("worker_observed") for row in busy):
-                raise PrefixStop("MISSING_CONCURRENCY")
             raise PrefixStop("TARGET_PREFIX_COMPLETE")
         result = original(report, store, runtime, selection, evidence, case, run)
         if report.get("failures") or not report["samples"][-1]["pass"]:

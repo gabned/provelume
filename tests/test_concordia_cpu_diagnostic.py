@@ -42,8 +42,9 @@ def test_prefix_stops_before_any_run1_warm_case_and_preserves_earlier_failures()
 
     wrapped = diagnostic.prefix_warm_case(warm)
     report = {"samples": [{"pass": True}] * 20,
-              "deterministic_busy": [{"worker_observed": True}] * 2, "failures": []}
+              "deterministic_busy": [{"worker_observed": True}], "failures": []}
     assert wrapped(report, None, None, None, None, None, 0) == "forwarded"
+    report["deterministic_busy"].append({"worker_observed": True})
     with pytest.raises(diagnostic.PrefixStop) as stopped:
         wrapped(report, None, None, None, None, None, 1)
     assert stopped.value.reason == "TARGET_PREFIX_COMPLETE" and calls == [0]
@@ -52,6 +53,15 @@ def test_prefix_stops_before_any_run1_warm_case_and_preserves_earlier_failures()
         wrapped(report, None, None, None, None, None, 1)
     assert stopped.value.reason == "APPLICATION_FAILURE"
     assert report["failures"] == ["original_failure"] and calls == [0]
+
+
+@pytest.mark.parametrize("busy", [[], [{"worker_observed": False}]])
+def test_prefix_stops_before_run0_warm_work_if_first_concurrency_is_missing(busy):
+    report = {"samples": [], "deterministic_busy": busy, "failures": []}
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_warm_case(lambda *a: pytest.fail("must not start warm work"))(
+            report, None, None, None, None, None, 0)
+    assert stopped.value.reason == "MISSING_CONCURRENCY" and not report["samples"]
 
 
 @pytest.mark.parametrize("change,reason", [
