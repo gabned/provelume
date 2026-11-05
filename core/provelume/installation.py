@@ -1250,13 +1250,15 @@ def _apply_release_linkage(
         linked["reason"] = (
             "Installed package files differ from the verified release wheel."
         )
-    elif linkage_status == "verification_unavailable":
-        if linked["status"] != "modified_installation":
-            linked["status"] = "verification_unavailable"
-            linked["integrity"]["verified"] = False
-            linked["reason"] = (
-                "Release-wheel linkage could not be verified completely and safely."
-            )
+    elif (
+        linkage_status == "verification_unavailable"
+        and linked["status"] != "modified_installation"
+    ):
+        linked["status"] = "verification_unavailable"
+        linked["integrity"]["verified"] = False
+        linked["reason"] = (
+            "Release-wheel linkage could not be verified completely and safely."
+        )
 
     anchored = bool(linked["release_linkage"]["bundle"]["externally_anchored"])
     if linkage_status == "verified" and linked["status"] == "package_integrity_verified":
