@@ -35,6 +35,43 @@ automatic retry. No exceedance means NON_REPRODUCTION. Instrumented observations
 remain DIAGNOSTIC_ONLY and cannot establish product qualification, close either
 finding or accept main. Normal `measure` remains byte-identical to main.
 
+## Common observation bundle contrast (6 November 2026)
+
+The [predeclared hypothesis](https://github.com/gabned/provelume/pull/439#issuecomment-6679055237)
+addresses a factor shared by every previous rich arm: pool-task wrapping and
+boundary accounting can alter the schedule and the idle-derived budget. The
+ordinary current Capture limit was 0.400895138 s; the previous rich observation's
+limit was 0.510410192 s on a different host. This difference does not establish
+an observer effect or a CPU cause. The original and later ordinary FAILs remain
+CURRENT; neither previous comparison is repeated.
+
+The explicit `concordia_clock_bundle=true` input requires observer-study mode and
+an admitted exact fetched-main SHA, and excludes prefix/standalone caller-span
+options. One existing hosted job runs one fixed A/B block:
+
+1. **Caller clocks only:** direct wall/process/thread clocks around submit/process
+   and the same three transaction methods. No pool-task wrapper, diagnostic `/proc` reads,
+   durability wrapper or sampler. Absent kernel counters are marked NOT_COLLECTED.
+2. **Rich common bundle:** existing boundary/pool/durability accounting and direct
+   method spans. All existing counter-completeness checks remain mandatory.
+
+Both arms use exact main1711, fresh equal-depth processes/stores, identical original
+cases, locked inputs, admission/placement, evaluators and thresholds. Both use the
+qualifying workflow's original network-only `strace -ff -tt` options, without the
+optional syscall-time flag. This holds the tracer constant inside this new pair.
+Every arm needs 25 probes, 50 operations, 150 same-caller method spans, retained
+concurrency/non-timing conjuncts, original complete network observation and native
+exits. Light collection cannot masquerade as rich counters or qualify the product.
+
+The unchanged 1200 s per-arm, 60 s observation and 85 min job bounds apply.
+Acquisition/source/application/network/collection/non-timing errors stop subsequent
+arms. A target timing FAIL survives and permits only the already declared B arm.
+There is no reverse order, third arm or automatic retry. Both reports remain
+DIAGNOSTIC_ONLY with their original PASS/FAIL gates. One pair cannot rule out
+time/cache/host drift, separate each observer component or prove historical cause.
+No reproduced relevant failure means NON_REPRODUCTION. No source correction,
+finding resolution, main acceptance, S08 or release follows without its own gates.
+
 Historical S01 owner: PR #424, `concordia-s01-readiness`. The original binding remains
 `1ba49ad7a9bbaa1639126c078bc59dfecf0dcafc8db38b78ce84a588558ee0a6`.
 This experiment does not qualify an application candidate or close a finding.

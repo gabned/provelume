@@ -33,6 +33,119 @@ def test_direct_span_preserves_exception_and_binds_the_actual_caller():
     assert row["before"]["thread_cpu_ns"] <= row["after"]["thread_cpu_ns"]
 
 
+def test_clock_only_worker_keeps_real_capture_and_original_failure_without_rich_hooks(
+    tmp_path, monkeypatch
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    from provelume.service import ProvelumeInstance
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("clock-only arm must not invoke the common rich observer bundle")
+
+    for name in ["accounting", "BoundaryCounters", "pool_observer", "durability_observer"]:
+        monkeypatch.setattr(diagnostic, name, forbidden)
+
+    def measure(artifacts, output):
+        instance = ProvelumeInstance.initialise(artifacts / "instance")
+        probe = qualify_ai_runtime.deterministic_probe(instance, 0)
+        return qualify_ai_runtime.evaluate({"samples": [], "deterministic_idle": [probe],
+                                            "failures": ["original failure retained"]})
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    output = tmp_path / "output"
+    output.mkdir()
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode="boundary",
+                      caller_spans=True, clock_only=True)
+    report = json.loads((output / "report-before-observer.json").read_text())
+    assert report["status"] == "DIAGNOSTIC_ONLY"
+    assert report["instrumented_evaluated_status"] == "FAIL"
+    assert report["failures"] == ["original failure retained"]
+    probe, = report["deterministic_idle"]
+    assert probe["preserved"] and probe["search_found"]
+    row = probe["diagnostic_timeline"]
+    assert row["counter_collection"] == "NOT_COLLECTED / CLOCK_ONLY"
+    assert not any(k in row for k in ["durability", "pool_tasks", "boundary_inventory"])
+    assert len(row["operations"]) == 2 and len(row["spans"]) == 6
+    assert diagnostic.method_span_errors([row]) == []
+    assert not (output / "timeline.jsonl").exists()
+
+
+@pytest.mark.parametrize("options", [
+    {}, {"caller_spans": True, "pool_accounting": True},
+    {"caller_spans": True, "pool_prefix": True},
+    {"caller_spans": True, "placement": "same_logical"},
+])
+def test_clock_only_refuses_other_collection_contracts_before_import(tmp_path, options):
+    with pytest.raises(ValueError, match="isolated caller clocks"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, mode="boundary", clock_only=True,
+                          **options)
+
+
+@pytest.mark.parametrize("prefix,caller,source", [
+    (False, False, None), (True, False, "a" * 40), (False, True, "a" * 40),
+])
+def test_clock_bundle_requires_its_own_single_source_admission(tmp_path, prefix, caller, source):
+    with pytest.raises(ValueError, match="own explicit full observer source"):
+        diagnostic.run(tmp_path, tmp_path, tmp_path / "new", observer_study=True,
+                       observer_revision=source, pool_prefix=prefix, caller_spans=caller,
+                       clock_bundle=True)
+    assert not (tmp_path / "new").exists()
+
+
+@pytest.mark.parametrize("defect", [None, "probe", "span", "tid", "cpu", "counter", "exit",
+                                   "network", "qualified", "boundary"])
+def test_clock_collection_retains_failed_gates_and_refuses_missing_observations(tmp_path, defect):
+    def point(n):
+        return dict(monotonic_ns=n, process_cpu_ns=n, thread_cpu_ns=n, tid=42)
+
+    rows = []
+    for i in range(25):
+        ops, spans = [], []
+        for name, n in [("submit", 100), ("process", 500)]:
+            ops.append(dict(operation=name, before=point(n), after=point(n + 300)))
+            spans.extend(dict(operation=name, span=method, before=point(n + 50),
+                              after=point(n + 100)) for method in
+                         ["_prepare", "_publish_entries", "_shutdown_pool"])
+        rows.append(dict(probe_id=i + 1, counter_collection="NOT_COLLECTED / CLOCK_ONLY",
+                         before=point(0), after=point(1000), operations=ops, spans=spans))
+    report = dict(status="DIAGNOSTIC_ONLY", qualification_eligible=False,
+                  instrumented_evaluated_status="FAIL", network="PASS", worker_pids=[42],
+                  gates={"s06_governed": "FAIL"})
+    if defect == "probe":
+        rows.pop()
+    elif defect == "span":
+        rows[0]["spans"].pop()
+    elif defect == "tid":
+        rows[0]["spans"][0]["after"]["tid"] = 43
+    elif defect == "cpu":
+        rows[0]["operations"][0]["after"]["thread_cpu_ns"] = 0
+    elif defect == "counter":
+        rows[0]["pool_tasks"] = []
+    elif defect == "network":
+        report["network"] = "NOT_RUN"
+    elif defect == "qualified":
+        report["qualification_eligible"] = True
+    elif defect == "boundary":
+        rows[0]["operations"][0]["boundary_before"] = {}
+    (tmp_path / "report.json").write_text(json.dumps(report))
+    (tmp_path / "probe-accounting.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "network.42").write_text("" if defect == "exit" else "+++ exited with 0 +++\n")
+    if defect:
+        with pytest.raises(ValueError):
+            diagnostic.verify_caller_collection(tmp_path, clock_only=True)
+    else:
+        result = diagnostic.verify_caller_collection(tmp_path, clock_only=True)
+        assert result["qualification_eligible"] is False
+        assert result["probes"] == 25 and result["method_spans"] == 150
+        original = json.loads((tmp_path / "report.json").read_text())
+        assert original["gates"] == {"s06_governed": "FAIL"}
+
+
 def test_prefix_stops_before_any_run1_warm_case_and_preserves_earlier_failures():
     calls = []
 

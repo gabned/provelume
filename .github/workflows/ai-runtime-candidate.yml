@@ -25,6 +25,10 @@ on:
         description: 'With observer study and exact main: one full nonqualifying caller-span sequence'
         type: boolean
         default: false
+      concordia_clock_bundle:
+        description: 'With observer study and exact main: one fixed nonqualifying light/rich pair'
+        type: boolean
+        default: false
       concordia_tracer_study:
         description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
         type: boolean
@@ -143,6 +147,7 @@ jobs:
           CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
           CONCORDIA_POOL_PREFIX: ${{ inputs.concordia_pool_prefix }}
           CONCORDIA_CALLER_SPANS: ${{ inputs.concordia_caller_spans }}
+          CONCORDIA_CLOCK_BUNDLE: ${{ inputs.concordia_clock_bundle }}
         shell: bash
         run: |
           selected=()
@@ -155,6 +160,12 @@ jobs:
             test -n "$CONCORDIA_OBSERVER_SOURCE"
             test "$CONCORDIA_POOL_PREFIX" != true
             selected+=(--caller-spans)
+          fi
+          if test "$CONCORDIA_CLOCK_BUNDLE" = true; then
+            test -n "$CONCORDIA_OBSERVER_SOURCE"
+            test "$CONCORDIA_POOL_PREFIX" != true
+            test "$CONCORDIA_CALLER_SPANS" != true
+            selected+=(--clock-bundle)
           fi
           .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study "${selected[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
