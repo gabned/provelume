@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import sys
 from pathlib import Path
 
 import pytest
@@ -49,12 +50,22 @@ def test_admission_drift_refuses_before_consumption(tmp_path, field):
     assert not path.exists()
 
 
-def test_visible_cgroup_root_without_limit_files_is_recorded_explicitly(tmp_path):
+@pytest.mark.parametrize("location", ["provided", pytest.param("native", marks=pytest.mark.skipif(
+    sys.platform != "linux", reason="Linux mountinfo and cgroup v2 filesystem semantics"))])
+def test_visible_cgroup_root_without_limit_files_is_recorded_explicitly(
+    tmp_path, monkeypatch, location,
+):
+    from provelume import ai_runtime_resources
+
     proc, mount = tmp_path / "proc", tmp_path / "cgroup"
     (proc / "self").mkdir(parents=True)
     mount.mkdir()
     (proc / "self/cgroup").write_text("0::/\n")
     (proc / "self/mountinfo").write_text(f"1 0 0:1 / {mount} rw - cgroup2 cgroup rw\n")
+    if location == "provided":
+        # The observational branch is portable; Linux mountinfo parsing has its
+        # own native case. A Windows drive path is not a Linux mountpoint.
+        monkeypatch.setattr(ai_runtime_resources, "_location", lambda proc: (mount, mount))
     (mount / "cgroup.controllers").write_text("cpu memory cpuset\n")
     observed = comparison.resource_coordinates(proc)
     root, = observed["visible_ancestors"]

@@ -905,3 +905,18 @@ still fail in the unchanged native validator. This corrects pre-execution host
 observation without changing the source factor, limits or planned experiment.
 The unexecuted block requires one new exact-head admission; the failed run is
 preserved. The superseded local full suite was interrupted, not passed.
+
+Native Windows CI on head 358a194 retained one new fixture failure in run
+42290029381 / job 128141198672, followed by the correctly blocked aggregator
+128145962305. The fixture encoded its Windows drive path as a Linux mountinfo
+mountpoint; the unchanged parser rejects that non-Posix-absolute input. The same
+rejection is independently reproduced by passing a synthetic drive path to the
+original parser. Artifact 13539912375 preserves the failed shard, SHA-256
+`ac97504586c9cdf797dcee9ee65408425f3fb8d09f56ff5485d7594f849fd178`.
+The correction retains a physical Linux mountinfo case under its actual platform
+condition and adds a portable provided-root case with the same assertions. It
+changes no PRODUCT byte, native admission rule or existing Windows check. The
+one already executing source-factor block remains bound to its frozen driver
+358a194 and immutable A/B; it is not redispatched for this test-only correction.
+The newer qualification head requires its own complete checks; no earlier PASS
+is transferred. All manual observations retain their deferred status.
