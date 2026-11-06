@@ -859,3 +859,35 @@ candidate's complete native/CI/original-artifact/review/preflight gates remain
 required. Manual methods are DEFERRED_BY_MAINTAINER / NOT_RUN until the completed
 official release on the maintainer's Windows 11 Pro 25H2 PC. No intermediate
 installation, S07/S08 acceptance, S09 start, final identity or publication follows.
+
+### Component result and one native comparison
+
+The declared local block completed once on CPython 3.12.14. Both separate count
+probes made 38 `_safe` calls: A performed 412 Python lstat calls, B performed zero.
+All 24 timed preservation/search observations and all six network observations
+passed. A/B/B/A Capture medians were 186.611/160.279/169.043/183.422 ms; maxima
+were 196.886/189.538/184.188/193.947 ms. Original report SHA-256 is
+`d652dd560b6da50f7d09df33d26d18c082ca8da685c3beea7b4431bdfc25a8ce`.
+The immutable B is `d7368ccfcc869afd677e8d881c943b34b2e69de1`, sole child of A.
+This establishes a component mechanism/effect, not a failing native reproducer.
+
+The one new native source-factor block uses `compare_capture_path_guard.py`.
+Dispatch the existing workflow once with `concordia_observer_study=true`, exact
+`concordia_observer_source=1711f037b1467d84eb5e145466dad6a6171643fc`, and
+`concordia_capture_guard=true`; all other diagnostic flags remain false.
+The ordinary qualifying measure is byte-identical, and no previous study runs.
+Admission proves both immutable source trees, the exact single PRODUCT factor,
+unchanged qualification/dependency inputs, actual hardware, positive scheduler
+control and real all-thread tracing before model acquisition. A changed main,
+source, host or locked input stops execution. One admission is consumed once.
+
+Run exactly A/B/B/A, full original sequences, fresh equal-depth processes/stores,
+inherited placement, identical original network-only strace and original per-arm
+idle-derived gates. No pool/accounting/profiler hooks, BPF, added load or adjusted
+limits. Keep original reports before/after the original external network observer,
+every tracee exit, log and failed gate. The existing disposable timing projection
+checks only non-timing stop conditions; it never replaces qualification evidence.
+The 1200-second arm, 60-second observation and 85-minute total bounds remain.
+Source/input/host drift, application/network/collection/non-timing failures stop
+subsequent arms. No extra/reverse/retry block follows any result. A non-reproduction
+leaves the findings CURRENT; a later green alone cannot establish correction.
