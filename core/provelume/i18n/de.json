@@ -2528,5 +2528,22 @@
   "setup.kit_integrity": "Archiv und Manifest passen zum gewählten Beleg oder ausdrücklichen Fingerabdruck und zu diesem Build. Die Herausgeberauthentizität ist nicht unabhängig belegt. Die Installation prüft weiterhin jede Komponente; diese Vorschau installiert nichts.",
   "setup.error.setup_kit_authority_required": "Wähle entweder den passenden Release-Beleg oder die unabhängig geprüfte veröffentlichte SHA-256 und prüfe dann das Kit. Gib nicht beides an.",
   "setup.pause_review": "Erfassung pausieren und übrige Änderungen prüfen",
-  "setup.pause_review_help": "Wenn andere Einstellungen während eines teilweisen Anwendens geändert wurden, pausiert diese ausdrückliche Aktion die Quelle. Gespeicherte Einstellungen, Komponenten und erfasste Dokumente bleiben erhalten. Prüfe die aktuelle Auswahl und starte bei Bedarf einen neuen begrenzten Test; andere Quellen bleiben unverändert."
+  "setup.pause_review_help": "Wenn andere Einstellungen während eines teilweisen Anwendens geändert wurden, pausiert diese ausdrückliche Aktion die Quelle. Gespeicherte Einstellungen, Komponenten und erfasste Dokumente bleiben erhalten. Prüfe die aktuelle Auswahl und starte bei Bedarf einen neuen begrenzten Test; andere Quellen bleiben unverändert.",
+  "search.edit": "Suche bearbeiten",
+  "search.remove_filters": "Filter entfernen, Suchwörter behalten",
+  "search.type_details": "Dateitypdetails (MIME)",
+  "search.type.pdf": "PDF",
+  "search.type.text": "Text",
+  "search.type.markdown": "Markdown",
+  "search.type.web": "Webseite",
+  "search.type.document": "Dokument",
+  "search.type.spreadsheet": "Tabelle",
+  "search.type.presentation": "Präsentation",
+  "search.type.image": "Bild",
+  "search.type.audio": "Audio",
+  "search.type.video": "Video",
+  "search.type.archive": "Archiv",
+  "search.type.email": "E-Mail",
+  "search.type.other": "Andere Datei",
+  "search.type.format": "{kind} ({format})"
 }

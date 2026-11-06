@@ -2528,5 +2528,22 @@
   "setup.kit_integrity": "O arquivo e o manifesto correspondem ao recibo ou à impressão digital explícita escolhida e a esta compilação. A autenticidade do editor não é estabelecida de forma independente. A instalação verifica cada componente; esta pré-visualização não instala nada.",
   "setup.error.setup_kit_authority_required": "Selecione o recibo da versão correspondente ou o SHA-256 publicado verificado de forma independente, depois inspecione o kit. Não forneça ambos.",
   "setup.pause_review": "Pausar a aquisição e rever as alterações restantes",
-  "setup.pause_review_help": "Se outras definições mudaram durante uma aplicação parcial, esta ação explícita pausa a origem. Mantém definições guardadas, componentes e Documentos adquiridos. Reveja as opções atuais e faça um novo teste limitado quando necessário; as outras origens não mudam."
+  "setup.pause_review_help": "Se outras definições mudaram durante uma aplicação parcial, esta ação explícita pausa a origem. Mantém definições guardadas, componentes e Documentos adquiridos. Reveja as opções atuais e faça um novo teste limitado quando necessário; as outras origens não mudam.",
+  "search.edit": "Editar pesquisa",
+  "search.remove_filters": "Remover filtros e manter as palavras",
+  "search.type_details": "Detalhes do tipo (MIME)",
+  "search.type.pdf": "PDF",
+  "search.type.text": "Texto",
+  "search.type.markdown": "Markdown",
+  "search.type.web": "Página Web",
+  "search.type.document": "Documento",
+  "search.type.spreadsheet": "Folha de cálculo",
+  "search.type.presentation": "Apresentação",
+  "search.type.image": "Imagem",
+  "search.type.audio": "Áudio",
+  "search.type.video": "Vídeo",
+  "search.type.archive": "Arquivo",
+  "search.type.email": "Email",
+  "search.type.other": "Outro ficheiro",
+  "search.type.format": "{kind} ({format})"
 }

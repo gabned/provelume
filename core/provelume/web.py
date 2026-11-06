@@ -710,6 +710,7 @@ def create_app(
     ):
         from .instance_lifecycle import InstanceLifecycleBusy
         from .search_input import search_page_inputs
+        from .search_presentation import media_type_label, type_options
 
         inputs = search_page_inputs(q, date_from, date_to)
         effective_query = inputs["q"]
@@ -731,24 +732,32 @@ def create_app(
                 # A cold/stale index needs a writer. Keep read-only navigation
                 # available while another owner finishes; never imply zero hits.
                 search_pending = True
+        context = _context(
+            request,
+            instance,
+            include_summary=(bool(effective_query) and not inputs["search_errors"]
+                             and not search_pending),
+            retrieval_values=retrieval_values,
+            **inputs,
+            results=results,
+            search_pending=search_pending,
+            sources=instance.list_sources(),
+            media_types=instance.media_types(),
+            selected_source=source_id,
+            selected_media_type=media_type,
+        )
+        context["search_type_options"] = type_options(
+            context["media_types"], media_type, context["t"])
+        context["search_has_filters"] = any(
+            item["key"] in {"source_id", "media_type", "date_from", "date_to"}
+            for item in context["active_filters"])
+        for item in context["active_filters"]:
+            if item["key"] == "media_type":
+                item["technical_value"] = item["value"]
+                item["value"] = media_type_label(item["value"], context["t"])
         return _page(
-            request=request,
-            name="search.html",
+            request=request, name="search.html", context=context,
             status_code=400 if inputs["search_errors"] else 200,
-            context=_context(
-                request,
-                instance,
-                include_summary=(bool(effective_query) and not inputs["search_errors"]
-                                 and not search_pending),
-                retrieval_values=retrieval_values,
-                **inputs,
-                results=results,
-                search_pending=search_pending,
-                sources=instance.list_sources(),
-                media_types=instance.media_types(),
-                selected_source=source_id,
-                selected_media_type=media_type,
-            ),
         )
 
     @app.get("/management")
