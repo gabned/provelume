@@ -891,3 +891,17 @@ The 1200-second arm, 60-second observation and 85-minute total bounds remain.
 Source/input/host drift, application/network/collection/non-timing failures stop
 subsequent arms. No extra/reverse/retry block follows any result. A non-reproduction
 leaves the findings CURRENT; a later green alone cannot establish correction.
+
+The first native dispatch, run 42289279809 / attempt 1 / job 128138149298,
+stopped in admission before model acquisition or any arm. The reused cloud-only
+environment helper assumed `/sys/fs/cgroup/cpu.max` exists at the mount root;
+this hosted runner lacks that optional root file. Ruff and all 27 focused controls
+passed before the failure. Artifact 13539111230 retains the original refusal,
+SHA-256 `7f14cd52d3a89f6bc35c69c7b18bcfa6c681c979997a6052bd53b8687f35f634`.
+The new driver now uses the adopted native resource admission and its actual
+visible cgroup membership/ancestors. Absent root limit files remain explicitly
+NOT_PRESENT; unmounted ancestors remain NOT_OBSERVED. Missing applicable limits
+still fail in the unchanged native validator. This corrects pre-execution host
+observation without changing the source factor, limits or planned experiment.
+The unexecuted block requires one new exact-head admission; the failed run is
+preserved. The superseded local full suite was interrupted, not passed.

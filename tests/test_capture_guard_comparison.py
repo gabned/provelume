@@ -47,3 +47,35 @@ def test_admission_drift_refuses_before_consumption(tmp_path, field):
     with pytest.raises(ValueError, match="changed after admission"):
         comparison.consume(changed, source, environment, path)
     assert not path.exists()
+
+
+def test_visible_cgroup_root_without_limit_files_is_recorded_explicitly(tmp_path):
+    proc, mount = tmp_path / "proc", tmp_path / "cgroup"
+    (proc / "self").mkdir(parents=True)
+    mount.mkdir()
+    (proc / "self/cgroup").write_text("0::/\n")
+    (proc / "self/mountinfo").write_text(f"1 0 0:1 / {mount} rw - cgroup2 cgroup rw\n")
+    (mount / "cgroup.controllers").write_text("cpu memory cpuset\n")
+    observed = comparison.resource_coordinates(proc)
+    root, = observed["visible_ancestors"]
+    assert root["limits"] == {name: {"status": "NOT_PRESENT"} for name in
+                              ("cpu.max", "memory.max", "cpuset.cpus.effective")}
+    assert observed["unmounted_ancestors"] == "NOT_OBSERVED"
+    (mount / "cpu.max").write_text("400000 100000\n")
+    assert comparison.resource_coordinates(proc) != observed
+
+
+def test_native_resource_refusal_precedes_environment_observation(monkeypatch):
+    from provelume import ai_runtime_contract
+    from provelume.ai_models import ModelError
+
+    def refuse():
+        raise ModelError("compatibility")
+
+    def unexpected():
+        pytest.fail("An inadmissible resource observation cannot become a host coordinate")
+
+    monkeypatch.setattr(ai_runtime_contract, "hardware", refuse)
+    monkeypatch.setattr(comparison, "resource_coordinates", unexpected)
+    with pytest.raises(ModelError):
+        comparison.environment()

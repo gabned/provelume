@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import platform
 import re
 import shutil
 import sys
@@ -36,6 +38,43 @@ def verify_factor(before, after, paths):
     if any(hashlib.sha256(value).hexdigest() != HASHES[revision]
            for revision, value in ((BASE, before), (CHANGE, after))):
         raise ValueError("Capture guard bytes differ from the declared factor")
+
+
+def resource_coordinates(proc=Path("/proc")):
+    """Record visible configuration; native hardware() independently admits it."""
+    from provelume.ai_runtime_resources import _location, _read
+
+    location = _location(proc)
+    if location is None:
+        return {"status": "NO_VISIBLE_V2_MEMBERSHIP", "unmounted_ancestors": "NOT_OBSERVED"}
+    mount, current = location
+    rows = []
+    while True:
+        if len(rows) >= 64:
+            raise ValueError("cgroup observation bound")
+        rows.append({"group": str(current.relative_to(mount)),
+                     "controllers": _read(current / "cgroup.controllers"),
+                     "limits": {name: _read(current / name) if (current / name).exists()
+                                else {"status": "NOT_PRESENT"} for name in
+                                ("cpu.max", "memory.max", "cpuset.cpus.effective")}})
+        if current == mount:
+            return {"visible_ancestors": rows, "unmounted_ancestors": "NOT_OBSERVED"}
+        current = current.parent
+
+
+def environment():
+    from provelume.ai_runtime_contract import hardware
+
+    native = hardware()  # Missing applicable limits still fail in the adopted validator.
+    cpus = sorted(os.sched_getaffinity(0))
+    return {"kernel": platform.release(), "machine": platform.machine(),
+            "python": platform.python_version(), "executable": sys.executable,
+            "allowed_cpus": cpus, "cpu_model": native["cpu"],
+            "logical_cpus": native["logical_cpus"], "ram_total": native["ram_total"],
+            "topology": {str(cpu): {name: Path(
+                f"/sys/devices/system/cpu/cpu{cpu}/topology", name).read_text().strip()
+                for name in ("physical_package_id", "core_id", "thread_siblings_list")}
+                for cpu in cpus}, "cgroup_configuration": resource_coordinates()}
 
 
 def sources(repository):
@@ -76,7 +115,7 @@ def admit(repository, output):
     receipt = {"schema": "concordia-capture-guard-admission/v1",
                "status": "CAPABILITY_MISSING", "qualification_eligible": False}
     try:
-        receipt.update(source=sources(repository), environment=common.environment(),
+        receipt.update(source=sources(repository), environment=environment(),
                        native_hardware=hardware())
         receipt["scheduler"] = calibrate_scheduler()
         if receipt["scheduler"]["status"] != "POSITIVE_RUNQUEUE_CONTROL":
@@ -122,7 +161,7 @@ def run(repository, inputs, admission_path, output):
         if (path.is_symlink() or path.stat().st_size != expected["size"]
                 or digest != expected["sha256"]):
             raise ValueError("locked native input mismatch: " + name)
-    consume(admission, source, common.environment(), admission_path.with_suffix(".started.json"))
+    consume(admission, source, environment(), admission_path.with_suffix(".started.json"))
     output.mkdir(parents=True, exist_ok=False)
     manifest = {"schema": "concordia-capture-guard-comparison/v1", "status": "RUNNING",
                 "qualification_eligible": False, "source": source, "admission": admission,
@@ -148,7 +187,7 @@ def run(repository, inputs, admission_path, output):
             for index, revision in enumerate(manifest["order"]):
                 remaining(1200)
                 if (sources(repository) != source
-                        or common.environment() != admission["environment"]):
+                        or environment() != admission["environment"]):
                     raise ValueError("source or host changed between arms")
                 arm_output = output / f"arm-{index}"
                 arm_output.mkdir()
