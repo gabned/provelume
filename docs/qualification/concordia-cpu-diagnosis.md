@@ -812,3 +812,50 @@ interval; it cannot reconstruct historical scheduler or I/O observations. A
 non-reproduction leaves the finding CURRENT/NOT_DEMONSTRATED. Any genuine correction
 still needs its appropriate owner, normal qualification and actual-main acceptance
 before S08. Version0.14.0/development, Protocol pin and deferred human methods remain.
+
+## Capture path-guard factor (6 November 2026)
+
+Owner remains #439 / `concordia-s07-cpu-recovery`, with its original BIND.
+Main is `1711f037b1467d84eb5e145466dad6a6171643fc`; immutable baseline A is
+`d5b2cc9f06c14be8c51a082d309dbde0358552e8`. The four original CPU findings
+remain CURRENT / NOT_DEMONSTRATED. All completed diagnostic stops remain binding.
+
+The new hypothesis concerns repeated Capture path validation under the mandatory
+network observer. A fixed local synthetic tracer control demonstrated that the
+ordinary network output filter still incurs unrelated filesystem syscall stops:
+10,000 stat calls took 354.420/358.792 ms and 20,002 voluntary switches per A arm,
+against 11.638/12.073 ms and zero voluntary switches with seccomp-BPF selection.
+This is a component observation, not attribution of the original failed samples.
+The control's all-thread socket cases also showed two missing denied calls under
+BPF. Therefore BPF adoption is REFUSED; the ordinary observer remains unchanged.
+The original statement of 34 inventory files in the PR comment was a count error;
+the actual retained inventory has 42 files. Raw report SHA-256 is
+`2550cf30fb049ca0d5b2e8c27aa64d14729c18c7f6dfbe14b5741562796f0a1e`.
+
+The separate proposed PRODUCT factor changes only `CaptureJournal._safe`:
+for absolute paths on supported Linux hosts, call the existing `kernel_no_links`
+helper once instead of walking every ancestor in Python. Every call freshly
+validates the complete existing prefix with NO_SYMLINKS/NO_MAGICLINKS. Unsafe
+kernel results fail closed; null bytes are rejected before the C interface.
+Unsupported kernels/hosts, Windows and relative paths retain the original walk.
+No path observation is cached. Existing pinned reads, identity/byte revalidation,
+atomic transaction publication, durability, budgets, formats and pools remain.
+The new tests cover real aliases, replacement between calls, fallback, invalid
+paths and descriptor cleanup. The redundant-walk regression fails on A, observing
+eight metadata checks for one synthetic missing path, before the correction.
+
+Before any native-inference comparison, run one fixed local component study:
+separate syscall counts from timing, then A/B/B/A with six unchanged original
+AI-Off Capture/preserve/extract/search probes per arm. Use fresh equal-depth
+Instances, the same interpreter and ordinary network-only strace throughout;
+no artificial delays, extra load, cache flush or threshold changes. Bind B to
+the complete immutable candidate and prove the single PRODUCT factor plus its
+tests/documentation before execution. Retain every result and stop on application,
+integrity or collection errors. No repeated block follows a weak or negative result.
+
+Component improvement alone cannot qualify the application or close a finding.
+A relevant failing native reproducer, controlled correction and the unchanged
+candidate's complete native/CI/original-artifact/review/preflight gates remain
+required. Manual methods are DEFERRED_BY_MAINTAINER / NOT_RUN until the completed
+official release on the maintainer's Windows 11 Pro 25H2 PC. No intermediate
+installation, S07/S08 acceptance, S09 start, final identity or publication follows.
