@@ -2545,5 +2545,6 @@
   "search.type.archive": "Arhivă",
   "search.type.email": "E-mail",
   "search.type.other": "Alt fișier",
-  "search.type.format": "{kind} ({format})"
+  "search.type.format": "{kind} ({format})",
+  "search.edit_before_remove": "Scurtează sau corectează textul căutării înainte de a elimina filtrele."
 }

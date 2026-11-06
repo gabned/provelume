@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -751,6 +751,12 @@ def create_app(
         context["search_has_filters"] = any(
             item["key"] in {"source_id", "media_type", "date_from", "date_to"}
             for item in context["active_filters"])
+        context["search_remove_filters_url"] = None
+        if context["search_has_filters"]:
+            target = validated_return(context["filter_link"](
+                source_id=None, media_type=None, date_from=None, date_to=None))
+            if parse_qs(urlsplit(target).query).get("q") == [effective_query]:
+                context["search_remove_filters_url"] = target
         for item in context["active_filters"]:
             if item["key"] == "media_type":
                 item["technical_value"] = item["value"]

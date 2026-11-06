@@ -138,6 +138,30 @@ def test_words_alone_offer_edit_without_a_misleading_filter_removal(search_fixtu
     assert "search-edit" in page.ids() and "search-remove-filters" not in page.ids()
 
 
+@pytest.mark.parametrize("words,removable", [
+    ("x" * 500, True), ("x" * 501, False), ("字" * 500, False), (r"some\words", False),
+])
+def test_recovery_never_silently_drops_words_at_existing_context_bounds(
+    search_fixture, words, removable,
+):
+    instance, manager, client = search_fixture
+    before = canonical(instance), manager.path.read_bytes()
+    response = client.get("/search", params={"q": words, "lang": "en", "media_type": "text/plain"})
+    assert response.status_code == 200
+    page = SearchPage(response.text)
+    assert page.ids()["search-query"]["value"] == words
+    assert page.ids()["search-edit"]["href"] == "#search-query"
+    if removable:
+        href = page.ids()["search-remove-filters"]["href"]
+        assert parse_qs(urlsplit(href).query) == {"q": [words], "lang": ["en"]}
+        recovered = SearchPage(client.get(href).text)
+        assert recovered.ids()["search-query"]["value"] == words
+    else:
+        assert "search-remove-filters" not in page.ids()
+        assert "Shorten or correct the search text before removing filters." in response.text
+    assert (canonical(instance), manager.path.read_bytes()) == before
+
+
 def test_friendly_type_chip_removal_preserves_other_filters(search_fixture, request):
     instance, _, client = search_fixture
     parameters = {**filters(instance), "q": "s08nomatch"}

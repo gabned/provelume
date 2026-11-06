@@ -16981,6 +16981,12 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "search.edit_before_remove": {
+      "context": "Search B: existing return-context bounds cannot retain exact words in the remove-filters link. Explain edit-first while preserving input, filters and all existing bounds. Ordinary navigation copy, no data deletion.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

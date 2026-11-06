@@ -2,5 +2,5 @@
   <p>{{ t('search.empty') }}</p>
   <dl class="technical-note">{% for filter in active_filters %}<dt>{{ t('cura.filter.' ~ filter.key) }}</dt><dd>{{ filter.value }}</dd>{% endfor %}</dl>
   <p><a id="search-edit" href="#search-query">{{ t('search.edit') }}</a></p>
-  {% if search_has_filters %}<p><a id="search-remove-filters" href="{{ filter_link(source_id=none, media_type=none, date_from=none, date_to=none) }}">{{ t('search.remove_filters') }}</a></p>{% endif %}
+  {% if search_remove_filters_url %}<p><a id="search-remove-filters" href="{{ search_remove_filters_url }}">{{ t('search.remove_filters') }}</a></p>{% elif search_has_filters %}<p>{{ t('search.edit_before_remove') }}</p>{% endif %}
 </li>

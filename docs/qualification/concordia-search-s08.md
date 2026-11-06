@@ -24,6 +24,10 @@ acquisition-date filters while retaining the effective words, resolved language
 and validated search context. Query normalization, return-target allowlists and
 duplicate/bounds checks keep the S03 contract. Error, initial and index-pending
 states must not acquire a false zero-result or text-availability claim.
+The remove-filters target must also pass the existing return validator and retain
+the exact effective words. If existing length/character bounds cannot represent
+them, retain the input/filters and offer edit with explanatory copy; never emit
+a removal link that silently drops words or expand the existing bounds.
 
 The slice introduces no implicit OCR/AI, ingestion, data mutation, new shortcut,
 global focus policy, result redesign, pagination, engine or date semantics. Source

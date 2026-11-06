@@ -2545,5 +2545,6 @@
   "search.type.archive": "Archiv",
   "search.type.email": "E-Mail",
   "search.type.other": "Andere Datei",
-  "search.type.format": "{kind} ({format})"
+  "search.type.format": "{kind} ({format})",
+  "search.edit_before_remove": "Kürzen oder korrigieren Sie den Suchtext, bevor Sie die Filter entfernen."
 }
