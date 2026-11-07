@@ -17,6 +17,7 @@ from .mirror_git_runtime import MAX_OBJECT_BYTES, MAX_OBJECT_FILES
 MARKER = "provelume-mirror-target.json"
 _ROOTS = {
     "HEAD",
+    "branches",
     "config",
     "description",
     "packed-refs",
@@ -215,6 +216,13 @@ def audit_bare_root(root, *, instance_id, device, binding):
         relative = child.relative_to(root)
         require(relative.parts[0] in _ROOTS, "unknown_git_target")
         info = child.stat()
+        # Git 2.43 creates this obsolete directory. No named legacy remote or
+        # nested entry is admitted; an empty directory cannot configure Git.
+        require(
+            relative.parts[0] != "branches"
+            or (len(relative.parts) == 1 and stat.S_ISDIR(info.st_mode)),
+            "unsafe_git_target",
+        )
         if stat.S_ISDIR(info.st_mode):
             continue
         count += 1

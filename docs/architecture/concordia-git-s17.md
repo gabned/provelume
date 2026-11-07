@@ -130,3 +130,25 @@ they correctly reported `git_version_unsupported` on the runner's 2.56.0, which
 was missing from the original closed set. The corrected candidate still requires
 full exact-head native, CI, installed/frozen, browser and review evidence. Its
 Linux 2.52.0 results cannot qualify the runner's 2.56.0 or Windows on another head.
+
+### Pinned workspace image compatibility
+
+The original `0298f54` Public CI run 42417574678 failed its native workspace
+profile: 25 Git conformance cases reported the closed unsupported-version refusal;
+5,785 other tests passed. These original results remain unchanged. The pinned
+image's upstream inventory, at devcontainers/images commit
+`71dedcdf66686f9272e01da24299b297d3bdb8e8`, history/2.0.5.md, matches image index
+digest `d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae`
+and declares Ubuntu Git `1:2.43.0-1ubuntu7.3`. This is independent provenance,
+not a claim that the host runner's 2.56.0 qualified the container.
+
+Exact Git 2.43.0 was separately built from public upstream commit
+`564d0252ca632e0264ed670534a51d18a689ef5d`, annotated tag
+`c089584ac8dedc3aa7c2c404839bc098050298a2`. The first local conformance run
+correctly refused its legacy `branches/` root entry (23 failures, ten passes,
+one platform skip). Compatibility now admits only an empty legacy directory;
+any file or nested entry is refused before native Git, with its original bytes
+preserved. All process/storage/operation limits and the unknown-version refusal
+remain unchanged. The corrected native Git 2.43.0 cases passed (34 passed, one
+native Windows skip). Full suite and permanent CI must qualify the new exact
+candidate, including the actual pinned image and Windows binary independently.
