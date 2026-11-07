@@ -33,6 +33,10 @@ on:
         description: 'With observer study and exact main: one nonqualifying fixed Capture guard A/B/B/A'
         type: boolean
         default: false
+      concordia_kernel_control:
+        description: 'With observer study: model-free kernel chronology admission only; no native replay'
+        type: boolean
+        default: false
       concordia_tracer_study:
         description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
         type: boolean
@@ -45,7 +49,7 @@ permissions:
   contents: read
 jobs:
   measure:
-    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +95,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
     timeout-minutes: 85
@@ -120,7 +124,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-observer-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_capture_guard != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_capture_guard != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -182,8 +186,52 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
+  concordia-kernel-control:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Bootstrap diagnostic controls without model acquisition
+        run: |
+          python scripts/bootstrap.py
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_concordia_kernel_observer.py
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Prepare only reviewed ephemeral kernel observation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bpftrace strace
+          mkdir -p .agent/kernel-control-environment
+          dpkg-query -W bpftrace strace > .agent/kernel-control-environment/packages.txt
+          uname -a > .agent/kernel-control-environment/kernel.txt
+          if ! test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
+            sudo mount -t tracefs tracefs /sys/kernel/tracing
+          fi
+          for event in sched/sched_switch sched/sched_wakeup; do
+            cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
+          done
+      - name: One model-free observer control block; no native admission
+        run: sudo env -i PATH=/usr/bin:/bin LANG=C.UTF-8 "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/concordia_kernel_observer.py" control --output "$GITHUB_WORKSPACE/.agent/concordia-kernel-control"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: concordia-kernel-control
+          path: |
+            .agent/concordia-kernel-control
+            .agent/kernel-control-environment
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
   concordia-capture-guard:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_capture_guard == true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_capture_guard == true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -222,7 +270,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-smt-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -254,7 +302,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-tracer-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:

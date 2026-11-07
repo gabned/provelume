@@ -1,0 +1,72 @@
+// Model-free observer admission only. cpid is the controlled strace child.
+// No paths, buffers, arguments, stacks, task names or environment are recorded.
+BEGIN { @owned[cpid] = 1; }
+
+tracepoint:sched:sched_process_fork
+/@owned[args.parent_pid]/
+{
+  @owned[args.child_pid] = 1;
+  @emitted[1] = count();
+  printf("F %llu %d %d\n", nsecs, args.parent_pid, args.child_pid);
+}
+
+tracepoint:sched:sched_switch
+/@owned[args.prev_pid] || @owned[args.next_pid]/
+{
+  @emitted[2] = count();
+  printf("S %llu %d %d %d\n", nsecs,
+    @owned[args.prev_pid] ? args.prev_pid : 0,
+    @owned[args.next_pid] ? args.next_pid : 0, args.prev_state);
+}
+
+tracepoint:sched:sched_wakeup
+/@owned[args.pid]/
+{
+  @emitted[3] = count();
+  printf("W %llu %d\n", nsecs, args.pid);
+}
+
+tracepoint:syscalls:sys_enter_write
+/@owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
+{
+  @emitted[4] = count();
+  printf("M %llu %d %d\n", nsecs, tid, args.count);
+}
+
+tracepoint:syscalls:sys_enter_futex
+/@owned[tid]/
+{
+  @emitted[5] = count();
+  printf("U %llu %d 1\n", nsecs, tid);
+}
+
+tracepoint:syscalls:sys_exit_futex
+/@owned[tid]/
+{
+  @emitted[5] = count();
+  printf("U %llu %d 0\n", nsecs, tid);
+}
+
+tracepoint:syscalls:sys_enter_fsync
+/@owned[tid]/
+{
+  @emitted[6] = count();
+  printf("D %llu %d 1\n", nsecs, tid);
+}
+
+tracepoint:syscalls:sys_exit_fsync
+/@owned[tid]/
+{
+  @emitted[6] = count();
+  printf("D %llu %d 0\n", nsecs, tid);
+}
+
+tracepoint:sched:sched_process_exit
+/@owned[tid]/
+{
+  @emitted[7] = count();
+  printf("X %llu %d\n", nsecs, tid);
+  delete(@owned[tid]);
+}
+
+END { clear(@owned); }
