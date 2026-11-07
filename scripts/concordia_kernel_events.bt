@@ -29,8 +29,17 @@ tracepoint:sched:sched_wakeup
 tracepoint:syscalls:sys_enter_write
 /@owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
 {
+  @emitted[8] = count();
+  printf("T %llu %d %d\n", nsecs, tid, args.count);
+}
+
+// Independent raw register arguments: x86-64 __NR_write == 1.
+// No count-range predicate; exact marker identities are checked in userspace.
+tracepoint:raw_syscalls:sys_enter
+/@owned[tid] && args.id == 1 && args.args[0] == 198/
+{
   @emitted[4] = count();
-  printf("M %llu %d %d\n", nsecs, tid, args.count);
+  printf("M %llu %d %llu\n", nsecs, tid, args.args[2]);
 }
 
 tracepoint:syscalls:sys_enter_futex

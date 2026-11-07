@@ -178,3 +178,39 @@ Syscall controls additionally require paired enter/exit records rather than entr
 presence alone. The refused oversized stream is not admitted by offline analysis.
 This is a changed observer-validity fixture, not a repeated native CPU experiment
 or a larger output allowance. No PRODUCT correction or finding resolution follows.
+
+## Typed-marker completeness refusal and independent raw crosscheck
+
+Run42355829085/attempt1/job128353602018 on0a733b0 stops after its first kernel
+arm. Arithmetic CPU targets remain150ms, with actual330/325clock reads, and the
+kernel stream is542656bytes/23855records, within2MiB. All emitted counters match
+and stderr is empty. However only typed markers2–7 are present: required markers1
+and8 are absent despite their successful fixture writes and clock envelopes.
+The independent exact-marker oracle therefore refuses admission. The remaining
+arms do not run. This is NOT an application CPU reproduction.
+
+Original artifact13567896248:134898bytes, SHA-256
+74fba2c8cb8e4dbaeb5eea76da7bac2cd117ec0674c1fe7c2328ca0af0402978;
+all33members were independently checked. No failed result is relabeled.
+
+The next observer-only discriminator records two independent sources concurrently:
+the existing typed sys_enter_write predicate as T, and raw_syscalls:sys_enter
+register arguments as primary M. On the explicitly supported x86_64 ABI, write
+is syscall1, argument0 is FD198 and argument2 is the byte count. The raw probe has
+no byte-count range predicate; userspace still requires the exact8fixture markers,
+identities and clock envelopes. A typed event cannot substitute for a missing raw
+marker. Independent kernel event counts, size/loss/negative/exit/syscall-pairing
+and all cost/timeout bounds remain mandatory.
+
+This is a changed marker observation mechanism, not another application/source
+or CPU experiment. Raw complete/typed incomplete would isolate an observation-
+path difference on that host; both incomplete refuses; both complete leaves the
+previous typed gap unexplained. No historical cause is inferred from a later
+non-reproduction. Typed markers are retained for comparison and never relied on
+for admission. There is one new fixed model-free block; no automatic repetition.
+
+The [Linux v7.0 raw syscall definition](https://github.com/torvalds/linux/blob/v7.0/include/trace/events/syscalls.h)
+declares syscall id and six raw arguments populated by syscall_get_arguments.
+Both actual kernel event formats are retained by the control workflow. Other
+architectures refuse instead of inheriting this ABI claim. Actual Capture-window
+binding and native admission remain locked until the observer is complete.

@@ -74,6 +74,10 @@ def test_matching_clock_and_complete_descendants_are_required():
         "D 71 10 1", "D 72 10 0", "X 80 13", "X 81 14", "X 82 10",
     ]))
     assert observer.verify_control(rows, fixture)["status"] == "CONTROL_OBSERVED"
+    assert observer.verify_control(
+        [*rows, ["T", 6, 10, 1]], fixture)["typed_markers_observed"] == 1
+    with pytest.raises(ValueError, match="missing or extra marker"):
+        observer.verify_control([["T", *r[1:]] if r[0] == "M" else r for r in rows], fixture)
     fixture["markers"][0]["before"] = 6
     with pytest.raises(ValueError, match="clock mismatch"):
         observer.verify_control(rows, fixture)

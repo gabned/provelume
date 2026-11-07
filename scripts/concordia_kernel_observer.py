@@ -24,7 +24,7 @@ PROGRAM = SCRIPT.with_name("concordia_kernel_events.bt")
 PRIOR_HEAD = "e2342c05463bd71ac7ec3cd96421b7f359330830"
 ORDER = ("network-only", "kernel-events", "kernel-events", "network-only")
 KINDS = {"F": (1, 4), "S": (2, 5), "W": (3, 3), "M": (4, 4),
-         "U": (5, 4), "D": (6, 4), "X": (7, 3)}
+         "U": (5, 4), "D": (6, 4), "X": (7, 3), "T": (8, 4)}
 MAX_BYTES = 2 * 1024 * 1024
 ALLOWED_PATHS = {"scripts/concordia_kernel_observer.py", "scripts/concordia_kernel_events.bt",
                  "tests/test_concordia_kernel_observer.py",
@@ -43,7 +43,7 @@ def kernel_capability():
     needed = ("sched/sched_process_fork", "sched/sched_switch", "sched/sched_wakeup",
               "sched/sched_process_exit", "syscalls/sys_enter_write",
               "syscalls/sys_enter_futex", "syscalls/sys_exit_futex",
-              "syscalls/sys_enter_fsync", "syscalls/sys_exit_fsync")
+              "syscalls/sys_enter_fsync", "syscalls/sys_exit_fsync", "raw_syscalls/sys_enter")
     return {"bpftrace": shutil.which("bpftrace"), "strace": shutil.which("strace"),
             "tracepoint_formats": {name: (events / name / "format").is_file() for name in needed},
             "kernel": platform.release(), "machine": platform.machine(),
@@ -192,6 +192,9 @@ def verify_control(records, fixture):
         raise ValueError("positive blocked/wakeup control missing")
     return {"status": "CONTROL_OBSERVED", "kernel_clock_matches_markers": True,
             "kernel_clock": "bpftrace0.20.2:nsecs:CLOCK_BOOTTIME",
+            "primary_marker": "raw_syscalls:sys_enter:x86_64-write-fd198",
+            "typed_markers_observed": sum(r[0] == "T" for r in records),
+            "typed_marker_admission": "NOT_RELIED_ON; prior incompleteness retained",
             "monotonic_offset_envelopes": offsets,
             "events": len(records), "descendant_exits": len(required),
             "off_cpu_intervals": intervals, "physical_io_causality": "NOT_ESTABLISHED"}
@@ -340,6 +343,8 @@ def control(output):
         cap = manifest["capability"]
         if not cap["bpftrace"] or not cap["strace"] or not all(cap["tracepoint_formats"].values()):
             raise ValueError("kernel observer capability unavailable; stop before fixtures")
+        if cap["machine"] != "x86_64":
+            raise ValueError("raw syscall marker ABI is qualified only for x86_64")
         manifest["source_proof"] = source_proof()
         version = subprocess.check_output([cap["bpftrace"], "--version"]).decode().strip()
         manifest["bpftrace_version"] = version

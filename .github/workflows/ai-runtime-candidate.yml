@@ -215,7 +215,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-          for event in sched/sched_switch sched/sched_wakeup; do
+          for event in sched/sched_switch sched/sched_wakeup raw_syscalls/sys_enter syscalls/sys_enter_write; do
             sudo cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
           done
       - name: One model-free observer control block; no native admission
