@@ -212,11 +212,11 @@ jobs:
           mkdir -p .agent/kernel-control-environment
           dpkg-query -W bpftrace strace > .agent/kernel-control-environment/packages.txt
           uname -a > .agent/kernel-control-environment/kernel.txt
-          if ! test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
+          if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
           for event in sched/sched_switch sched/sched_wakeup; do
-            cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
+            sudo cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
           done
       - name: One model-free observer control block; no native admission
         run: sudo env -i PATH=/usr/bin:/bin LANG=C.UTF-8 "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/concordia_kernel_observer.py" control --output "$GITHUB_WORKSPACE/.agent/concordia-kernel-control"

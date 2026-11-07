@@ -130,3 +130,20 @@ The [versioned bpftrace0.20.2 manual](https://github.com/bpftrace/bpftrace/blob/
 defines tracepoint arguments, nsecs, -c/cpid, async printf and map counters.
 BEGIN precedes other probe attachment and is not an attachment barrier. Actual
 fork/marker/exit completeness is required. Lost output is never accepted.
+
+## First preparation refusal, before any fixture
+
+Run42354986579/attempt1/job128351009422 on637e207 stopped before the control
+command. Ubuntu bpftrace0.20.2-1ubuntu4.3 and strace6.8-0ubuntu2 were available.
+The ordinary user could not inspect the root-restricted tracefs event path; the
+workflow then tried to mount it, and mount correctly reported it already mounted.
+Artifact13567237734 (513bytes, SHA-256
+c6348484e760c818857a66b4e376c987432f744e61313522fa685d5a9a95deeb)
+retains the two original package/kernel records; both members were verified.
+All other jobs, including old studies and ordinary model acquisition, were skipped.
+No fixture, BPF program or native measurement ran.
+
+The pre-execution correction performs both the presence check and format reads
+with the same root access as the declared observer controller. Existing mounted
+tracefs is reused; the mount remains conditional. This corrects preparation,
+without a completed control/native replay, increased bound or alternate observer.
