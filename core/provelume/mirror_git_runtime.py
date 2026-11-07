@@ -22,7 +22,7 @@ MAX_DIAGNOSTIC_BYTES = 64 * 1024
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 MAX_OBJECT_BYTES = 512 * 1024 * 1024
 MAX_OBJECT_FILES = 10_000
-CANDIDATE_GIT_VERSIONS = frozenset({"2.43.0", "2.52.0", "2.56.0", "2.56.0.windows.4"})
+CANDIDATE_GIT_VERSIONS = frozenset({"2.51.1", "2.52.0", "2.56.0", "2.56.0.windows.4"})
 
 
 def child_environment(work):
