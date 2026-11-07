@@ -75,6 +75,29 @@ if sys.argv[2]=='yes':
         'kind':'date','value':'2026-11-08','time_zone':None}})
     fixture['writeback_object_id']=write_fixture.object_id
     fixture['writeback_plan_id']=write_plan['id']
+    from provelume.mirrors import Mirrors
+    from provelume.mirror_jobs import local_preview
+    from provelume.tududi_qualification import SyntheticVault
+    mirror_input=root/'Synthetic mirror input'
+    mirror_input.mkdir()
+    (mirror_input/'mirror-browser.md').write_text(
+        '# Synthetic mirror browser proof\\n',encoding='utf-8')
+    instance.ingest_run(mirror_input)
+    mirror_document=next(row for row in instance.store.list_canonical('documents')
+                         if row['title']=='mirror-browser.md')
+    mirror_area=instance.create_hierarchy_node('area','Synthetic mirror browser Area')
+    instance.classify_document(mirror_document['id'],mirror_area['id'])
+    mirrors=Mirrors(instance.store,vault=SyntheticVault())
+    mirrors.set_access(enabled=True,github=False,rsync=False,expected_revision=0,confirmed=True)
+    mirror_identity=mirrors.create_identity(name='Synthetic mirror identity',profile='folder',
+        credential={'reference':''},confirmed=True)
+    mirror_target=mirrors.configure(
+        identity_id=mirror_identity['id'],name='Synthetic mirror destination',
+        target={'path':str(root/'Synthetic absent destination')},
+        scope={'kind':'area','id':mirror_area['id']},
+        include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
+    mirror_plan=local_preview(mirrors,mirror_target['id'],expected_revision=1)
+    fixture['mirror_plan_id']=mirror_plan['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -269,6 +292,15 @@ def main():
                                     assert page.evaluate("document.documentElement.scrollWidth <= "
                                                         "document.documentElement.clientWidth")
                                     cell["writeback_readonly_preview"] = "AUTOMATIC_SYNTHETIC_PASS"
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-preview').is_visible()
+                                    assert page.locator('#mirror-unavailable').is_visible()
+                                    assert 'mirror.title' not in page.content()
+                                    assert page.evaluate("document.documentElement.scrollWidth <= "
+                                                        "document.documentElement.clientWidth")
+                                    cell['mirror_local_preview']='AUTOMATIC_SYNTHETIC_PASS'
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

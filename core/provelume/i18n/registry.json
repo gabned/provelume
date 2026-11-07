@@ -1654,7 +1654,8 @@
         "scheduler.no_network_delete",
         "scheduler.boundary_title",
         "scheduler.boundary",
-        "scheduler.kind.setup.trial"
+        "scheduler.kind.setup.trial",
+        "scheduler.kind.mirror.prepare"
       ],
       "namespace": ""
     },
@@ -17883,6 +17884,198 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "mirror.title": {
+      "context": "One-way mirror control: mirror.title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.lead": {
+      "context": "One-way mirror control: mirror.lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.unavailable": {
+      "context": "One-way mirror control: mirror.unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.identities": {
+      "context": "One-way mirror control: mirror.identities",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.destinations": {
+      "context": "One-way mirror control: mirror.destinations",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.empty": {
+      "context": "One-way mirror control: mirror.empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.revision": {
+      "context": "One-way mirror control: mirror.revision",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope": {
+      "context": "One-way mirror control: mirror.scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.disabled": {
+      "context": "One-way mirror control: mirror.disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.manual": {
+      "context": "One-way mirror control: mirror.manual",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scheduled": {
+      "context": "One-way mirror control: mirror.scheduled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.confirm": {
+      "context": "One-way mirror control: mirror.confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.prepare": {
+      "context": "One-way mirror control: mirror.prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.disable": {
+      "context": "One-way mirror control: mirror.disable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.preview": {
+      "context": "One-way mirror control: mirror.preview",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.local_only": {
+      "context": "One-way mirror control: mirror.local_only",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.files": {
+      "context": "One-way mirror control: mirror.files",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.bytes": {
+      "context": "One-way mirror control: mirror.bytes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.findings": {
+      "context": "One-way mirror control: mirror.findings",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.includes": {
+      "context": "One-way mirror control: mirror.includes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.discard": {
+      "context": "One-way mirror control: mirror.discard",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.prepared": {
+      "context": "One-way mirror control: mirror.prepared",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.boundaries": {
+      "context": "One-way mirror control: mirror.boundaries",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.saved": {
+      "context": "One-way mirror control: mirror.saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_instance": {
+      "context": "One-way mirror control: mirror.scope_instance",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_area": {
+      "context": "One-way mirror control: mirror.scope_area",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_project": {
+      "context": "One-way mirror control: mirror.scope_project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "scheduler.kind.mirror.prepare": {
+      "context": "One-way mirror control: scheduler.kind.mirror.prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.access_enabled": {
+      "context": "Explicit per-device mirror access: access_enabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.access_github": {
+      "context": "Explicit per-device mirror access: access_github",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.access_rsync": {
+      "context": "Explicit per-device mirror access: access_rsync",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.save_access": {
+      "context": "Explicit per-device mirror access: save_access",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

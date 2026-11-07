@@ -326,6 +326,10 @@ def qualify(executable, kit, root, output, build_report, installer):
         writeback_trial = command("task-writeback-qualify", root / "Synthetic Task Writes")
         assert writeback_trial["result"] == "PASS" and not writeback_trial["network_used"]
         assert writeback_trial["release_gate"] == "BLOCKED"
+        mirror_trial = command("mirror-qualify", root / "Synthetic Mirrors")
+        assert mirror_trial["result"] == "PASS" and not mirror_trial["network_used"]
+        assert not mirror_trial["transport_process_used"]
+        assert mirror_trial["publication"] == "TRANSPORT_NOT_QUALIFIED"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -352,6 +356,7 @@ def qualify(executable, kit, root, output, build_report, installer):
             "s13_asana_trial": asana_trial,
             "s14_tududi_trial": tududi_trial,
             "s15_task_writeback_trial": writeback_trial,
+            "s16_mirror_trial": mirror_trial,
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS",
             "external_python_required": False,

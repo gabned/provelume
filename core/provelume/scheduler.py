@@ -1784,6 +1784,18 @@ class SchedulerCoordinator:
                 False,
                 bool(progress.get("processed", 0)),
             )
+        if job["job_kind"] == "mirror.prepare":
+            from .mirror_contract import MirrorError
+            from .mirror_jobs import MirrorJobs
+
+            factory = getattr(self, "_mirror_manager_factory", MirrorJobs)
+            manager = factory(self.store)
+            try:
+                progress = manager.execute(job)
+            except (MirrorError, OSError, ValueError):
+                return (False, self._progress(errors=1), "manual_intervention",
+                        "executor_unavailable", False, False)
+            return (True, progress, "", "", False, False)
         if job["job_kind"] == "productivity.intake":
             from .productivity_contract import ProductivityError
             from .productivity_jobs import ProductivityJobs

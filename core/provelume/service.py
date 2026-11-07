@@ -80,6 +80,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def mirrors(self):
+        from .mirrors import Mirrors
+
+        if not hasattr(self, "_mirrors_manager"):
+            self._mirrors_manager = Mirrors(self.store)
+        return self._mirrors_manager
+
     def task_writeback(self):
         from .task_writeback import TaskWriteBack
 

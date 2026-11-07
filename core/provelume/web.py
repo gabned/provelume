@@ -51,6 +51,7 @@ from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
+from .mirror_activity import attach_mirror_routes
 from .ocr_activity import attach_ocr_routes
 from .operations_maintenance_activity import attach_operations_maintenance_routes
 from .perceptio_activity import attach_perceptio_routes
@@ -631,6 +632,7 @@ def create_app(
                        redirect_uri=f"http://{callback_host}:{selected_port}/asana/oauth/callback")
     attach_tududi_routes(app, instance, TEMPLATES, _context)
     attach_task_writeback_routes(app, instance, TEMPLATES, _context)
+    attach_mirror_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(

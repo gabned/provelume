@@ -26,6 +26,7 @@ from .instance_cli import (
     handle_instance_lifecycle_command,
 )
 from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
+from .mirror_cli import add_mirror_commands, handle_mirror_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
 from .productivity_cli import add_productivity_commands, handle_productivity_command
@@ -235,6 +236,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_icalendar_commands(subparsers)
     add_asana_commands(subparsers)
     add_tududi_commands(subparsers)
+    add_mirror_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -291,6 +293,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     tududi_result = handle_tududi_command(args)
     if tududi_result is not None:
         return tududi_result
+    mirror_result = handle_mirror_command(args)
+    if mirror_result is not None:
+        return mirror_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result

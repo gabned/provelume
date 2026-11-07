@@ -43,6 +43,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     tududi.add_argument("instance", type=Path)
     writeback = commands.add_parser("task-writeback-qualify")
     writeback.add_argument("instance", type=Path)
+    mirror = commands.add_parser("mirror-qualify")
+    mirror.add_argument("instance", type=Path)
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -54,7 +56,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "task-writeback-qualify":
+                if options.command == "mirror-qualify":
+                    from .mirror_qualification import qualify_mirrors
+
+                    result = qualify_mirrors(options.instance)
+                elif options.command == "task-writeback-qualify":
                     from .task_writeback_qualification import qualify_task_writeback
 
                     result = qualify_task_writeback(options.instance)
