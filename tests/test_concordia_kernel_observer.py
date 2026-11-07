@@ -25,7 +25,7 @@ def test_async_stream_is_sorted_but_dropped_event_cannot_pass():
 
 @pytest.mark.parametrize("corruption", [
     "unexpected content", "@emitted[2]: 1\n@emitted[2]: 1", "S 10 bad 0 0",
-    "S -10 11 0 0", "S 10 11 0", "",
+    "S -10 11 0 0", "S 10 11 0", "", "Lost 18335 events",
 ])
 def test_unknown_partial_or_malformed_stream_refuses(corruption):
     with pytest.raises(ValueError):
@@ -80,6 +80,8 @@ def test_matching_clock_and_complete_descendants_are_required():
     fixture["markers"][0]["before"] = 1
     with pytest.raises(ValueError, match="descendant exit"):
         observer.verify_control([r for r in rows if r != ["X", 81, 14]], fixture)
+    with pytest.raises(ValueError, match="syscall control missing"):
+        observer.verify_control([r for r in rows if r != ["D", 72, 10, 0]], fixture)
     fixture["clock_after"]["boot"] = 1000
     with pytest.raises(ValueError, match="clock offset changed"):
         observer.verify_control(rows, fixture)
@@ -150,3 +152,10 @@ def test_preempted_thread_or_another_task_cannot_support_wakeup_prediction():
     interval.update(tid=12, raw_state=1)
     assert observer.evaluate_prediction(
         [interval], **window, complete=True)["prediction"] == "REFUTED_EVENT_SHAPE"
+
+
+def test_cpu_fixture_does_work_between_bounded_clock_observations():
+    result = observer.cpu_work(.002)
+    assert result["cpu_seconds"] >= .002
+    assert 2 <= result["clock_reads"] < 2048
+    assert type(result["checksum"]) is int

@@ -177,7 +177,15 @@ def verify_control(records, fixture):
     if not any(r["tid"] == fixture["pid"] and r["raw_state"] == 8 for r in intervals):
         raise ValueError("positive ptrace-stop control missing")
     for kind in ("U", "D"):
-        if not any(r[0] == kind and r[2] == fixture["pid"] and r[3] == 1 for r in records):
+        pending, pairs = False, 0
+        for row in records:
+            if row[0] != kind or row[2] != fixture["pid"]:
+                continue
+            if row[3] not in {0, 1} or bool(row[3]) == pending:
+                raise ValueError("unpaired fixture syscall")
+            pending = bool(row[3])
+            pairs += not pending
+        if pending or not pairs:
             raise ValueError("positive syscall control missing")
     if not any(r["tid"] == fixture["pid"] and r["raw_state"] == 1
                and (r["blocked_ns"] or 0) > 0 and r["wake"] is not None for r in intervals):
@@ -187,6 +195,18 @@ def verify_control(records, fixture):
             "monotonic_offset_envelopes": offsets,
             "events": len(records), "descendant_exits": len(required),
             "off_cpu_intervals": intervals, "physical_io_causality": "NOT_ESTABLISHED"}
+
+
+def cpu_work(seconds=0.15):
+    """Do arithmetic between CPU-clock reads; do not benchmark clock syscalls."""
+    start, reads, value = time.process_time(), 1, 1
+    while True:
+        for _ in range(4096):
+            value = (value * 1664525 + 1013904223) & 0xFFFFFFFF
+        elapsed = time.process_time() - start
+        reads += 1
+        if elapsed >= seconds:
+            return {"cpu_seconds": elapsed, "clock_reads": reads, "checksum": value}
 
 
 def fixture(output):
@@ -224,9 +244,8 @@ def fixture(output):
             os.close(gate_write)
             os.sched_setaffinity(0, {min(os.sched_getaffinity(0))})
             os.read(gate_read, 1)
-            start = time.process_time()
-            while time.process_time() - start < 0.15:
-                pass
+            work = cpu_work()
+            write(output.parent / f"cpu-{os.getpid()}.json", work)
             os._exit(0)
         children.append(child)
     os.close(gate_read)
@@ -236,6 +255,9 @@ def fixture(output):
         _, status = os.waitpid(child, 0)
         if status:
             raise ValueError("CPU child failed")
+    work = [json.loads((output.parent / f"cpu-{child}.json").read_text()) for child in children]
+    if any(row["clock_reads"] > 2048 for row in work):
+        raise ValueError("CPU fixture polled its clock excessively")
     mark(2)
     read_fd, write_fd = os.pipe()
     waker = os.fork()
@@ -271,7 +293,7 @@ def fixture(output):
         mark(8)
     write(output, {"pid": os.getpid(), "cpu_children": children, "waker_pid": waker,
                    "helper_tid": helper.native_id, "markers": markers,
-                   "clock_before": clock_before, "clock_after": clocks()})
+                   "clock_before": clock_before, "clock_after": clocks(), "cpu_work": work})
 
 
 def outsider(output):

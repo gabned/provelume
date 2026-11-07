@@ -147,3 +147,34 @@ The pre-execution correction performs both the presence check and format reads
 with the same root access as the declared observer controller. Existing mounted
 tracefs is reused; the mount remains conditional. This corrects preparation,
 without a completed control/native replay, increased bound or alternate observer.
+
+## First collected kernel arm: refused output volume
+
+Corrected source b40e946 ran42355254547/attempt1/job128351834366. The original
+network-only arm completed; the first kernel arm attached/exited successfully
+with empty observer stderr. Its3467493-byte stream exceeded the unchanged2MiB
+bound, so admission refused and arms2/3 never started. No model was acquired.
+Artifact13567855250 is826906bytes, SHA-256
+186c44627fc13c2e949b83d18e3953a09e0085ba7e604d544fbc04291ebab8f4;
+all29members and original logs were independently read/verified.
+
+Forensic counts, not admission:93270switch records,65722wake records,62futex
+records,8markers,2fsync records and complete recorded fixture metadata.
+The original stdout also explicitly reports18335lost events. Independent kernel
+counts are107980switches/69347wakes:14710switches+3625wakes are missing, exactly
+matching that loss report. An unmatched switch-out in semantic forensics is
+therefore not repaired or accepted. Both loss and size independently refuse.
+The two CPU children alone generated22162/16551switch-outs. The fixture's
+process_time call at every spin performs kernel CPU-clock observations under
+ptrace; this was a clock-polling workload rather than the intended arithmetic
+CPU contention control.
+
+The corrected synthetic fixture performs4096arithmetic iterations between clock
+reads, retaining the same150ms per-child CPU target, two children and placement.
+It records actual CPU time/clock-read counts/checksum and refuses above2048reads.
+The2MiB cap, default64-page-per-CPU ring buffer, original strace, collector, native
+gates and all timeouts are retained. No buffer, loss allowance or timeout is raised.
+Syscall controls additionally require paired enter/exit records rather than entry
+presence alone. The refused oversized stream is not admitted by offline analysis.
+This is a changed observer-validity fixture, not a repeated native CPU experiment
+or a larger output allowance. No PRODUCT correction or finding resolution follows.
