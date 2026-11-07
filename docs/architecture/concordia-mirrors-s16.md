@@ -93,3 +93,42 @@ without imported grants. The permanent installed offline Windows job executes it
 Its PASS explicitly retains `real_transports: NOT_RUN` and
 `publication: TRANSPORT_NOT_QUALIFIED`. Native/browser/frozen/live-provider and
 human observations retain separate evidence and no inherited-head acceptance.
+
+## Same-root restore and external dispatch fence
+
+The original `94696ba6aec19afa27e0539a1c02673b51f6a7f5` conformance passed its
+native/browser cases but missed a real recovery boundary. A synthetic automatic
+proof made a native backup before dispatch, claimed once, restored at the same
+Instance path using the real lifecycle, and claimed the restored plan again.
+Its source fingerprint stayed identical and the second claim was ALLOWED.
+The original proof (252 bytes, SHA-256
+`3c74ed9f069f89d1ea4a7c97de35f501e516aa443dbb4a094b90aa650be272cd`)
+and [current finding](https://github.com/gabned/provelume/pull/451#pullrequestreview-5814486168)
+are retained. No transport process or remote publication occurred; normal S16
+dispatch still refused every transport. That earlier PASS does not cover restore.
+
+Each destination now has a separate, bounded operation ledger in the external
+device OS vault, outside every Instance backup/export/restore. Preparation binds
+its current serial. Claim advances that serial and persists the exact operation,
+generation and original plan digest before the local dispatched record and before
+any transport may send. A crash between the two writes fails closed. Restoring a
+local prepared plan cannot restore the consumed serial or clear an external
+in-flight operation. Reconfiguration cannot redirect an in-flight destination.
+Different destinations and identities retain independent ledgers.
+
+After an independently qualified final manifest comparison, the external ledger
+retains the latest minimal terminal receipt before publishing its local receipt
+and completed state. A same-root rollback or interrupted local receipt write can
+recover that exact receipt without another dispatch. Later serials never revive
+old plans; an unavailable/missing/obsolete external ledger grants no authority.
+Local discard/forget/drop cannot hide the externally pending operation/generation.
+The ledger has no credentials, target locator, task title or document body and is
+bounded to 8KiB within the existing 16KiB vault-record bound. No legacy or live
+transport qualification is inferred from this new mechanism.
+
+The native regression and frozen `mirror-qualify` entry execute the actual same-root
+backup/restore path. The report includes `same_root_restore_no_replay: PASS` only
+after a restored second claim is refused and the original external terminal
+receipt is recovered unchanged. Crash cases cover external claim/local dispatch
+and external terminal/local receipt boundaries. Exact-head requalification is
+required; original native/browser/CI results remain attached to their old head.
