@@ -90,6 +90,31 @@ def handle_mirror_command(options):
             result = MirrorJobs(instance.store).policy()
         print(json.dumps({"result": result}, sort_keys=True, ensure_ascii=False))
         return 0
-    except (ValueError, OSError, KeyError, TypeError):
-        print(json.dumps({"error": "mirror_operation_unavailable"}))
+    except (ValueError, OSError, KeyError, TypeError) as error:
+        code = getattr(error, "code", "invalid")
+        allowed = {
+            "invalid",
+            "stale",
+            "disabled",
+            "local_only",
+            "github_disabled",
+            "rsync_disabled",
+            "limit",
+            "generation_limit",
+            "plan_limit",
+            "deadline",
+            "representation_required",
+            "authorization_required",
+            "in_use",
+            "outcome_unknown",
+            "integrity",
+        }
+        print(
+            json.dumps(
+                {
+                    "error": "mirror_operation_unavailable",
+                    "code": code if code in allowed else "invalid",
+                }
+            )
+        )
         return 2

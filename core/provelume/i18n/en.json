@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Allow mirrors on this device",
   "mirror.access_github": "Allow GitHub mirrors",
   "mirror.access_rsync": "Allow rsync/SSH mirrors",
-  "mirror.save_access": "Save mirror access"
+  "mirror.save_access": "Save mirror access",
+  "mirror.limit": "Preparation stopped at a fixed capacity or time limit. No partial generation is complete. Review the scope or explicitly remove unused local staging.",
+  "mirror.representation_required": "A selected document has no complete readable representation. Review that document and its authorized text processing before preparing a new snapshot."
 }

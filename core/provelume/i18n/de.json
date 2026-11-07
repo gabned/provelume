@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Spiegel auf diesem Gerät erlauben",
   "mirror.access_github": "GitHub-Spiegel erlauben",
   "mirror.access_rsync": "rsync/SSH-Spiegel erlauben",
-  "mirror.save_access": "Spiegelzugriff speichern"
+  "mirror.save_access": "Spiegelzugriff speichern",
+  "mirror.limit": "Die Vorbereitung hat ein festes Kapazitäts- oder Zeitlimit erreicht. Eine Teilgeneration ist nicht vollständig. Prüfen Sie den Umfang oder entfernen Sie ungenutzte lokale Bereitstellungen ausdrücklich.",
+  "mirror.representation_required": "Für ein ausgewähltes Dokument fehlt eine vollständige lesbare Darstellung. Prüfen Sie das Dokument und seine genehmigte Textverarbeitung vor einem neuen Snapshot."
 }

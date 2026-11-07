@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from .hierarchy import HierarchyManager
 from .instance_validation import inspect_instance
+from .library_projection_model import _markdown_label
 from .markdown_viewer import MAX_VIEWER_MARKDOWN_CHARS, DocumentContentReader
 from .mirror_contract import (
     MAX_DOCUMENTS,
@@ -139,7 +140,7 @@ class MirrorSnapshots:
         versions = {row["id"]: row for row in records["versions"]}
         originals = {row["id"]: row for row in records["originals"]}
         reader = DocumentContentReader(self.store)
-        eligible_originals, eligible_assets = set(), {}
+        eligible_originals, eligible_assets, navigation = set(), {}, []
         for document in sorted(documents, key=lambda row: row["id"]):
             if document["id"] not in chosen:
                 continue
@@ -170,6 +171,13 @@ class MirrorSnapshots:
                 else:
                     markdown = markdown.replace("(" + reference + ")", "(attachment-excluded)")
             add("documents/" + document["id"] + ".md", markdown.encode(), "markdown")
+            navigation.append(
+                "- ["
+                + _markdown_label(document["title"])
+                + "](documents/"
+                + document["id"]
+                + ".md)"
+            )
             add(
                 "metadata/" + document["id"] + ".json",
                 raw(
@@ -257,9 +265,14 @@ class MirrorSnapshots:
                 add("ai-receipts/" + receipt_id + ".json", raw(receipt), "ai_receipt")
         add(
             "readme.md",
-            b"# Provelume mirror\n\nDerived readable snapshot; not canonical storage or a backup.\n"
-            b"Only the exact manifest is complete.\n"
-            b"Originals, attachments and AI receipts are opt-in.\n",
+            (
+                "# Provelume mirror\n\nDerived readable snapshot; "
+                "not canonical storage or a backup.\n"
+                "Only the exact manifest is complete.\n"
+                "Originals, attachments and AI receipts are opt-in.\n\n"
+                + "\n".join(navigation)
+                + "\n"
+            ).encode(),
             "metadata",
         )
         entries.sort(key=lambda row: row["path"])

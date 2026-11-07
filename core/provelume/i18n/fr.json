@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Autoriser les miroirs sur cet appareil",
   "mirror.access_github": "Autoriser les miroirs GitHub",
   "mirror.access_rsync": "Autoriser les miroirs rsync/SSH",
-  "mirror.save_access": "Enregistrer les accès"
+  "mirror.save_access": "Enregistrer les accès",
+  "mirror.limit": "La préparation a atteint une limite fixe de capacité ou de durée. Aucune génération partielle n’est complète. Révisez le périmètre ou supprimez explicitement la préparation locale inutilisée.",
+  "mirror.representation_required": "Un document sélectionné n’a pas de représentation lisible complète. Examinez le document et son traitement de texte autorisé avant de préparer un autre instantané."
 }

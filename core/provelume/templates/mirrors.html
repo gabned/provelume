@@ -20,7 +20,7 @@
     <button>{{ t('mirror.save_access') }}</button>
   </form>
   {% endif %}
-  {% if notice %}<p role="status">{{ t('mirror.' + notice) if notice in ['saved', 'unavailable'] else t('mirror.unavailable') }}</p>{% endif %}
+  {% if notice %}<p role="status">{{ t('mirror.' + notice) if notice in ['saved', 'unavailable', 'limit', 'representation_required'] else t('mirror.unavailable') }}</p>{% endif %}
   <h2>{{ t('mirror.identities') }}</h2>
   {% for identity in mirrors.identities %}<p>{{ identity.name }} · {{ identity.profile }} · {{ t('mirror.revision') }} {{ identity.revision }}</p>{% endfor %}
   <h2>{{ t('mirror.destinations') }}</h2>

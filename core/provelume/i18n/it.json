@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Consenti mirror su questo dispositivo",
   "mirror.access_github": "Consenti mirror GitHub",
   "mirror.access_rsync": "Consenti mirror rsync/SSH",
-  "mirror.save_access": "Salva accesso mirror"
+  "mirror.save_access": "Salva accesso mirror",
+  "mirror.limit": "Preparazione fermata a un limite fisso di capacità o tempo. Nessuna generazione parziale è completa. Rivedi l’ambito o rimuovi esplicitamente lo staging locale inutilizzato.",
+  "mirror.representation_required": "Un documento selezionato non ha una rappresentazione leggibile completa. Esamina il documento e l’elaborazione del testo autorizzata prima di preparare un nuovo snapshot."
 }

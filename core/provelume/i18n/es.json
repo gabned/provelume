@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Permitir espejos en este dispositivo",
   "mirror.access_github": "Permitir espejos GitHub",
   "mirror.access_rsync": "Permitir espejos rsync/SSH",
-  "mirror.save_access": "Guardar acceso a espejos"
+  "mirror.save_access": "Guardar acceso a espejos",
+  "mirror.limit": "La preparación alcanzó un límite fijo de capacidad o tiempo. Ninguna generación parcial está completa. Revisa el ámbito o elimina explícitamente la preparación local sin uso.",
+  "mirror.representation_required": "Un documento seleccionado no tiene una representación legible completa. Revisa el documento y el procesamiento de texto autorizado antes de preparar otra instantánea."
 }

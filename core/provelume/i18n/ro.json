@@ -2727,5 +2727,7 @@
   "mirror.access_enabled": "Permite oglinzi pe acest dispozitiv",
   "mirror.access_github": "Permite oglinzi GitHub",
   "mirror.access_rsync": "Permite oglinzi rsync/SSH",
-  "mirror.save_access": "Salvează accesul oglinzilor"
+  "mirror.save_access": "Salvează accesul oglinzilor",
+  "mirror.limit": "Pregătirea a atins o limită fixă de capacitate sau timp. Nicio generație parțială nu este completă. Revizuiește domeniul sau elimină explicit pregătirea locală neutilizată.",
+  "mirror.representation_required": "Un document selectat nu are o reprezentare lizibilă completă. Examinează documentul și procesarea autorizată a textului înainte de un nou instantaneu."
 }

@@ -18076,6 +18076,18 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.limit": {
+      "context": "Mirror preparation refusal: mirror.limit",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.representation_required": {
+      "context": "Mirror preparation refusal: mirror.representation_required",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

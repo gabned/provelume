@@ -105,8 +105,18 @@ def attach_mirror_routes(app, instance, templates, context_factory):
             raise HTTPException(403, "Invalid mirror control token") from None
         try:
             result = await run_in_threadpool(action, fields)
-        except (ValueError, KeyError, OSError, TypeError):
-            result = {"notice": "unavailable"}
+        except (ValueError, KeyError, OSError, TypeError) as error:
+            code = getattr(error, "code", "unavailable")
+            notice = (
+                "limit"
+                if code in {"limit", "generation_limit", "plan_limit", "deadline"}
+                else (
+                    "representation_required"
+                    if code == "representation_required"
+                    else "unavailable"
+                )
+            )
+            result = {"notice": notice}
         query = urlencode({"lang": context_factory(request, instance)["lang"], **result})
         return RedirectResponse(
             "/mirrors?" + query, status_code=303, headers={"Cache-Control": "no-store"}

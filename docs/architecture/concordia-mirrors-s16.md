@@ -1,9 +1,11 @@
 # Concordia S16 — shared one-way mirror contract
 
 This PRODUCT owner develops S16 under the [ordered development authority](https://github.com/gabned/provelume/issues/383#issuecomment-6706150974).
-It consumes the unaccepted S15 candidate `8699aefe241cf0883643d6b43532e21879a45c5c`
+It consumes the unaccepted S15 candidate `5da972ad3fa757f6164560f54174ef2bc455ecd6`
 and preserves the ordinary main merge `fadeb47f84004d48b282046e36bb3081cd1d878b`.
-The S07 CPU finding and S15 public-provider conditional-write blocker remain open.
+The S07 CPU finding remains open. The maintainer [explicitly deferred unsupported
+Asana/Tududi writes from 0.15.0](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611);
+the original provider failures remain unchanged and those connectors stay read-only.
 Development, automatic conformance and acceptance are separate states.
 
 The payload defaults to readable Markdown and bounded portable metadata selected
@@ -36,9 +38,58 @@ Deletion, bidirectional sync, canonical storage and backup/restore claims are ab
 
 Before the first qualification, the implementation fixes finite limits for records,
 files, individual bytes, total generation bytes, manifests, plans and operation
-time. The operator receives limit findings; there is no silent truncation or
+time: 20,000 canonical records and 256MiB aggregate JSON, 1,000 selected Documents,
+5,000 files, 32MiB per file, 256MiB per generation, 2MiB manifests, 16 retained plans,
+8 retained generations, 32 identities/destinations and 60 seconds per preparation.
+Full Original verification also admits at most 256MiB total and 32MiB per Original.
+These are refusal bounds, not claims that every supported machine completes the
+largest combination within the time budget. The operator receives limit findings;
+there is no silent truncation or
 automatic split/retry. Tests cover changed inventory/consent, different identities,
 scope isolation, optional includes, secret/sensitive content, tampering, interrupted
 staging, replay, offline operation and unavailable transports. Frozen automatic
 qualification uses disposable synthetic local data only. Human checks remain
 DEFERRED_BY_MAINTAINER / NOT_RUN until the official release on the maintainer PC.
+
+## Operator path / percorso operatore
+
+EN: Mirrors start disabled. Enable mirror access on this device, then separately
+allow GitHub or rsync/SSH when needed. Create an identity and destination with
+`mirror-identity` and `mirror-configure`, reading their configuration from an
+external device file; secret references and target locators go only to the OS
+vault. Select `instance`, `area` or `project` and exact optional include IDs.
+The Cura/Current mirror page and `mirror-prepare` prepare local staging and show
+the inventory, bytes and privacy findings. A local preview explicitly reports
+destination visibility/permissions/content NOT_OBSERVED. It grants no publication.
+`mirror-schedule` connects scheduled policies to the existing scheduler; S16 only
+prepares local generations. S17–S22 supply independently qualified publication.
+
+IT: I mirror sono disabilitati per impostazione iniziale. Consenti l'accesso su
+questo dispositivo e, separatamente, GitHub o rsync/SSH se necessari. Identità,
+destinazione, ambito Instance/Area/Project e inclusioni esplicite restano distinti.
+Cura/Current e `mirror-prepare` mostrano lo snapshot locale completo, inventario,
+dimensioni e rilievi; non attestano visibilità o permessi remoti. La pianificazione
+S16 prepara soltanto generazioni locali. Nessuna pubblicazione diventa disponibile
+prima della qualifica separata del trasporto.
+
+No GET unlocks the vault, reads a destination, invokes Git/rsync or scans document
+content. Revocation disables future operations without deleting knowledge or
+remote history. An imported policy is ineffective at a new device/root. Plans
+expire after fifteen minutes and bind access, identity/grant, policy, source
+generation and exact destination observation. Single durable dispatch claims and
+UNKNOWN records are shared primitives; only a separately qualified transport may
+call them. The final receipt contains hashes/counts/bytes, no target locator or
+content, and asserts neither destination deletion nor backup validity.
+
+Interrupted staging is never complete. Explicit discard/forget/drop removes only
+local derived plans/generations; unresolved dispatches cannot be forgotten. These
+actions never remove destination data. At capacity, choose exact completed/discarded
+local material to remove; the system does not silently prune evidence or retry.
+
+`--ocr-command mirror-qualify <fresh-target>` runs the actual Core services in a
+frozen executable over fresh synthetic local data: two identities, three scopes,
+complete inventories, restart/replay/UNKNOWN receipt and portable reconstruction
+without imported grants. The permanent installed offline Windows job executes it.
+Its PASS explicitly retains `real_transports: NOT_RUN` and
+`publication: TRANSPORT_NOT_QUALIFIED`. Native/browser/frozen/live-provider and
+human observations retain separate evidence and no inherited-head acceptance.
