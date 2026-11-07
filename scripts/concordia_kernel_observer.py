@@ -13,6 +13,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections import Counter
@@ -28,6 +29,8 @@ KINDS = {"F": (1, 4), "S": (2, 5), "W": (3, 3), "M": (4, 4),
 MAX_BYTES = 2 * 1024 * 1024
 ALLOWED_PATHS = {"scripts/concordia_kernel_observer.py", "scripts/concordia_kernel_events.bt",
                  "tests/test_concordia_kernel_observer.py",
+                 "scripts/concordia_capture_marker_fixture.py",
+                 "tests/test_concordia_capture_marker_fixture.py",
                  "docs/qualification/concordia-kernel-observer.md",
                  ".github/workflows/ai-runtime-candidate.yml"}
 
@@ -416,9 +419,72 @@ def control(output):
     return 0 if manifest["status"] == "MODEL_FREE_CONTROL_COMPLETE" else 1
 
 
+def capture_binding(output):
+    """One new real Capture binding control, never repeat the four-arm admission."""
+    output.mkdir(parents=True, exist_ok=False)
+    manifest = {"schema": "concordia-capture-binding-control/v1", "status": "NOT_ADMITTED",
+                "qualification_eligible": False, "native_inference": "NOT_RUN",
+                "capability": kernel_capability(), "program_sha256": hashlib.sha256(
+                    PROGRAM.read_bytes()).hexdigest()}
+    try:
+        manifest["source_proof"] = source_proof()
+        cap = manifest["capability"]
+        if (not cap["bpftrace"] or not cap["strace"] or cap["machine"] != "x86_64"
+                or not all(cap["tracepoint_formats"].values())):
+            raise ValueError("exact kernel binding capability missing")
+        version = subprocess.check_output([cap["bpftrace"], "--version"]).decode().strip()
+        if version != "bpftrace v0.20.2":
+            raise ValueError("unreviewed observer version")
+        sys.path.insert(0, str(SCRIPT.parent))
+        from concordia_capture_marker_fixture import BASE, validate_binding
+
+        def git(*args):
+            return subprocess.run(["git", "-c", f"safe.directory={ROOT}", "-C", str(ROOT),
+                                   *args], check=True, capture_output=True)
+
+        with tempfile.TemporaryDirectory(prefix="capture-binding-source-") as scratch:
+            source = Path(scratch) / "source"
+            git("worktree", "add", "--detach", str(source), BASE)
+            try:
+                report = output / "fixture.json"
+                command = [cap["strace"], "-ff", "-tt", "-e", "trace=network", "-o",
+                           str(output / "network"), sys.executable,
+                           str(SCRIPT.with_name("concordia_capture_marker_fixture.py")),
+                           "--source", str(source), "--output", str(report)]
+                command = [cap["bpftrace"], "-q", "-B", "line", "-k", "-c",
+                           shlex.join(command), str(PROGRAM)]
+                header = output / "capture-window.h"
+                with header.open("x") as stream:
+                    stream.write("#define CAPTURE_BINDING 1\n")
+                command[1:1] = ["--include", str(header)]
+                environment = {"PATH": os.defpath, "LANG": "C.UTF-8", "PYTHONNOUSERSITE": "1"}
+                code = execute(command, output / "observer", environment=environment)
+                manifest["exit"] = code
+                if code or not report.is_file():
+                    raise ValueError("Capture binding fixture failed")
+                traces = list(output.glob("network.*"))
+                if not traces or any(not re.search(r"\+\+\+ (exited with|killed by)",
+                                                  p.read_text()) for p in traces):
+                    raise ValueError("original network trace/exit incomplete")
+                records = parse_events((output / "observer.stdout").read_text(),
+                                       (output / "observer.stderr").read_text())
+                result = validate_binding(records, json.loads(report.read_text()))
+                write(output / "binding.json", result)
+                manifest.update(status="CAPTURE_BINDING_CONTROL_COMPLETE", binding=result,
+                                native_admission="REQUIRES_FRESH_NATIVE_HOST_AND_FULL_GATES")
+            finally:
+                git("worktree", "remove", str(source))
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        manifest["error"] = {"type": type(exc).__name__, "detail": str(exc)}
+    finally:
+        write(output / "manifest.json", manifest)
+    print(json.dumps({k: manifest[k] for k in ("status", "native_inference")}))
+    return 0 if manifest["status"] == "CAPTURE_BINDING_CONTROL_COMPLETE" else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["control", "fixture", "outsider"])
+    parser.add_argument("command", choices=["control", "fixture", "outsider", "capture-binding"])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "fixture":
@@ -427,6 +493,8 @@ def main():
     if args.command == "outsider":
         outsider(args.output.resolve())
         return 0
+    if args.command == "capture-binding":
+        return capture_binding(args.output.resolve())
     return control(args.output.resolve())
 
 

@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       concordia_observer_source:
-        description: 'Optional full fetched-main SHA for the nonqualifying observer study'
+        description: 'Full main SHA for old study; capture-binding selects new model-free kernel binding'
         type: string
         default: ''
       concordia_pool_prefix:
@@ -218,8 +218,17 @@ jobs:
           for event in sched/sched_switch sched/sched_wakeup raw_syscalls/sys_enter syscalls/sys_enter_write; do
             sudo cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
           done
-      - name: One model-free observer control block; no native admission
-        run: sudo env -i PATH=/usr/bin:/bin LANG=C.UTF-8 "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/concordia_kernel_observer.py" control --output "$GITHUB_WORKSPACE/.agent/concordia-kernel-control"
+      - name: One model-free control or Capture-window binding; no inference
+        env:
+          CONTROL_MODE: ${{ inputs.concordia_observer_source }}
+        run: |
+          selected=control
+          if test "$CONTROL_MODE" = capture-binding; then
+            selected=capture-binding
+          else
+            test -z "$CONTROL_MODE"
+          fi
+          sudo env -i PATH=/usr/bin:/bin LANG=C.UTF-8 "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/concordia_kernel_observer.py" "$selected" --output "$GITHUB_WORKSPACE/.agent/concordia-kernel-control"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:

@@ -1,6 +1,9 @@
 // Model-free observer admission only. cpid is the controlled strace child.
 // No paths, buffers, arguments, stacks, task names or environment are recorded.
-BEGIN { @owned[cpid] = 1; }
+#ifndef CAPTURE_BINDING
+#define CAPTURE_BINDING 0
+#endif
+BEGIN { @owned[cpid] = 1; @active = 0; }
 
 tracepoint:sched:sched_process_fork
 /@owned[args.parent_pid]/
@@ -11,7 +14,7 @@ tracepoint:sched:sched_process_fork
 }
 
 tracepoint:sched:sched_switch
-/@owned[args.prev_pid] || @owned[args.next_pid]/
+/(!CAPTURE_BINDING || @active) && (@owned[args.prev_pid] || @owned[args.next_pid])/
 {
   @emitted[2] = count();
   printf("S %llu %d %d %d\n", nsecs,
@@ -20,14 +23,14 @@ tracepoint:sched:sched_switch
 }
 
 tracepoint:sched:sched_wakeup
-/@owned[args.pid]/
+/(!CAPTURE_BINDING || @active) && @owned[args.pid]/
 {
   @emitted[3] = count();
   printf("W %llu %d\n", nsecs, args.pid);
 }
 
 tracepoint:syscalls:sys_enter_write
-/@owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
+/(!CAPTURE_BINDING || @active) && @owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
 {
   @emitted[8] = count();
   printf("T %llu %d %d\n", nsecs, tid, args.count);
@@ -38,33 +41,35 @@ tracepoint:syscalls:sys_enter_write
 tracepoint:raw_syscalls:sys_enter
 /@owned[tid] && args.id == 1 && args.args[0] == 198/
 {
+  if (CAPTURE_BINDING && args.args[2] == 9) { @active = 1; }
   @emitted[4] = count();
   printf("M %llu %d %llu\n", nsecs, tid, args.args[2]);
+  if (CAPTURE_BINDING && args.args[2] == 10) { @active = 0; }
 }
 
 tracepoint:syscalls:sys_enter_futex
-/@owned[tid]/
+/(!CAPTURE_BINDING || @active) && @owned[tid]/
 {
   @emitted[5] = count();
   printf("U %llu %d 1\n", nsecs, tid);
 }
 
 tracepoint:syscalls:sys_exit_futex
-/@owned[tid]/
+/(!CAPTURE_BINDING || @active) && @owned[tid]/
 {
   @emitted[5] = count();
   printf("U %llu %d 0\n", nsecs, tid);
 }
 
 tracepoint:syscalls:sys_enter_fsync
-/@owned[tid]/
+/(!CAPTURE_BINDING || @active) && @owned[tid]/
 {
   @emitted[6] = count();
   printf("D %llu %d 1\n", nsecs, tid);
 }
 
 tracepoint:syscalls:sys_exit_fsync
-/@owned[tid]/
+/(!CAPTURE_BINDING || @active) && @owned[tid]/
 {
   @emitted[6] = count();
   printf("D %llu %d 0\n", nsecs, tid);
@@ -78,4 +83,4 @@ tracepoint:sched:sched_process_exit
   delete(@owned[tid]);
 }
 
-END { clear(@owned); }
+END { clear(@owned); clear(@active); }

@@ -117,7 +117,8 @@ Source/input/host drift, missing events/overflow, application/network or non-tim
 failure stops collection. All reports stay DIAGNOSTIC_ONLY with original gates
 and every FAIL preserved.
 
-Phase B is a design, not a dispatched or qualified command. Any causal PRODUCT
+The native-inference part of Phase B is a design, not a dispatched or qualified
+command. The model-free Capture-window preparation below is separate. Any causal PRODUCT
 correction is subsequent work under the same owner, followed by exact-candidate
 native/CI/review/preflight and actual-main acceptance. Existing ABBA is never
 resumed. S07/S08 remain NOT_ACCEPTED, S09 unopened, identity0.14.0/development,
@@ -214,3 +215,57 @@ declares syscall id and six raw arguments populated by syscall_get_arguments.
 Both actual kernel event formats are retained by the control workflow. Other
 architectures refuse instead of inheriting this ABI claim. Actual Capture-window
 binding and native admission remain locked until the observer is complete.
+
+## Verified observer discriminator and one real Capture binding preparation
+
+Run42356627852/attempt1/job128356018540 on53a359b completes the declared four
+model-free arms. Raw markers are8/8 in each kernel arm; concurrently typed markers
+are1/0. The observation-path difference is therefore demonstrated on that host,
+without attributing a PRODUCT failure. Both raw streams (547173/548111bytes) fit
+the unchanged2MiB limit; independent emission counts, clock/identity checks,
+positive/negative controls and owned exits pass. All marker envelopes are at most
+135481ns, below the unchanged5ms control bound. These are fixture costs, not
+native Capture overhead or a deduction from any scored sample.
+
+Original artifact13567059850:1116143bytes, SHA-256
+b5e0b71570a5788f2983793c589fd31cf72b0472a101648f8f4e728f62c1c52f.
+All65members were independently read/CRC/SHA checked; original analyses replay
+identically after normal JSON tuple/list serialization. The earlier three
+refusals remain refused. This observation does not resolve an application finding.
+
+The next preparation control is a single real AI-Off original deterministic_probe
+on immutable d5, sample810. scripts/concordia_capture_marker_fixture.py applies
+only in its fresh process, preserving original returns/exceptions and restoring
+methods afterward. It writes four exact markers at submit/process start/end.
+Frame markers9/10 are outside the original probe clock. Actual Original/search
+and default-off checks are mandatory; marker costs remain inside Capture timing
+and are never subtracted.
+
+To keep the existing output bound, the explicit CAPTURE_BINDING header enables
+scheduler/wakeup/futex/fsync emission only between frame9and10. Ownership fork/
+exit records and raw markers remain visible throughout; no schema or loss gate
+is weakened. Default observer-control mode still records its full fixture.
+Import/Instance-initialization/cleanup work outside the original probe is excluded
+from this application window, rather than increasing buffers to record it.
+
+Invoke the existing workflow with observer-study=true, kernel-control=true and
+observer-source=capture-binding. This selects the separate capture-binding command;
+it does not rerun the completed four-arm controls or any native/source study.
+The same existing ephemeral host/tool and45s execution/10min job bounds apply.
+A fresh temporary canonical Git worktree supplies exact clean d5; no model,
+real account, remote destination or external credentials enter the fixture.
+
+The local real-original fixture already preserves Original/search/default-off,
+exact marker order9/1/2/3/4/10 and original source identity. Its local marker
+envelopes are at most5678ns; local kernel correlation remains NOT_RUN because
+that environment lacks tracepoint access. CI must independently match every raw
+marker to its own TID/BOOT clock envelope, preserve all tracee exits and prove
+stable BOOTTIME/MONOTONIC conversion. A typed record cannot stand in for a missing
+raw record. The result is CAPTURE_WINDOW_BINDING_OBSERVED, never native acceptance.
+
+For the later one-sequence native experiment, gate emission only for the declared
+S08cold sample810 frame, preserving all other original scored samples/reports.
+Analyze scheduler state inside that frame rather than joining across disabled
+windows. Any other FAIL survives but cannot supply attribution to an unobserved
+interval. Exact native host/source/input/containment/marker gates still precede
+execution. No native inference is requested by these preparation controls.
