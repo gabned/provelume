@@ -1695,7 +1695,7 @@ endpoints, accounts and project/task scopes.
 
 The adapters cover projects, tasks, subtasks, assignees, due dates, completion state, comments and
 durable links; normalized Task/Outcome and CalendarEvent/Commitment mappings; adapter-isolated
-provider extensions; per-instance read/write policy; least-privilege consent, external credential
+provider extensions; per-instance read policy; least-privilege consent, external credential
 references, reauthorization, connector health, cursor reset and bounded full resync.
 
 Asana and Tududi are read-only in 0.15.0 under the maintainer's
