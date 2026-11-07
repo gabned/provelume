@@ -229,7 +229,8 @@ def _body(kind: str, body: Any, *, state=None, connector=False) -> None:
             else:
                 _require(_date(body["starts_on"]) < _date(body["ends_on"]))
         else:
-            _require(_timestamp(body["starts_at"]) < _timestamp(body["ends_at"]))
+            start, end = _timestamp(body["starts_at"]), _timestamp(body["ends_at"])
+            _require(start < end or (connector and start == end))
             _match(body["time_zone"], _ZONE)
 
 

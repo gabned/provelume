@@ -16,6 +16,7 @@ from .email_cli import add_email_commands, handle_email_command
 from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
 from .google_cli import add_google_commands, handle_google_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
+from .icalendar_cli import add_icalendar_commands, handle_icalendar_command
 from .inbox_transit_cli import add_inbox_transit_commands, handle_inbox_transit_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
@@ -229,6 +230,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_hierarchy_commands(subparsers)
     add_connector_commands(subparsers)
     add_productivity_commands(subparsers)
+    add_icalendar_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -276,6 +278,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     productivity_result = handle_productivity_command(args)
     if productivity_result is not None:
         return productivity_result
+    icalendar_result = handle_icalendar_command(args)
+    if icalendar_result is not None:
+        return icalendar_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result

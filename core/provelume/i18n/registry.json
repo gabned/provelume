@@ -17024,6 +17024,150 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "icalendar.title": {
+      "context": "iCalendar Source control: title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.lead": {
+      "context": "iCalendar Source control: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.kind": {
+      "context": "iCalendar Source control: kind",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.local": {
+      "context": "iCalendar Source control: local",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.location": {
+      "context": "iCalendar Source control: location",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.authorization": {
+      "context": "iCalendar Source control: authorization",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.time_zone": {
+      "context": "iCalendar Source control: time_zone",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.device": {
+      "context": "iCalendar Source control: device",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.confirm": {
+      "context": "iCalendar Source control: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.name": {
+      "context": "iCalendar Source control: name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.add": {
+      "context": "iCalendar Source control: add",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.read": {
+      "context": "iCalendar Source control: read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.policy": {
+      "context": "iCalendar Source control: policy",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.disabled": {
+      "context": "iCalendar Source control: mode.disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.manual": {
+      "context": "iCalendar Source control: mode.manual",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.scheduled": {
+      "context": "iCalendar Source control: mode.scheduled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.interval": {
+      "context": "iCalendar Source control: interval",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.save": {
+      "context": "iCalendar Source control: save",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.reconnect": {
+      "context": "iCalendar Source control: reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.saved": {
+      "context": "iCalendar Source control: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.error": {
+      "context": "iCalendar Source control: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.empty": {
+      "context": "iCalendar Source control: empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.duplicates": {
+      "context": "iCalendar Source control: duplicates",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.duplicates_help": {
+      "context": "iCalendar Source control: duplicates_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

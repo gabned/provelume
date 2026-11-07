@@ -45,6 +45,7 @@ from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
 from .google_connection_activity import attach_google_connection_routes
 from .i18n import translator
+from .icalendar_activity import attach_icalendar_routes
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
@@ -617,6 +618,7 @@ def create_app(
     attach_perceptio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
+    attach_icalendar_routes(app, instance, TEMPLATES, _context)
     callback_host = "[::1]" if selected_host == "::1" else "127.0.0.1"
     attach_google_connection_routes(
         app, instance, TEMPLATES, _context,

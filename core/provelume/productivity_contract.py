@@ -105,11 +105,18 @@ def validate_item(value):
             require(value["ends"] is None)
         else:
             start, end = temporal(value["starts"]), temporal(value["ends"])
-            require(type(start) is type(end) and start < end, "time_range")
+            require(type(start) is type(end) and (start < end or (
+                isinstance(start, datetime) and start == end)), "time_range")
     provenance = value["provenance"]
-    require(type(provenance) is dict and set(provenance) == {
+    require(type(provenance) is dict and set(provenance) - {"original_time_zones"} == {
         "container_ids", "parent_id", "assignees", "links", "comments", "uid", "recurrence_id",
         "recurrence"})
+    if "original_time_zones" in provenance:
+        zones = provenance["original_time_zones"]
+        require(type(zones) is dict and set(zones) == {"starts", "ends", "recurrence"})
+        for zone in zones.values():
+            if zone is not None:
+                text(zone, 100)
     for name, maximum in (("container_ids", 128), ("assignees", 100), ("links", 100),
                           ("comments", 200), ("recurrence", 128)):
         require(type(provenance[name]) is list and len(provenance[name]) <= maximum, "limit")

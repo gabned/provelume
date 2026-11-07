@@ -80,6 +80,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def icalendar_feeds(self):
+        from .icalendar_feeds import IcalendarFeeds
+
+        if not hasattr(self, "_icalendar_manager"):
+            self._icalendar_manager = IcalendarFeeds(self.store)
+        return self._icalendar_manager
+
     def productivity_connectors(self):
         """Explicit source-scoped read preview; no implicit network on construction."""
         from .productivity_connectors import ProductivityConnectors

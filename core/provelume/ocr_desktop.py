@@ -35,6 +35,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     personal.add_argument("--ocr-ready", action="store_true")
     personal.add_argument("--kit", type=Path)
     personal.add_argument("--expected-sha256")
+    calendar = commands.add_parser("icalendar-qualify")
+    calendar.add_argument("instance", type=Path)
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -46,7 +48,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "personal-qualify":
+                if options.command == "icalendar-qualify":
+                    from .icalendar_qualification import qualify_icalendar
+
+                    result = qualify_icalendar(options.instance)
+                elif options.command == "personal-qualify":
                     from .personal_qualification import qualify_personal
 
                     result = qualify_personal(options.instance, retention=options.retention,

@@ -183,6 +183,15 @@ def main():
                                     page.locator('select[name="capability"]').first.select_option(
                                         "calendar")
                                     assert page.locator('option[value="calendar"]').count() >= 1
+                                    response = page.goto(origin + "/icalendar?lang=" + language)
+                                    assert response.status == 200
+                                    assert page.locator('form[action^="/icalendar"]').count() >= 1
+                                    assert page.locator('select[name="kind"]').first.is_visible()
+                                    page.locator('select[name="kind"]').first.select_option("https")
+                                    assert "icalendar.title" not in page.content()
+                                    assert page.evaluate("document.documentElement.scrollWidth <= "
+                                                        "document.documentElement.clientWidth")
+                                    cell["icalendar_controls"] = "AUTOMATIC_PASS"
                                     response = page.goto(origin + "/objects/" + fixture[
                                         "provider_object_id"] + "?lang=" + language)
                                     assert response.status == 200

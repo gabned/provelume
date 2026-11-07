@@ -1784,6 +1784,18 @@ class SchedulerCoordinator:
                 False,
                 bool(progress.get("processed", 0)),
             )
+        if job["job_kind"] == "productivity.intake":
+            from .productivity_contract import ProductivityError
+            from .productivity_jobs import ProductivityJobs
+
+            factory = getattr(self, "_productivity_manager_factory", ProductivityJobs)
+            manager = factory(self.store)
+            try:
+                progress = manager.execute(job)
+            except (ProductivityError, OSError, ValueError):
+                return (False, self._progress(errors=1), "manual_intervention",
+                        "source_refresh_failed", manager.network_used, manager.canonical_mutation)
+            return (True, progress, "", "", manager.network_used, manager.canonical_mutation)
         if job["job_kind"] == "google.intake":
             from .google_contract import GoogleContractError
             from .google_jobs import GoogleJobManager
