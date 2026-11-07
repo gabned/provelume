@@ -89,13 +89,11 @@ def limit_command(limits):
 
 
 def host():
-    import pwd
-
     if os.geteuid() == 0 or any(shutil.which(name) is None for name in
                                ("bpftrace", "strace", "setpriv", "prlimit")):
         raise ValueError("native controller must retain ordinary runner identity")
     result = environment()
-    result.update(uid=os.getuid(), gid=os.getgid(), user=pwd.getpwuid(os.getuid()).pw_name,
+    result.update(uid=os.getuid(), gid=os.getgid(), home=os.environ["HOME"],
                   nice=os.getpriority(os.PRIO_PROCESS, 0),
                   groups=sorted(os.getgroups()),
                   limits=process_limits(),
@@ -103,6 +101,13 @@ def host():
                   tools={name: digest(Path(shutil.which(name)))
                          for name in ("bpftrace", "strace", "setpriv", "prlimit")})
     return result
+
+
+def child_environment():
+    # HOME is a benign original runner coordinate. Removing it makes Python's
+    # home lookup issue NSS sockets before the original qualifier even starts.
+    return {"PATH": os.defpath, "LANG": "C.UTF-8", "PYTHONNOUSERSITE": "1",
+            "HOME": os.environ["HOME"]}
 
 
 def locked_inputs(inputs):
@@ -135,7 +140,7 @@ def collect(source, output, arguments, timeout):
     header = output / "capture-window.h"
     header.write_text("#define CAPTURE_BINDING 1\n")
     trace = output / "network"
-    command = ["env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8", "PYTHONNOUSERSITE=1",
+    command = ["env", "-i", *[name + "=" + value for name, value in child_environment().items()],
                "strace", "-ff", "-tt", "-e", "trace=network", "-o", str(trace),
                sys.executable, *arguments]
     launch = output / "launch.sh"
@@ -243,6 +248,27 @@ def containment_control(source, output):
     return observed
 
 
+def startup_control(source, output):
+    trace = output / "startup-network"
+    result = subprocess.run(["strace", "-ff", "-tt", "-e", "trace=network",
+        "-o", str(trace), sys.executable, str(SCRIPT), "worker", "--source", str(source),
+        "--output", str(output), "--startup-only"], cwd=source, env=child_environment(),
+        capture_output=True, text=True, timeout=45)
+    (output / "startup.stdout").write_text(result.stdout)
+    (output / "startup.stderr").write_text(result.stderr)
+    traces = list(output.glob("startup-network.*"))
+    if (result.returncode or result.stderr.strip() or not traces
+            or any(re.search(r"\b(socket|connect|sendto|sendmsg|sendmmsg)\(", p.read_text())
+                   for p in traces)
+            or any("+++ exited with 0 +++" not in p.read_text() for p in traces)):
+        raise ValueError("actual native-driver startup network/exit control failed")
+    observed = json.loads((output / "startup.json").read_text())
+    if observed["host"] != host() or observed["native_inference"] != "NOT_RUN":
+        raise ValueError("startup identity/placement differs from original runner")
+    return {"status": "STARTUP_OBSERVED_NO_NETWORK_CALLS", "traces": len(traces),
+            "native_inference": "NOT_RUN"}
+
+
 def admit(output):
     output.mkdir(parents=True, exist_ok=False)
     receipt = {"schema": "concordia-kernel-native-admission/v1", "status": "NOT_ADMITTED",
@@ -267,6 +293,7 @@ def admit(output):
             raise ValueError("unknown actual kernel scheduler state encoding")
         # A fresh-host prerequisite, not another fixed four-arm or CPU experiment.
         with baseline() as source:
+            receipt["startup"] = startup_control(source, output)
             receipt["containment"] = containment_control(source, output)
             control = output / "capture-binding"
             fixture_path = control / "fixture.json"
@@ -332,7 +359,7 @@ def capture_marks(adapter, synthesis, emit):
         synthesis.deterministic_probe = probe
 
 
-def worker(source, inputs, output):
+def worker(source, inputs, output, *, startup_only=False):
     if (common.git(source, "rev-parse", "HEAD").decode().strip() != BASE
             or common.git(source, "status", "--porcelain").strip()):
         raise ValueError("exact clean baseline required")
@@ -347,6 +374,10 @@ def worker(source, inputs, output):
     for module in (original, synthesis, sys.modules[CaptureAdapter.__module__]):
         if not Path(module.__file__).resolve().is_relative_to(source):
             raise ValueError("application module did not load from immutable baseline")
+    if startup_only:
+        kernel.write(output / "startup.json", {"source": BASE, "host": host(),
+                     "native_inference": "NOT_RUN", "pid": os.getpid()})
+        return 0
     markers, selected = [], []
     null = os.open(os.devnull, os.O_WRONLY)
     os.dup2(null, 198)
@@ -398,6 +429,8 @@ def analyze(output):
     limit = min(1, 2 * statistics.median(r["capture_seconds"] for r in idle) + .1)
     prediction = kernel.evaluate_prediction(intervals, tid=fixture["tid"], start=start, end=end,
         capture_seconds=probe["capture_seconds"], own_limit=limit, complete=complete)
+    if not complete:
+        prediction["prediction"] = "UNKNOWN"
     return {"schema": "concordia-kernel-native-result/v1", "qualification_eligible": False,
             "original_status": report["status"], "original_gates": report["gates"],
             "probe": probe, "own_limit": limit, "binding": binding, "tasks": tasks,
@@ -468,6 +501,7 @@ def main():
     parser.add_argument("--source", type=Path)
     parser.add_argument("--inputs", type=Path)
     parser.add_argument("--admission", type=Path)
+    parser.add_argument("--startup-only", action="store_true")
     args = parser.parse_args()
     output = args.output.resolve()
     if args.command == "admit":
@@ -476,7 +510,8 @@ def main():
         print(json.dumps(analyze(output)))
         return 0
     if args.command == "worker":
-        return worker(args.source.resolve(), args.inputs.resolve(), output)
+        return worker(args.source.resolve(), args.inputs.resolve() if args.inputs else None,
+                      output, startup_only=args.startup_only)
     return run(args.inputs.resolve(), args.admission.resolve(), output)
 
 

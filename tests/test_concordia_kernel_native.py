@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -9,6 +11,21 @@ import pytest
 import yaml
 
 from scripts import concordia_kernel_native as native
+
+
+@pytest.mark.skipif(sys.platform != "linux" or not shutil.which("strace"),
+                    reason="actual Linux startup network observer")
+def test_driver_retains_benign_runner_home_and_avoids_nss_without_inheriting_secrets(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("CONCORDIA_TEST_SECRET", "must-not-be-inherited")
+    environment = native.child_environment()
+    assert environment["HOME"] == os.environ["HOME"]
+    assert "CONCORDIA_TEST_SECRET" not in environment
+    trace = tmp_path / "network"
+    subprocess.run(["strace", "-ff", "-tt", "-e", "trace=network", "-o", str(trace),
+                    sys.executable, "-c", "from pathlib import Path;Path.home()"],
+                   env=environment, capture_output=True, check=True, timeout=20)
+    assert all("socket(" not in p.read_text() for p in tmp_path.glob("network.*"))
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="actual Linux process-limit envelope")
@@ -115,9 +132,13 @@ def test_native_selector_is_exclusive_and_keeps_original_execution_bounds():
     assert "github.run_attempt == 1" in condition
     assert "inputs.concordia_observer_source != 'native-cold-810'" in jobs[
         "concordia-kernel-control"]["if"]
+    assert "inputs.concordia_observer_source != 'native-admission-only'" in jobs[
+        "concordia-kernel-control"]["if"]
     steps = jobs["concordia-kernel-native"]["steps"]
     commands = [s.get("run", "") for s in steps]
     admission = next(i for i, s in enumerate(commands) if "native.py admit" in s)
     acquire = next(i for i, s in enumerate(commands) if "ai_runtime_acquire.py" in s)
     measure = next(i for i, s in enumerate(commands) if "native.py run" in s)
     assert admission < acquire < measure
+    for index in (acquire, measure):
+        assert steps[index]["if"] == "inputs.concordia_observer_source == 'native-cold-810'"

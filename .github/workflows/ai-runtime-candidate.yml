@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       concordia_observer_source:
-        description: 'Full main SHA for old study; capture-binding or native-cold-810 for kernel work'
+        description: 'Old main SHA, capture-binding, native-admission-only, or native-cold-810'
         type: string
         default: ''
       concordia_pool_prefix:
@@ -187,7 +187,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-kernel-control:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && inputs.concordia_observer_source != 'native-cold-810' && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && inputs.concordia_observer_source != 'native-cold-810' && inputs.concordia_observer_source != 'native-admission-only' && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -240,7 +240,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-kernel-native:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && inputs.concordia_observer_source == 'native-cold-810' && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && (inputs.concordia_observer_source == 'native-cold-810' || inputs.concordia_observer_source == 'native-admission-only') && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
     runs-on: ubuntu-24.04
     # Acquisition is outside the unchanged 1200s execution / 60s observation bounds.
     timeout-minutes: 30
@@ -271,8 +271,10 @@ jobs:
       - name: Fresh host, source, containment, clock and Capture-marker admission without inference
         run: .venv/bin/python scripts/concordia_kernel_native.py admit --output .agent/kernel-native-admission
       - name: Explicit acquisition of the unchanged locked native inputs
+        if: inputs.concordia_observer_source == 'native-cold-810'
         run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/kernel-native-inputs" --accept-licenses --include-model
       - name: One complete original baseline sequence, no retry or second arm
+        if: inputs.concordia_observer_source == 'native-cold-810'
         run: .venv/bin/python scripts/concordia_kernel_native.py run --inputs "${{ runner.temp }}/kernel-native-inputs" --admission .agent/kernel-native-admission/admission.json --output .agent/kernel-native-sequence
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()

@@ -357,3 +357,39 @@ no event emission predicate, counter, parser, bound, buffer, timeout or scientif
 outcome rule. The next invocation is a changed preparation recovering this exact
 diagnosed helper failure; no completed native experiment is repeated. Actual
 fresh-host admission must still succeed before model acquisition or inference.
+
+## Executed sequence: original network FAIL, experiment UNKNOWN
+
+Run42361533300/attempt1/job128370775319 on be4f1e7 passes fresh-host admission
+and locked acquisition, then executes the single complete original d5 sequence.
+Artifact13569993525 is896966bytes, SHA-256
+7fb35a80a2f314cc3737b6ab9f5d580f1563cd52a78361517a4a227aeb0a4671.
+All670members were independently restored/read/CRC checked/hashed. The original
+network evaluator returns FAIL: the harness startup issues two AF_UNIX sockets
+and failed ENOENT connections to /var/run/nscd/socket. Every other original gate
+passes, including S08. The original FAIL is preserved; the experiment is STOPPED /
+UNKNOWN, never a qualifying PASS or resolution of any historical CPU finding.
+
+Cold810 Capture is0.235864707s, below its own unchanged0.371726774s limit.
+Independent forensic replay retains complete marker clocks,623original traces,
+627owned exits and paired2962futex/52fsync operations. It observes no new Capture
+excess. This temporal non-exceedance does not override the original network FAIL,
+promote UNKNOWN to valid NON_REPRODUCTION, or establish historical causality.
+No equivalent inference redispatch follows this completed sequence.
+
+The driver had removed benign HOME along with credentials. A separate two-case
+model-free startup control demonstrates that Path.home() under that environment
+issues exactly the same two NSS sockets, while retaining the original HOME
+issues none. The correction retains only PATH/LANG/PYTHONNOUSERSITE/HOME, removes
+the unnecessary passwd-name lookup, and checks the actual driver's complete
+startup/import/source/host path under original strace before any possible model
+acquisition. No credential or extra ambient variable is inherited.
+
+The explicit `native-admission-only` workflow selector verifies that correction
+on a fresh real host without acquiring a model or executing inference; acquisition
+and sequence steps are guarded to native-cold-810 only. This is preparation
+verification, not reopening the stopped experiment. Incomplete chronology stays
+UNKNOWN even when the timing is below its threshold. Original reports, evaluator,
+strace and all bounds remain unchanged. Existing findings remain CURRENT /
+NOT_DEMONSTRATED; further progress requires a distinct demonstrated hypothesis
+or an explicit product decision, rather than a repeated equivalent measurement.
