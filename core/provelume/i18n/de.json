@@ -2754,5 +2754,11 @@
   "mirror.github_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte GitHub-Repository.",
   "mirror.github_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien, Commit-Autor und öffentliche synthetische Berechtigungsprobe.",
   "mirror.github_probe_notice": "Diese Vorschau prüft ausdrücklich die Schreibberechtigung mit einem festen öffentlichen synthetischen Blob. Die Prüfung ändert keinen Branch.",
-  "mirror.github_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
+  "mirror.github_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung.",
+  "mirror.gitlab_profile": "GitLab: Repository-Identität, Sichtbarkeit und vollständige Übertragung sind an diese Vorschau gebunden.",
+  "mirror.gitlab_publish": "GitLab-Generation veröffentlichen",
+  "mirror.gitlab_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte GitLab-Repository.",
+  "mirror.gitlab_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien und Commit-Autor. Die Prüfung liest Token-Bereiche und Projektrolle.",
+  "mirror.gitlab_probe_notice": "Diese Vorschau prüft Token-Bereiche und Projektberechtigungen erneut, ohne entfernte Inhalte zu ändern.",
+  "mirror.gitlab_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
 }

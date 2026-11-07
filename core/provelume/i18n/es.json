@@ -2754,5 +2754,11 @@
   "mirror.github_confirm": "Confirmo esta transferencia exacta al repositorio GitHub configurado.",
   "mirror.github_transfer": "Transferencia completa: contenidos, archivos de control, autor del commit y prueba sintética pública.",
   "mirror.github_probe_notice": "Esta vista previa comprueba explícitamente la escritura con un blob sintético público fijo. La comprobación no actualiza ninguna rama.",
-  "mirror.github_public_confirm": "He revisado cada hash, archivo de control y campo del commit y confirmo esta transferencia pública exacta."
+  "mirror.github_public_confirm": "He revisado cada hash, archivo de control y campo del commit y confirmo esta transferencia pública exacta.",
+  "mirror.gitlab_profile": "GitLab: identidad del repositorio, visibilidad y transferencia completa vinculadas a esta vista previa.",
+  "mirror.gitlab_publish": "Publicar generación GitLab",
+  "mirror.gitlab_confirm": "Confirmo esta transferencia exacta al repositorio GitLab configurado.",
+  "mirror.gitlab_transfer": "Transferencia completa: contenidos, archivos de control y autor del commit. La comprobación lee ámbitos del token y rol del proyecto.",
+  "mirror.gitlab_probe_notice": "Esta vista previa vuelve a comprobar los ámbitos del token y permisos del proyecto sin modificar contenido remoto.",
+  "mirror.gitlab_public_confirm": "He revisado cada hash, archivo de control y campo del commit y confirmo esta transferencia pública exacta."
 }

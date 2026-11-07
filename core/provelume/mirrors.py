@@ -659,7 +659,8 @@ class Mirrors:
         if transport_proof is not None:
             require(type(transport_proof) is dict)
             provider = transport_proof.get("provider_observation")
-            hosted = transport_proof.get("profile") == "github.com/2022-11-28"
+            hosted = transport_proof.get("profile") in {
+                "github.com/2022-11-28", "gitlab.com/v4/classic-pat"}
             require(
                 type(transport_proof) is dict
                 and set(transport_proof)
@@ -677,7 +678,8 @@ class Mirrors:
                 )
             )
             require(
-                transport_proof["profile"] in {"git-local/v1", "github.com/2022-11-28"}
+                transport_proof["profile"] in {
+                    "git-local/v1", "github.com/2022-11-28", "gitlab.com/v4/classic-pat"}
                 and type(transport_proof["commit_written"]) is bool
                 and type(transport_proof["git_version"]) is str
                 and len(transport_proof["git_version"]) <= 40

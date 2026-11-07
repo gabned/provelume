@@ -125,6 +125,20 @@ if sys.argv[2]=='yes':
         target=target(),scope={'kind':'area','id':mirror_area['id']},
         include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
     fixture['mirror_github_plan_id']=gh.prepare(gh_target['id'],expected_revision=1,confirmed=True)['id']
+    from provelume.mirror_gitlab_credentials import GitLabCredentials
+    from provelume.mirror_gitlab_qualification import (SyntheticApi as GitLabApi,
+        SyntheticNativeGitLab, target as gitlab_contract_target)
+    gl=SyntheticNativeGitLab(instance.store,mirrors=mirrors,
+        credentials=GitLabCredentials(mirrors,vault=mirrors.vault,http=GitLabApi()))
+    gl_identity=gl.connect(name='Synthetic GitLab browser',target=gitlab_contract_target(),
+        token='synthetic-gitlab-browser',mode='classic-pat',confirmed=True)['identity']
+    gl.synthetic_remote=root/'Synthetic GitLab hosted file Git.git'
+    with git_work() as session:
+        session.run(['init','--bare','--object-format=sha1',str(gl.synthetic_remote)])
+    gl_target=mirrors.configure(identity_id=gl_identity['id'],name='Synthetic GitLab destination',
+        target=gitlab_contract_target(),scope={'kind':'area','id':mirror_area['id']},
+        include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
+    fixture['mirror_gitlab_plan_id']=gl.prepare(gl_target['id'],expected_revision=1,confirmed=True)['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -349,6 +363,17 @@ def main():
                                     assert page.evaluate('document.documentElement.scrollWidth <= '
                                                          'document.documentElement.clientWidth')
                                     cell['mirror_github_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_gitlab_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-gitlab-transfer').is_visible()
+                                    transfer=page.locator('#mirror-gitlab-transfer').inner_text()
+                                    assert 'namespace.json' in transfer
+                                    assert 'remote_mutation' in transfer
+                                    assert 'synthetic-gitlab-browser' not in page.content()
+                                    assert page.evaluate('document.documentElement.scrollWidth <= '
+                                                         'document.documentElement.clientWidth')
+                                    cell['mirror_gitlab_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

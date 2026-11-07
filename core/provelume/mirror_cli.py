@@ -33,15 +33,21 @@ def add_mirror_commands(commands):
         "github-prepare",
         "github-publish",
         "github-reconcile",
+        "gitlab-status",
+        "gitlab-connect",
+        "gitlab-disconnect",
+        "gitlab-prepare",
+        "gitlab-publish",
+        "gitlab-reconcile",
     ):
         command = commands.add_parser("mirror-" + name)
         command.add_argument("instance", type=Path)
-        if name in {"identity", "configure", "access", "github-connect"}:
+        if name in {"identity", "configure", "access", "github-connect", "gitlab-connect"}:
             command.add_argument("configuration_file", type=Path)
-        if name in {"prepare", "disable", "git-prepare", "github-prepare"}:
+        if name in {"prepare", "disable", "git-prepare", "github-prepare", "gitlab-prepare"}:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name in {"revoke", "github-disconnect"}:
+        if name in {"revoke", "github-disconnect", "gitlab-disconnect"}:
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
         if name == "git-initialize":
@@ -54,21 +60,23 @@ def add_mirror_commands(commands):
             "git-reconcile",
             "github-publish",
             "github-reconcile",
+            "gitlab-publish",
+            "gitlab-reconcile",
         }:
             command.add_argument("plan_id")
         if name == "discard":
             command.add_argument("--expected-plan-sha256", required=True)
-        if name in {"git-publish", "github-publish"}:
+        if name in {"git-publish", "github-publish", "gitlab-publish"}:
             command.add_argument("--expected-plan-sha256", required=True)
             command.add_argument("--expected-git-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
-        if name == "github-publish":
+        if name in {"github-publish", "gitlab-publish"}:
             command.add_argument("--expected-transfer-sha256")
         if name == "github-connect":
             command.add_argument("--probe-confirm", action="store_true")
             command.add_argument("--public-probe-confirm", action="store_true")
-        if name not in {"status", "git-status", "github-status"}:
+        if name not in {"status", "git-status", "github-status", "gitlab-status"}:
             command.add_argument("--confirm", action="store_true")
 
 
@@ -79,11 +87,12 @@ def handle_mirror_command(options):
         instance = ProvelumeInstance(options.instance)
         engine = instance.mirrors()
         selected = options.command.removeprefix("mirror-")
-        if selected not in {"status", "git-status", "github-status"}:
+        if selected not in {"status", "git-status", "github-status", "gitlab-status"}:
             require(options.confirm is True, "consent_required")
-        if selected.startswith(("git-", "github-")):
-            hosted = selected.startswith("github-")
-            git = instance.github_mirrors() if hosted else instance.git_mirrors()
+        if selected.startswith(("git-", "github-", "gitlab-")):
+            hosted = selected.startswith(("github-", "gitlab-"))
+            git = (instance.gitlab_mirrors() if selected.startswith("gitlab-") else
+                   instance.github_mirrors() if hosted else instance.git_mirrors())
             operation = selected.split("-", 1)[1]
             if operation == "status":
                 result = git.status()
@@ -93,12 +102,10 @@ def handle_mirror_command(options):
                 require(external.stat().st_size <= 16384, "limit")
                 configuration = parse(external.read_bytes())
                 require(set(configuration) <= {"name", "target", "token", "mode", "identity_id"})
-                result = git.connect(
-                    **configuration,
-                    confirmed=True,
-                    probe_confirmed=options.probe_confirm,
-                    public_probe_confirmed=options.public_probe_confirm,
-                )
+                probe = ({"probe_confirmed": options.probe_confirm,
+                          "public_probe_confirmed": options.public_probe_confirm}
+                         if selected.startswith("github-") else {})
+                result = git.connect(**configuration, confirmed=True, **probe)
             elif operation == "disconnect":
                 result = git.disconnect(
                     options.identity_id, expected_revision=options.expected_revision, confirmed=True

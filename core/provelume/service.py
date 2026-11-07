@@ -80,6 +80,11 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def gitlab_mirrors(self):
+        from .mirror_gitlab import GitLabMirrors
+
+        return GitLabMirrors(self.store, mirrors=self.mirrors())
+
     def github_mirrors(self):
         from .mirror_github import GitHubMirrors
 

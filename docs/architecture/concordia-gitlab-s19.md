@@ -42,3 +42,36 @@ maintainer's Windows 11 Pro 25H2 PC; no intermediate installation is requested.
 Authoritative token API: https://docs.gitlab.com/api/personal_access_tokens/ .
 The profile and implementation require exact-candidate native/CI/review and later
 independent real-endpoint qualification before acceptance.
+
+## Implemented surfaces and bounded evidence
+
+The provider now has its own closed target, classic-PAT self-scope/active/expiry
+and user/role/visibility/version observations, fixed HTTPS v4 worker and fixed
+GitLab-only native credential helper. Shared hosted mechanics preserve the same
+GitHub behavior under regression tests, but provider semantics and fixture API
+responses remain independent. Live GitLab service version/revision is observed
+and bound to the preview, rather than inferred from the stable v4 coordinate.
+GitLab `glpat-` patterns are blocked in every staged mirror, including control and
+commit metadata. Internal/unknown visibility and granular/unknown token modes
+remain explicit refusals.
+
+CLI has `mirror-gitlab-status/connect/disconnect/prepare/publish/reconcile`.
+Connect reads only a deliberately selected external configuration and requires
+explicit confirmation; no token or credential reference appears in its result.
+Both local shells/seven UNVERIFIED catalogues show the project, complete transfer,
+public confirmation, conflicts, UNKNOWN and historical receipt limits. The CSRF
+POSTs dispatch to the same backend; passive GETs never probe GitLab or the vault.
+Private schedules use the existing external fence and single-attempt engine;
+public schedules require manual fresh review and are refused by the profile.
+
+`gitlab-mirror-qualify` uses the actual frozen operator, native file Git, independent
+synthetic API/user/token/project data, a synthetic credential pipe and a real
+closed-worker refusal. It is included in the permanent installed Windows test
+with explicit optional Git PATH, no external Python, no real account or network.
+It exercises new generation, interruption after one native send, an actual Root
+backup/restore and read-only recovery with no resend. Its real GitLab label stays
+NOT_RUN. Source tests also exercise real local HTTP/CSRF preview/publication and
+seven-language passive receipts, expiry/revoke/scope/identity/project/version
+errors, complete public approvals and credential renewal. Exact-candidate full
+native/browser/CI/review and separately authorized live-endpoint evidence remain
+required; none is inherited from another head or provider.

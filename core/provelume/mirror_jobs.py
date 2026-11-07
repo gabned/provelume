@@ -71,13 +71,14 @@ class MirrorJobs:
                 if now < due:
                     skipped += 1
                     continue
-            if profile in {"git", "github"}:
+            if profile in {"git", "github", "gitlab"}:
                 from .mirror_git import GitMirrors
                 from .mirror_github import GitHubMirrors
+                from .mirror_gitlab import GitLabMirrors
 
-                transport = (GitHubMirrors if profile == "github" else GitMirrors)(
-                    self.store, mirrors=self.mirrors
-                )
+                transport = (
+                    {"git": GitMirrors, "github": GitHubMirrors, "gitlab": GitLabMirrors}[profile]
+                )(self.store, mirrors=self.mirrors)
                 # Explicit scheduled mode supplies current scope consent. An
                 # unresolved external claim refuses admission before any process.
                 result = None
@@ -113,7 +114,11 @@ class MirrorJobs:
                         },
                     )
                     raise
-                publication = "COMPLETED_GITHUB" if profile == "github" else "COMPLETED_GIT_LOCAL"
+                publication = {
+                    "github": "COMPLETED_GITHUB",
+                    "gitlab": "COMPLETED_GITLAB",
+                    "git": "COMPLETED_GIT_LOCAL",
+                }[profile]
             else:
                 result = self.mirrors.preview(
                     row["id"],

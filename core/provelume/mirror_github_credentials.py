@@ -1,13 +1,9 @@
-"""Explicit GitHub access verification and external device-vault credentials."""
+"""GitHub-only access and explicit fixed public write-probe contract."""
 
-from __future__ import annotations
-
-import re
 import time
 from uuid import uuid4
 
-from .google_credentials import GoogleCredentialVault
-from .mirror_contract import fingerprint, require
+from .mirror_contract import require
 from .mirror_github_contract import (
     PROBE_OID,
     access_identity,
@@ -16,36 +12,13 @@ from .mirror_github_contract import (
     user_identity,
 )
 from .mirror_github_http import GitHubHttp
+from .mirror_hosted_credentials import HostedCredentials
+from .mirror_hosted_git import logical_binding  # noqa: F401 - compatibility export
 
 
-class GitHubCredentials:
-    def __init__(self, mirrors, *, vault=None, http=None):
-        self.mirrors = mirrors
-        self.vault = vault or GoogleCredentialVault(
-            namespace="mirror", forbidden_root=mirrors.store.paths.root
-        )
-        self.http = http or GitHubHttp()
-
-    def enabled(self):
-        access = self.mirrors.access()
-        require(access["enabled"], "local_only")
-        require(access["github"], "github_disabled")
-
-    def read(self, reference):
-        self.enabled()  # Before any secure store access.
-        require(
-            type(reference) is str and re.fullmatch(r"mirror_github_[0-9a-f]{32}", reference),
-            "authorization_required",
-        )
-        value = self.vault.read(reference)
-        require(
-            type(value) is dict
-            and set(value) == {"schema", "token", "mode", "identity", "epoch", "device"}
-            and value["schema"] == "provelume-github-credential/v1"
-            and value["device"] == self.mirrors.device(),
-            "authorization_required",
-        )
-        return value
+class GitHubCredentials(HostedCredentials):
+    provider = "github"
+    http_factory = GitHubHttp
 
     def observe_token(self, target, *, token, mode, deadline):
         configuration(target)
@@ -157,20 +130,6 @@ class GitHubCredentials:
             "publication": "NOT_RUN",
         }
 
-    def observe(self, reference, target, *, deadline):
-        value = self.read(reference)
-        observed = self.observe_token(
-            target, token=value["token"], mode=value["mode"], deadline=deadline
-        )
-        require(value["identity"] == observed["identity"], "github_identity_changed")
-        require(self.read(reference) == value, "github_credential_changed")
-        return {
-            **observed,
-            "credential_epoch": value["epoch"],
-            "device": value["device"],
-            "namespace": target["namespace"],
-        }
-
     def verify_write(self, reference, target, *, deadline):
         value = self.read(reference)
         proof = self.http.request(
@@ -182,19 +141,3 @@ class GitHubCredentials:
         require(
             proof.get("sha") == PROBE_OID and self.read(reference) == value, "github_write_unproven"
         )
-
-    def revoke(self, reference, *, confirmed):
-        require(confirmed is True, "consent_required")
-        # Local deletion remains available while the transport is disabled.
-        require(type(reference) is str and re.fullmatch(r"mirror_github_[0-9a-f]{32}", reference))
-        self.vault.delete(reference)
-        return {
-            "status": "locally_revoked",
-            "network_used": False,
-            "pending_writes": "INVALIDATED",
-            "remote_token_revocation": "NOT_CLAIMED",
-        }
-
-
-def logical_binding(binding):
-    return fingerprint({key: value for key, value in binding.items() if key != "credential_epoch"})

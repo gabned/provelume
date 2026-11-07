@@ -78,13 +78,28 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 "public_confirm",
             },
             "github-reconcile": {"plan_id"},
+            "gitlab-prepare": {"destination_id", "revision"},
+            "gitlab-publish": {
+                "plan_id",
+                "plan_sha256",
+                "git_plan_sha256",
+                "transfer_sha256",
+                "public_confirm",
+            },
+            "gitlab-reconcile": {"plan_id"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
-        if selected.startswith(("git-", "github-")):
-            hosted = selected.startswith("github-")
-            git = instance.github_mirrors() if hosted else instance.git_mirrors()
-            selected = selected.replace("github-", "git-", 1)
+        if selected.startswith(("git-", "github-", "gitlab-")):
+            hosted = selected.startswith(("github-", "gitlab-"))
+            git = (
+                instance.gitlab_mirrors()
+                if selected.startswith("gitlab-")
+                else instance.github_mirrors()
+                if hosted
+                else instance.git_mirrors()
+            )
+            selected = selected.replace("github-", "git-", 1).replace("gitlab-", "git-", 1)
             if selected == "git-initialize":
                 git.initialize_local(
                     fields["destination_id"],

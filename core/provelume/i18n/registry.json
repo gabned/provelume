@@ -18238,6 +18238,42 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.gitlab_profile": {
+      "context": "Independent GitLab mirror explicit operation: profile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitlab_publish": {
+      "context": "Independent GitLab mirror explicit operation: publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitlab_confirm": {
+      "context": "Independent GitLab mirror explicit operation: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitlab_transfer": {
+      "context": "Independent GitLab mirror explicit operation: transfer",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitlab_probe_notice": {
+      "context": "Independent GitLab mirror explicit operation: probe_notice",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitlab_public_confirm": {
+      "context": "Independent GitLab mirror explicit operation: public_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

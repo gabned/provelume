@@ -2754,5 +2754,11 @@
   "mirror.github_confirm": "Confirm acest transfer exact către depozitul GitHub configurat.",
   "mirror.github_transfer": "Transfer complet: conținut, fișiere de control, autorul commitului și probă sintetică publică.",
   "mirror.github_probe_notice": "Această previzualizare verifică explicit dreptul de scriere cu un blob sintetic public fix. Verificarea nu modifică ramuri.",
-  "mirror.github_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
+  "mirror.github_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact.",
+  "mirror.gitlab_profile": "GitLab: identitatea depozitului, vizibilitatea și transferul complet sunt legate de această previzualizare.",
+  "mirror.gitlab_publish": "Publică generația GitLab",
+  "mirror.gitlab_confirm": "Confirm acest transfer exact către depozitul GitLab configurat.",
+  "mirror.gitlab_transfer": "Transfer complet: conținut, fișiere de control și autorul commitului. Verificarea citește domeniile tokenului și rolul în proiect.",
+  "mirror.gitlab_probe_notice": "Această previzualizare verifică din nou domeniile tokenului și permisiunile proiectului fără a modifica conținutul la distanță.",
+  "mirror.gitlab_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
 }

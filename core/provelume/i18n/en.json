@@ -2754,5 +2754,11 @@
   "mirror.github_confirm": "I confirm this exact transfer to the configured GitHub repository.",
   "mirror.github_transfer": "Complete transfer: payload, control files, commit identity and public synthetic permission probe.",
   "mirror.github_probe_notice": "Preparing this preview explicitly checks Contents write permission using only a fixed public synthetic blob. No branch is updated by that check.",
-  "mirror.github_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
+  "mirror.github_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer.",
+  "mirror.gitlab_profile": "GitLab: repository identity, visibility and complete transfer are bound to this preview.",
+  "mirror.gitlab_publish": "Publish GitLab generation",
+  "mirror.gitlab_confirm": "I confirm this exact transfer to the configured GitLab repository.",
+  "mirror.gitlab_transfer": "Complete transfer: payload, control files and commit identity. Access checks read token scopes and project role.",
+  "mirror.gitlab_probe_notice": "Preparing this preview rechecks the token scopes and project permissions without changing remote content.",
+  "mirror.gitlab_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
 }

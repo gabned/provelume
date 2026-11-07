@@ -10,6 +10,10 @@ elif sys.argv[1:2] == ["--internal-github-http-worker"]:
     from provelume.mirror_github_http import main
 elif sys.argv[1:2] == ["--internal-github-git-credential"]:
     from provelume.mirror_github_helper import main
+elif sys.argv[1:2] == ["--internal-gitlab-http-worker"]:
+    from provelume.mirror_gitlab_http import main
+elif sys.argv[1:2] == ["--internal-gitlab-git-credential"]:
+    from provelume.mirror_gitlab_helper import main
 else:
     from provelume.desktop import main
 

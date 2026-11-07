@@ -50,6 +50,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     git_mirror.add_argument("instance", type=Path)
     github_mirror = commands.add_parser("github-mirror-qualify")
     github_mirror.add_argument("instance", type=Path)
+    gitlab_mirror = commands.add_parser("gitlab-mirror-qualify")
+    gitlab_mirror.add_argument("instance", type=Path)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -62,7 +64,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "github-mirror-qualify":
+                if options.command == "gitlab-mirror-qualify":
+                    from .mirror_gitlab_qualification import qualify_gitlab_mirror
+
+                    result = qualify_gitlab_mirror(options.instance)
+                elif options.command == "github-mirror-qualify":
                     from .mirror_github_qualification import qualify_github_mirror
 
                     result = qualify_github_mirror(options.instance)

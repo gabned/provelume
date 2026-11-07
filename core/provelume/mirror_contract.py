@@ -24,6 +24,7 @@ _PATH = re.compile(r"(?:[a-z0-9_-]+/){0,4}[a-z0-9_.-]+\Z")
 _SECRET = re.compile(
     rb"-----BEGIN (?:[A-Z ]*PRIVATE KEY)-----|"
     rb"(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})|"
+    rb"glpat-[A-Za-z0-9_-]{20,}|"
     rb"\bAKIA[A-Z0-9]{16}\b|"
     rb"(?i:(?:password|access_token|refresh_token|client_secret|api_key)"
     rb"[\"' \t]*[:=][\"' \t]*[^\s\"',}]{8,})"

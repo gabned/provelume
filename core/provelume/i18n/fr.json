@@ -2754,5 +2754,11 @@
   "mirror.github_confirm": "Je confirme ce transfert exact vers le dépôt GitHub configuré.",
   "mirror.github_transfer": "Transfert complet : contenus, fichiers de contrôle, auteur du commit et sonde synthétique publique.",
   "mirror.github_probe_notice": "Cet aperçu vérifie explicitement le droit d’écriture avec un blob synthétique public fixe. Cette vérification ne modifie aucune branche.",
-  "mirror.github_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact."
+  "mirror.github_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact.",
+  "mirror.gitlab_profile": "GitLab : identité du dépôt, visibilité et transfert complet sont liés à cet aperçu.",
+  "mirror.gitlab_publish": "Publier la génération GitLab",
+  "mirror.gitlab_confirm": "Je confirme ce transfert exact vers le dépôt GitLab configuré.",
+  "mirror.gitlab_transfer": "Transfert complet : contenus, fichiers de contrôle et auteur du commit. La vérification lit les portées du jeton et le rôle du projet.",
+  "mirror.gitlab_probe_notice": "Cet aperçu revérifie les portées du jeton et les droits du projet sans modifier le contenu distant.",
+  "mirror.gitlab_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact."
 }

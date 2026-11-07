@@ -86,9 +86,14 @@ def request_direct(value):
 
 
 class GitHubHttp:
+    profile = "github-http/2022-11-28"
+    worker_module = "provelume.mirror_github_http"
+    worker_flag = "--internal-github-http-worker"
+    admit = staticmethod(admitted_request)
+
     def request(self, route, *, token, probe=False, deadline=None):
         payload = {"route": route, "token": token, "probe": probe}
-        admitted_request(payload)  # Refuse before starting any process/network.
+        self.admit(payload)  # Refuse before starting any process/network.
         environment = {
             key: value
             for key, value in os.environ.items()
@@ -114,10 +119,10 @@ class GitHubHttp:
         }
         environment["PYTHONNOUSERSITE"] = "1"
         if getattr(sys, "frozen", False):
-            command = [sys.executable, "--internal-github-http-worker"]
+            command = [sys.executable, self.worker_flag]
         else:
             environment["PYTHONPATH"] = str(Path(__file__).absolute().parent.parent)
-            command = [sys.executable, "-m", "provelume.mirror_github_http"]
+            command = [sys.executable, "-m", self.worker_module]
         timeout = min(20, deadline - time.monotonic()) if deadline is not None else 20
         require(timeout > 0, "deadline")
         # Secret request is a dedicated pipe, never an argv/env/temp-file value.
@@ -144,7 +149,7 @@ class GitHubHttp:
                 response = parse(target.read_bytes())
             except (OSError, ValueError, subprocess.SubprocessError):
                 raise MirrorError("github_transport") from None
-        require(response.get("profile") == "github-http/2022-11-28", "github_transport")
+        require(response.get("profile") == self.profile, "github_transport")
         require(
             response.get("status") == (201 if probe else 200),
             "authorization_required"
