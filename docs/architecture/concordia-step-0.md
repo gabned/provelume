@@ -223,14 +223,22 @@ an effect. Six existing screens remain the design baseline; #379 validates the r
 UI/copy with T01–T48, seven catalogs, keyboard, 320px and real 200% zoom. No prototype
 or document approval counts as human/accessibility qualification.
 
-**L — full release promise.** Keep every roadmap provider/identity/scope and mirror
-profile in the manifest below. Guarded task write-back supports only completion
-state and due date on existing tasks; each provider may expose only capabilities
-proved by its stable public API. No title/body/assignee changes, creation/deletion,
+**L — release promise and explicit write-back deferral.** Keep every roadmap
+provider/identity/read scope and mirror profile in the manifest below. On
+7 November 2026 the maintainer [explicitly deferred unsupported task write-back
+from 0.15.0](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611):
+Asana and Tududi remain read-only in Concordia. The original Tududi conditional
+FAIL and Asana NOT_PROVEN / NOT_RUN remain technical evidence; they are not
+converted into a provider qualification. The shared completion/due-date guard,
+diff/confirmation and synthetic recovery framework may remain, with public writes
+refused. No future release version or server/deployment authority is assigned.
+Any future task write-back may expose only capabilities proved by a stable public
+API and is limited to completion state and due date on existing tasks.
+No title/body/assignee changes, creation/deletion,
 email sending or calendar writes. Use one explicit current diff/confirmation per
 operation; no automatic background write authority. A provider unable to implement
-a promised capability remains a recorded release blocker requiring an explicit
-scope decision; a synthetic conformance PASS never qualifies the live provider.
+a still-promised capability remains a recorded release blocker requiring an
+explicit scope decision; a synthetic conformance PASS never qualifies the live provider.
 Real-account/remote publication tests are separately authorized, using disposable
 synthetic data and exact destinations; this proposal grants none of that authority.
 
@@ -282,7 +290,7 @@ no intermediate installation is requested.
 | S12 — iCalendar adapter | S10, S11 acceptance | Multiple local/HTTPS ICS feeds; UID/recurrence-instance provenance, TZID/DST/all-day, exceptions/cancellation, bounded parsing/fetch and explainable duplicates. Local feed works offline. |
 | S13 — Asana adapter | S10, S12 acceptance | Multiple OAuth identities and organizations/workspaces/teams/projects as separate Sources; projects/tasks/subtasks/assignees/dates/completion/comments/durable links, pagination/rate-limit/revocation and resync. |
 | S14 — Tududi adapter | S10, S13 acceptance | Multiple endpoints/accounts/project-task scopes; stable public API capabilities, visible unsupported cases and isolated cursors/secrets; same task/mapping/recovery matrix. |
-| S15 — guarded task write-back | S11–S14 accepted, L decided | Closed completion/due-date fields, per-identity/Source write consent, exact remote/local revisions, human diff/confirmation, idempotency, stale/replay/conflict and timeout-outcome reconciliation; privacy-minimizing audit. No rollback that overwrites newer remote state. |
+| S15 — guarded task framework; public writes deferred | S11–S14 accepted, amended L decided | Asana/Tududi read-only in 0.15.0 under the explicit 7 November decision; visible unavailable controls and refusal of all public writes. Retain closed completion/due-date guard, per-identity/Source consent, exact revisions, diff/confirmation, replay/conflict/UNKNOWN recovery and private audit as synthetic framework evidence only. Preserve original provider failures; no claimed live-write acceptance. Native/CI/review/main gates still apply to this candidate. |
 | S16 — shared mirror contract | S15 accepted | Multiple identities/scope/destination, disabled/manual/scheduled policy, complete immutable staging generation, inventory/dry-run/privacy/size findings, external credentials and final manifest/receipt. Optional Originals/attachments/AI receipts require distinct include rules. |
 | S17 — Git transport | S16 | Destination branch/path and commit identity, no needless commit on repeat, non-fast-forward/credentials/interrupt/reconnect; preserve canonical data and last valid remote history. |
 | S18 — GitHub profile | S17 | Proven visibility/permissions, separately allowlisted public payload and explicit confirmation; unknown visibility blocks private payload. Disposable endpoint evidence only with scoped authority. |
@@ -290,7 +298,7 @@ no intermediate installation is requested.
 | S20 — Gitea profile | S17, S19 acceptance | Same hosted contract, exact supported version/API profile and isolated destination; no inherited host qualification. |
 | S21 — local-folder mirror | S16, S20 acceptance | Transfer from completed staging to destination staging, final manifest comparison and qualified atomic generation activation; interruption preserves previous active generation. |
 | S22 — rsync/SSH mirror | S16, S21 acceptance | Exact host/rsync/SSH versions, pinned host key, explicit credential references, bandwidth/windows/resume, destination staging and qualified activation; missing primitive fails visibly. No backup/restore claim. |
-| S23 — integrated Concordia qualification | All above accepted | Provider/identity/revoke/mapping/write-back/mirror/local-only matrices, fresh native/browser/installer/recovery/security/docs and actual-main acceptance for the entire release. |
+| S23 — integrated Concordia qualification | All above accepted | Provider/identity/revoke/mapping/mirror/local-only matrices, explicit public-write refusal/deferral and separate synthetic guard matrix, fresh native/browser/installer/recovery/security/docs and actual-main acceptance for the entire release. |
 | Final identity/publication | S23 and every gate accepted | Align package/runtime/installer/changelog/docs/manifest/SBOM/checksums to 0.15.0/Concordia; normal qualified merge, actual-main acceptance, one official Preview dispatch, independent public-byte and provenance/receipt/kit/readiness rereads; only then close final owner and #383. |
 
 Connector remote identity is keyed by connector instance, selected Source, stable
@@ -329,7 +337,7 @@ never interchangeable. Existing human exceptions apply only to their old campaig
 | Text/Inbox | Reliable PDF, scanned EN/IT, mixed/empty/partial/encrypted/malformed, missing engine/pack/renderer, canceled/stale authorization; index/proof/backup missing or stale; cap boundaries; changed input/reparse/two workers and every commit/OCR/index/exit crash boundary; keep/transit/new/conversion/backlog. | #381/#382, OCR/search/Inbox/backup/recovery EN/IT; R1–R8 mapped above and T09–T16/T23–T34. |
 | UX/search | Cura/Current, all seven catalogs/System, themes, keyboard/focus, real browser 320px/200% zoom, empty/loading/error/recovery; test acquisition/read/search/Original and saved-setting readback; T01–T48, AC01–AC15. | #377/#391/#379 and package integration; existing handoffs remain detailed requirements. Human/screen-reader/semantic review remains NOT_RUN/UNVERIFIED until actually performed. |
 | Providers | At least two independent instances/selections for each provider, duplicate bytes with distinct provenance, recurrence/exception/cancellation/TZ/DST, page limits/cursors/full-resync/replay, expired/revoked grants, stale/conflicting provider records, unsupported APIs and secret/SSRF/redirect/hostile payloads. | Shared conformance + each adapter; per-provider support/scope/authorization/mapping/recovery guide and public API/version evidence. Synthetic conformance and authorized live qualification recorded separately. |
-| Writes | Completion and due-date diffs independently and together; stale local/remote state, double submit/replay, unauthorized field/Source/account, pause/revoke, network failure before/after send and unknown result; no newer-state overwrite or autonomous creation/deletion. | Task write-back; authority/threat/receipt/user guide EN/IT. |
+| Writes | Public Asana/Tududi writes refused and explicitly DEFERRED_BY_MAINTAINER for 0.15.0. Separately retain synthetic completion/due-date diff, stale state, replay, unauthorized field/Source/account, revoke, before/after-send uncertainty and read-only UNKNOWN recovery; no synthetic live-provider claim. | S15 framework; explicit release deferral and read-only provider/user guide EN/IT, original failure evidence preserved. |
 | Mirrors | Multiple destinations/scopes, secret/sensitive-data findings, public/private/unknown visibility, include-rule revocation, changed manifest, NFF, bad host key/credentials, disconnect/resume, repeat no-op, disk-full and interrupted transfer/activation; previous generation preserved and exact final manifest. No network or process invocation when disabled/local-only/no-GitHub/no-rsync. | Shared contract, each transport/host; privacy, components/licenses, atomic activation, recovery and deletion boundaries EN/IT. Actual publication/deletion tests require separate scoped authority. |
 | Release | Unchanged-source Ruff/full pytest/diff, canonical byte verification, applicable native tools/catalog/build/release dry-run/offline verification, all permanent workflow/run/attempt/job originals, dependency/license/advisory applicability, complete reviews/findings/threads, fresh effect/policy/owner/ancestry preflight, expected-head normal merge and actual-main checks. | Every candidate, then integrated/final owners; qualification record and closed support/component matrices. Publication uses official repository workflows only. |
 

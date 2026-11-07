@@ -2663,7 +2663,7 @@
   "task_write.back": "Zur erfassten Aufgabe",
   "task_write.lead": "Nur Abschluss und Fälligkeit einer vorhandenen Aufgabe können geändert werden. Jeder Vorgang benötigt einen aktuellen Vergleich und eine eigene Bestätigung.",
   "task_write.unavailable": "Remote-Änderungen nicht verfügbar",
-  "task_write.unavailable_help": "Für diesen Anbieter ist keine atomare Revisionsbedingung qualifiziert. Provelume kann Abschluss oder Fälligkeit nicht sicher schreiben. Erfasste Beobachtungen bleiben lesbar.",
+  "task_write.unavailable_help": "Asana- und Tududi-Schreibzugriffe sind für Concordia 0.15.0 ausdrücklich zurückgestellt. Diese Konnektoren sind schreibgeschützt. Ändern Sie die Aufgabe beim Anbieter und lesen Sie die Source erneut.",
   "task_write.consent": "Ausgewählte Felder für diese Source auf diesem Gerät erlauben",
   "task_write.confirm": "Ich bestätige diese Aktion für das angezeigte Konto und die Source.",
   "task_write.prepare": "Änderungen prüfen",

@@ -252,6 +252,8 @@ def qualify_task_writeback(root):
         "canonical_observation_after_separate_read": "PASS",
         "offline_portable": "PASS",
         "public_provider_writeback": "NOT_QUALIFIED",
-        "release_gate": "BLOCKED",
+        "release_gate": "DEFERRED_BY_MAINTAINER",
+        "release_scope": "ASANA_TUDUDI_READ_ONLY_0_15_0",
+        "scope_decision": "https://github.com/gabned/provelume/issues/383#issuecomment-6711131611",
         "windows_11_pro_25h2_manual": "DEFERRED_BY_MAINTAINER / NOT_RUN",
     }

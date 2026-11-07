@@ -131,5 +131,7 @@ The reviewed public PATCH task handler loads the current row and calls an
 unconditional `task.update(taskAttributes)`; its request contract has no atomic
 revision condition. Merely reading `updated_at` then PATCHing would allow a race
 and cannot satisfy S15. The [approved L decision](concordia-step-0.md) requires a
-safe provider primitive or an explicit scope decision before release. This
-development candidate neither invents that primitive nor silently drops write-back.
+safe provider primitive or an explicit scope decision before release. The
+[7 November decision](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611)
+explicitly defers unsupported write-back from 0.15.0. Tududi remains read-only in
+Concordia; the original conditional FAIL is preserved and no primitive is invented.

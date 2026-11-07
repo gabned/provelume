@@ -2663,7 +2663,7 @@
   "task_write.back": "Back to the acquired task",
   "task_write.lead": "Only completion and due date can change on an existing task. Every operation needs its current diff and a separate confirmation.",
   "task_write.unavailable": "Remote changes unavailable",
-  "task_write.unavailable_help": "This provider has no qualified atomic revision condition. Provelume cannot safely write completion or due date. Acquired observations remain readable.",
+  "task_write.unavailable_help": "Asana and Tududi write-back is explicitly deferred from Concordia 0.15.0. These connectors are read-only. Update the task in its provider and read the Source again.",
   "task_write.consent": "Allow the selected fields for this Source on this device",
   "task_write.confirm": "I confirm this action for the displayed account and Source.",
   "task_write.prepare": "Preview these changes",
