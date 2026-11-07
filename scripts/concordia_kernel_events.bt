@@ -69,7 +69,8 @@ tracepoint:syscalls:sys_exit_futex
     @emitted[5] = count();
     printf("U %llu %d 0\n", nsecs, tid);
   }
-  delete(@futex_start[tid]); delete(@futex_recorded[tid]);
+  if (@futex_start[tid]) { delete(@futex_start[tid]); }
+  if (@futex_recorded[tid]) { delete(@futex_recorded[tid]); }
 }
 
 tracepoint:syscalls:sys_enter_fsync
@@ -94,7 +95,8 @@ tracepoint:syscalls:sys_exit_fsync
     @emitted[6] = count();
     printf("D %llu %d 0\n", nsecs, tid);
   }
-  delete(@fsync_start[tid]); delete(@fsync_recorded[tid]);
+  if (@fsync_start[tid]) { delete(@fsync_start[tid]); }
+  if (@fsync_recorded[tid]) { delete(@fsync_recorded[tid]); }
 }
 
 tracepoint:sched:sched_process_exit

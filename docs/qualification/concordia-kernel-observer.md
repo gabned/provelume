@@ -338,3 +338,22 @@ Commands, only after source review and the retained pre-execution declaration:
 .venv/bin/python scripts/concordia_kernel_native.py run --inputs "$NATIVE_INPUTS" \
   --admission .agent/kernel-native-admission/admission.json --output .agent/kernel-native-sequence
 ```
+
+## Native admission refusal before acquisition
+
+Run42361189975/attempt1/job128369747525 on7006228 reaches the fresh-host AI-Off
+binding and exits its original Capture successfully. Admission refuses its stream
+with `unrecognized event output`: bpftrace's retained `-k` diagnostics identify
+`map_delete_elem` returning-2 when the pairing addition deletes a recorded-entry
+map key that was never set outside the frame. No model is acquired and no native
+inference runs. Artifact13570001400 is288568bytes, SHA-256
+e53269bbf676ccee995b5e0e7f7ba6bcb841d1a92f4dce7219de2738a01629ab;
+all32members, including the1151074-byte raw stream, were independently read,
+CRC checked and hashed. The failed stream remains refused and is not filtered
+into admission.
+
+The correction guards deletion with the map's existing nonzero entry. It changes
+no event emission predicate, counter, parser, bound, buffer, timeout or scientific
+outcome rule. The next invocation is a changed preparation recovering this exact
+diagnosed helper failure; no completed native experiment is repeated. Actual
+fresh-host admission must still succeed before model acquisition or inference.
