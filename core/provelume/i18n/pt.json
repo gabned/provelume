@@ -2663,7 +2663,7 @@
   "task_write.back": "Voltar à tarefa adquirida",
   "task_write.lead": "Apenas a conclusão e o prazo de uma tarefa existente podem mudar. Cada operação exige uma comparação atual e confirmação separada.",
   "task_write.unavailable": "Alterações remotas indisponíveis",
-  "task_write.unavailable_help": "Este fornecedor não tem uma condição atómica de revisão qualificada. Provelume não pode alterar com segurança a conclusão ou o prazo. As observações adquiridas continuam disponíveis.",
+  "task_write.unavailable_help": "A escrita no Asana e Tududi é explicitamente adiada de Concordia 0.15.0. Estes conectores são apenas de leitura. Atualize a tarefa no fornecedor e leia novamente a Source.",
   "task_write.consent": "Permitir os campos selecionados para esta Source neste dispositivo",
   "task_write.confirm": "Confirmo esta ação para a conta e a Source apresentadas.",
   "task_write.prepare": "Pré-visualizar alterações",

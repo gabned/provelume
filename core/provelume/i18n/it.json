@@ -2663,7 +2663,7 @@
   "task_write.back": "Torna all’attività acquisita",
   "task_write.lead": "Solo completamento e scadenza possono cambiare su un’attività esistente. Ogni operazione richiede il confronto attuale e una conferma separata.",
   "task_write.unavailable": "Modifiche remote non disponibili",
-  "task_write.unavailable_help": "Questo provider non dispone di una condizione atomica sulla revisione qualificata. Provelume non può scrivere in sicurezza completamento o scadenza. Le osservazioni acquisite restano consultabili.",
+  "task_write.unavailable_help": "Il write-back Asana e Tududi è esplicitamente rinviato da Concordia 0.15.0. I connettori sono in sola lettura. Aggiorna l’attività nel provider e rileggi la Source.",
   "task_write.consent": "Consenti i campi selezionati per questa Source su questo dispositivo",
   "task_write.confirm": "Confermo questa azione per l’account e la Source visualizzati.",
   "task_write.prepare": "Anteprima delle modifiche",

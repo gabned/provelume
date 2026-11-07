@@ -221,7 +221,8 @@ def test_complete_synthetic_package_qualification_never_qualifies_a_live_provide
     assert report["result"] == "PASS" and not report["network_used"]
     assert (
         report["public_provider_writeback"] == "NOT_QUALIFIED"
-        and report["release_gate"] == "BLOCKED"
+        and report["release_gate"] == "DEFERRED_BY_MAINTAINER"
+        and report["release_scope"] == "ASANA_TUDUDI_READ_ONLY_0_15_0"
     )
 
 

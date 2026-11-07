@@ -1,12 +1,16 @@
-# Concordia S15 guarded task writes and provider blocker
+# Concordia S15 guarded framework and explicit public-write deferral
 
 This PRODUCT candidate consumes exact S14 under the
 [ordered development/testing authorization](https://github.com/gabned/provelume/issues/383#issuecomment-6706150974).
 It implements the guard, confirmation, recovery and synthetic automatic contract.
-**Public-provider task write-back is NOT_QUALIFIED and S15 is NOT_ACCEPTED.** The
-observed Tududi public profile cannot satisfy its promised atomic condition; Asana
-has no proved public conditional primitive. Neither is silently removed from the
-[approved L scope](concordia-step-0.md). S07 and all predecessor gates remain open.
+**Public-provider task write-back is NOT_QUALIFIED and explicitly deferred from
+0.15.0 by the maintainer.** The [7 November product decision](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611)
+amends [L and the release manifest](concordia-step-0.md): Asana and Tududi remain
+read-only in Concordia. The observed Tududi profile cannot satisfy an atomic
+condition; Asana has no proved public conditional primitive. Those results remain
+unchanged. S15 is NOT_ACCEPTED until its ordinary candidate gates pass; S07 and
+all predecessor acceptance gates remain open. The retained framework is not
+support for public writes and does not assign a future release version.
 
 ## Closed operation and authority
 
@@ -69,7 +73,10 @@ preview/confirmation. Public Asana/Tududi remain refused even after synthetic PA
 `--ocr-command task-writeback-qualify <fresh-target>` executes native Core services,
 single dispatch/replay, uncertain receipt recovery, independent Source reread and
 offline portable reconstruction in the installed executable. Its report explicitly
-retains `public_provider_writeback: NOT_QUALIFIED` and `release_gate: BLOCKED`.
+retains `public_provider_writeback: NOT_QUALIFIED`,
+`release_gate: DEFERRED_BY_MAINTAINER` and the exact product-decision URL.
+The original candidate's `release_gate: BLOCKED` report remains historical evidence;
+the maintainer's explicit scope decision changes the release promise, not that result.
 The permanent installed offline Windows job invokes it. Browser productivity
 cells render real unavailable-provider controls and the retained synthetic diff
 in both modes, seven languages and two widths. Automatic rendering does not
@@ -139,26 +146,28 @@ Asana's independently reviewed public OpenAPI commit
 revision parameter. No real Asana write probe was authorized or executed. Its
 capability remains NOT_PROVEN, rather than being inferred from the Tududi result.
 
-## Concrete product decision and impact
+## Adopted product decision and impact
 
-The approved L rule says a missing promised provider capability is a release
-blocker requiring an explicit scope decision; it cannot be closed by this
-synthetic guard PASS. The alternatives are:
+After reviewing the concrete alternatives (retain the full write promise blocked,
+explicitly defer unsupported writes, or separately develop a conditional server
+API), the maintainer chose:
 
-- **Keep the full approved promise:** retain S15/release blocked until stable
-  public atomic primitives and independently qualified provider behavior exist.
-  Current read-only connectors and independent development remain available.
-- **Explicitly defer unsupported task writes for Concordia:** retain read-only
-  Asana/Tududi and the guard, but amend L/manifest/user documentation openly.
-  This is a scope reduction requiring the maintainer's decision, not an automatic
-  acceptance or a claimed completed live S15.
-- **Authorize a separately versioned server capability:** for self-hosted Tududi,
-  add and qualify a real server-side conditional update in a separately scoped
-  workstream. A GET/PATCH proxy is insufficient. It requires a new supported
-  server profile and exact deployment authorization; Asana still needs its own
-  independent solution or explicit deferral.
+> Rinvia esplicitamente il write-back non supportato da 0.15.0, aggiornando L e
+> manifest e mantenendo i connettori in lettura.
 
-Until an explicit decision changes that scope, the first alternative remains in
-force. No permission is inferred to alter a provider deployment, issue remote
-writes, weaken exact-revision safety or publish Concordia. S16–S23 development
-authorization remains separate from these outstanding acceptance/release gates.
+Asana and Tududi completion/due-date writes are therefore absent from the 0.15.0
+support promise. Their read intake, identities, selections, acquired tasks and
+offline knowledge remain required. Public write controls remain unavailable;
+the retained shared guard is exercised with its closed synthetic profile only.
+This specific scope decision resolves the release-scope blocker without claiming
+a provider primitive, changing the original FAIL, authorizing a real write or
+accepting any candidate automatically. Future provider writes require a separately
+scoped, proved stable capability and fresh authority. S16–S23 and every other
+native/CI/review/main/publication gate remain required.
+
+EN: Asana and Tududi are read-only in Concordia 0.15.0. Update tasks in the provider
+and explicitly read the Source again; imported observations remain attributable.
+
+IT: Asana e Tududi sono in sola lettura in Concordia 0.15.0. Aggiorna le attività
+nel provider e rileggi esplicitamente la Source; le osservazioni importate restano
+attribuite alla fonte. Il rinvio non cancella conoscenza e non abilita scritture.

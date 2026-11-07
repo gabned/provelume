@@ -325,7 +325,8 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert tududi_trial["result"] == "PASS" and not tududi_trial["network_used"]
         writeback_trial = command("task-writeback-qualify", root / "Synthetic Task Writes")
         assert writeback_trial["result"] == "PASS" and not writeback_trial["network_used"]
-        assert writeback_trial["release_gate"] == "BLOCKED"
+        assert writeback_trial["release_gate"] == "DEFERRED_BY_MAINTAINER"
+        assert writeback_trial["release_scope"] == "ASANA_TUDUDI_READ_ONLY_0_15_0"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))

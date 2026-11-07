@@ -2663,7 +2663,7 @@
   "task_write.back": "Înapoi la sarcina preluată",
   "task_write.lead": "Se pot schimba doar finalizarea și scadența unei sarcini existente. Fiecare operațiune necesită comparația actuală și o confirmare separată.",
   "task_write.unavailable": "Modificările la distanță nu sunt disponibile",
-  "task_write.unavailable_help": "Acest furnizor nu are o condiție atomică de revizie calificată. Provelume nu poate modifica în siguranță finalizarea sau scadența. Observațiile preluate rămân disponibile.",
+  "task_write.unavailable_help": "Scrierea în Asana și Tududi este amânată explicit din Concordia 0.15.0. Conectorii sunt doar pentru citire. Actualizează sarcina la furnizor și recitește Source.",
   "task_write.consent": "Permite câmpurile selectate pentru această Source pe acest dispozitiv",
   "task_write.confirm": "Confirm această acțiune pentru contul și Source afișate.",
   "task_write.prepare": "Previzualizează modificările",

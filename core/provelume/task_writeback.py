@@ -81,7 +81,7 @@ class TaskWriteBack:
             "qualification_only": synthetic,
             "atomic_remote_revision": "SYNTHETIC_ONLY" if synthetic else "NOT_QUALIFIED",
             "fields": sorted(FIELDS),
-            "release_status": "NOT_ACCEPTED",
+            "release_status": "SYNTHETIC_ONLY" if synthetic else "DEFERRED_BY_MAINTAINER",
         }
 
     def adapter(self, source_id):

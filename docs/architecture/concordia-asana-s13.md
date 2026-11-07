@@ -107,8 +107,10 @@ and read-only; comments, Source and links to all retained response Originals are
 visible offline. Index/portable rebuild verifies Source-specific evidence hashes.
 Provider `modified_at` is an observed revision, not an atomic compare-and-set
 primitive and not S15 write authority. The pinned update operation documents no
-conditional revision parameter; S15 still needs independent proof of a safe
-conditional write primitive or the explicit scope decision required by L.
+conditional revision parameter. The [explicit 7 November decision](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611)
+defers unsupported write-back from 0.15.0: Asana remains read-only in Concordia.
+The missing proof and original results remain unchanged; future write support
+requires a separately scoped, proved capability.
 
 Synthetic automatic qualification exercises real PKCE/session management, external
 vault publication, all four Source scopes, scheduler, partial continuation,

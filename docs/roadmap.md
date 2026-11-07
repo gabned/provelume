@@ -1698,11 +1698,13 @@ durable links; normalized Task/Outcome and CalendarEvent/Commitment mappings; ad
 provider extensions; per-instance read/write policy; least-privilege consent, external credential
 references, reauthorization, connector health, cursor reset and bounded full resync.
 
-Read intake is the default. A guarded task write-back preview is limited to a closed field set,
-such as completion state and due date, and requires an explicit diff, human confirmation,
-idempotency key, optimistic-concurrency check and privacy-minimizing audit receipt. Unsupported
-Tududi or provider capabilities fail visibly instead of being emulated through private or
-unstable interfaces.
+Asana and Tududi are read-only in 0.15.0 under the maintainer's
+[explicit 7 November write-back deferral](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611).
+Unsupported completion/due-date writes are outside this release promise, with unavailable
+controls and original conditional-write failures retained. The shared synthetic guard may remain
+as development infrastructure; it does not qualify a public provider. Future write-back requires
+a separately scoped stable atomic revision primitive, explicit diff/human confirmation,
+idempotency and privacy-minimizing receipts. No private or unstable interface emulates support.
 
 Connector items can propose routing into existing Areas and Projects, but only confirmed
 non-destructive rules may apply that routing automatically. No connector deletion is inferred from
