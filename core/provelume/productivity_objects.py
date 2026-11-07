@@ -114,6 +114,15 @@ def connector_object_snapshot(store, value):
         "integrity",
     )
     validate_item(record["item"])
+    response_evidence = []
+    for digest in record["item"]["provenance"].get("response_sha256", []):
+        identity = _identifier("doc", "productivity-response:" + origin["source_id"] + ":" + digest)
+        document = store.read_canonical("documents", identity)
+        version = (store.read_canonical("versions", document["current_version_id"])
+                   if document else None)
+        require(document is not None and document["source_id"] == origin["source_id"]
+                and version is not None and version["content_hash"] == digest, "integrity")
+        response_evidence.append({"version_id": version["id"], "sha256": digest})
     checkpoint = read_json(store, f"{ROOT}/{origin['source_id']}/sync.json")
     current = False
     if checkpoint and checkpoint.get("schema") == "productivity-generation/v1":
@@ -127,4 +136,7 @@ def connector_object_snapshot(store, value):
             checkpoint.get("active_versions", {}).get(origin["document_id"])
             == evidence["version_id"]
         )
-    return {"item": record["item"], "current": current, "source_id": origin["source_id"]}
+    source = store.read_canonical("sources", origin["source_id"])
+    require(source is not None, "integrity")
+    return {"item": record["item"], "current": current, "source_id": origin["source_id"],
+            "source_name": source["name"], "response_evidence": response_evidence}

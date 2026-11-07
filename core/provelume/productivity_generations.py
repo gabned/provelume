@@ -31,7 +31,7 @@ class ProductivityGenerations:
         self.store, self.source_id = store, source_id
         self.root = f"{ROOT}/{source_id}"
 
-    def prepare(self, binding, page_size):
+    def prepare(self, binding, page_size, *, allow_delta=True):
         progress = read_json(self.store, self.root + "/page-progress.json")
         if progress and progress.get("binding") == binding and progress.get("status") == "active":
             _generation(progress["generation_id"])
@@ -42,7 +42,7 @@ class ProductivityGenerations:
             return progress
         latest = read_json(self.store, self.root + "/sync.json")
         delta = bool(
-            latest
+            allow_delta and latest
             and latest.get("schema") == "productivity-generation/v1"
             and latest.get("binding") == binding
             and latest.get("depth", MAX_GENERATION_DEPTH) < MAX_GENERATION_DEPTH

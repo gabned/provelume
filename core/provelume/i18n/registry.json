@@ -17175,6 +17175,252 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "asana.lead": {
+      "context": "Asana read connection or source observation: asana.lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.confirm": {
+      "context": "Asana read connection or source observation: asana.confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.network": {
+      "context": "Asana read connection or source observation: asana.network",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.offline": {
+      "context": "Asana read connection or source observation: asana.offline",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.client": {
+      "context": "Asana read connection or source observation: asana.client",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.client_help": {
+      "context": "Asana read connection or source observation: asana.client_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.callback": {
+      "context": "Asana read connection or source observation: asana.callback",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.connect": {
+      "context": "Asana read connection or source observation: asana.connect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.reconnect": {
+      "context": "Asana read connection or source observation: asana.reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.load_workspaces": {
+      "context": "Asana read connection or source observation: asana.load_workspaces",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.load_projects": {
+      "context": "Asana read connection or source observation: asana.load_projects",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.workspace": {
+      "context": "Asana read connection or source observation: asana.workspace",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.organization": {
+      "context": "Asana read connection or source observation: asana.organization",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.team": {
+      "context": "Asana read connection or source observation: asana.team",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.project": {
+      "context": "Asana read connection or source observation: asana.project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.scope": {
+      "context": "Asana read connection or source observation: asana.scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.scope_help": {
+      "context": "Asana read connection or source observation: asana.scope_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.source_name": {
+      "context": "Asana read connection or source observation: asana.source_name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.select": {
+      "context": "Asana read connection or source observation: asana.select",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.sources": {
+      "context": "Asana read connection or source observation: asana.sources",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.disconnect": {
+      "context": "Asana read connection or source observation: asana.disconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.revoke": {
+      "context": "Asana read connection or source observation: asana.revoke",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.status.authorized": {
+      "context": "Asana read connection or source observation: asana.status.authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.status.revoked": {
+      "context": "Asana read connection or source observation: asana.status.revoked",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.status.not_authorized": {
+      "context": "Asana read connection or source observation: asana.status.not_authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.read": {
+      "context": "Asana read connection or source observation: asana.read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.reset": {
+      "context": "Asana read connection or source observation: asana.reset",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.saved": {
+      "context": "Asana read connection or source observation: asana.saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.error": {
+      "context": "Asana read connection or source observation: asana.error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.continuation": {
+      "context": "Asana read connection or source observation: asana.continuation",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.remote_unknown": {
+      "context": "Asana read connection or source observation: asana.remote_unknown",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.empty": {
+      "context": "Asana read connection or source observation: asana.empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_assignees": {
+      "context": "Asana read connection or source observation: objects.connector_assignees",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_comments": {
+      "context": "Asana read connection or source observation: objects.connector_comments",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_parent": {
+      "context": "Asana read connection or source observation: objects.connector_parent",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_containers": {
+      "context": "Asana read connection or source observation: objects.connector_containers",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_links": {
+      "context": "Asana read connection or source observation: objects.connector_links",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_responses": {
+      "context": "Asana read connection or source observation: objects.connector_responses",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_recurrence": {
+      "context": "Asana read connection or source observation: objects.connector_recurrence",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.completed": {
+      "context": "Asana Source completion/cooldown status",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.rate_limited": {
+      "context": "Asana Source completion/cooldown status",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

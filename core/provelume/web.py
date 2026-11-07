@@ -19,6 +19,7 @@ from .action_center_activity import action_reason, attach_action_center_routes, 
 from .activity import attach_activity_routes
 from .annotation_activity import attach_annotation_routes
 from .api import attach_api, reject_client_installation_evidence
+from .asana_activity import attach_asana_routes
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .capture_http import attach_capture_routes
@@ -624,6 +625,8 @@ def create_app(
         app, instance, TEMPLATES, _context,
         redirect_uri=f"http://{callback_host}:{selected_port}/google/oauth/callback",
     )
+    attach_asana_routes(app, instance, TEMPLATES, _context,
+                       redirect_uri=f"http://{callback_host}:{selected_port}/asana/oauth/callback")
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(

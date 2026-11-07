@@ -10,6 +10,7 @@ import uvicorn
 
 from . import __version__
 from .about import current_about
+from .asana_cli import add_asana_commands, handle_asana_command
 from .build_info import current_build_info
 from .connector_cli import add_connector_commands, handle_connector_command
 from .email_cli import add_email_commands, handle_email_command
@@ -231,6 +232,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_connector_commands(subparsers)
     add_productivity_commands(subparsers)
     add_icalendar_commands(subparsers)
+    add_asana_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -281,6 +283,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     icalendar_result = handle_icalendar_command(args)
     if icalendar_result is not None:
         return icalendar_result
+    asana_result = handle_asana_command(args)
+    if asana_result is not None:
+        return asana_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result

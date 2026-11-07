@@ -108,9 +108,25 @@ def validate_item(value):
             require(type(start) is type(end) and (start < end or (
                 isinstance(start, datetime) and start == end)), "time_range")
     provenance = value["provenance"]
-    require(type(provenance) is dict and set(provenance) - {"original_time_zones"} == {
+    require(type(provenance) is dict and set(provenance) - {
+        "original_time_zones", "response_sha256", "display_names"} == {
         "container_ids", "parent_id", "assignees", "links", "comments", "uid", "recurrence_id",
         "recurrence"})
+    if "display_names" in provenance:
+        names = provenance["display_names"]
+        require(type(names) is dict and set(names) == {"assignees", "containers", "parent"})
+        for key in ("assignees", "containers"):
+            require(type(names[key]) is dict and len(names[key]) <= 128, "limit")
+            for identity, label in names[key].items():
+                text(identity, 2048)
+                text(label, 500)
+        if names["parent"] is not None:
+            text(names["parent"], 500)
+    if "response_sha256" in provenance:
+        require(type(provenance["response_sha256"]) is list
+                and len(provenance["response_sha256"]) <= 256, "limit")
+        require(all(type(digest) is str and re.fullmatch(r"[0-9a-f]{64}", digest)
+                    for digest in provenance["response_sha256"]), "integrity")
     if "original_time_zones" in provenance:
         zones = provenance["original_time_zones"]
         require(type(zones) is dict and set(zones) == {"starts", "ends", "recurrence"})
@@ -121,7 +137,7 @@ def validate_item(value):
                           ("comments", 200), ("recurrence", 128)):
         require(type(provenance[name]) is list and len(provenance[name]) <= maximum, "limit")
         for item in provenance[name]:
-            text(item, 32768 if name == "comments" else 2048)
+            text(item, 32768 if name == "comments" else 2048, empty=name == "comments")
     for name in ("parent_id", "uid", "recurrence_id"):
         if provenance[name] is not None:
             text(provenance[name], 2048)

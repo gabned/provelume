@@ -80,6 +80,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def asana_connection(self):
+        from .asana_connection import AsanaConnection
+
+        if not hasattr(self, "_asana_manager"):
+            self._asana_manager = AsanaConnection(self.store)
+        return self._asana_manager
+
     def icalendar_feeds(self):
         from .icalendar_feeds import IcalendarFeeds
 
