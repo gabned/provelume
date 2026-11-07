@@ -66,9 +66,30 @@ def sources():
             "program_sha256": digest(kernel.PROGRAM)}
 
 
+def process_limits():
+    import resource
+
+    limits = {name: list(resource.getrlimit(getattr(resource, "RLIMIT_" + name.upper())))
+              for name in ("as", "core", "cpu", "data", "fsize", "memlock", "msgqueue",
+                           "nice", "nofile", "nproc", "rss", "rtprio", "rttime",
+                           "sigpending", "stack")}
+    # Linux exposes RLIMIT_LOCKS in procfs but CPython does not export its constant.
+    locks = re.search(r"^Max file locks\s+(\S+)\s+(\S+)",
+                      Path("/proc/self/limits").read_text(), re.MULTILINE)
+    if locks is None:
+        raise ValueError("complete original process limits unavailable")
+    limits["locks"] = [-1 if v == "unlimited" else int(v) for v in locks.groups()]
+    return limits
+
+
+def limit_command(limits):
+    return ["prlimit", *["--" + name + "=" + ":".join(
+        "unlimited" if value == -1 else str(value) for value in pair)
+        for name, pair in limits.items()], "--"]
+
+
 def host():
     import pwd
-    import resource
 
     if os.geteuid() == 0 or any(shutil.which(name) is None for name in
                                ("bpftrace", "strace", "setpriv", "prlimit")):
@@ -77,11 +98,7 @@ def host():
     result.update(uid=os.getuid(), gid=os.getgid(), user=pwd.getpwuid(os.getuid()).pw_name,
                   nice=os.getpriority(os.PRIO_PROCESS, 0),
                   groups=sorted(os.getgroups()),
-                  limits={name: list(resource.getrlimit(
-                      getattr(resource, "RLIMIT_" + name.upper())))
-                          for name in ("as", "core", "cpu", "data", "fsize", "locks", "memlock",
-                                       "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio",
-                                       "rttime", "sigpending", "stack")},
+                  limits=process_limits(),
                   boot_id=Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
                   tools={name: digest(Path(shutil.which(name)))
                          for name in ("bpftrace", "strace", "setpriv", "prlimit")})
@@ -129,9 +146,7 @@ def collect(source, output, arguments, timeout):
     # bpftrace may raise its own memlock limit. Restore the original complete
     # envelope before dropping privilege; setpriv itself does not reset rlimits.
     limits = host()["limits"]
-    child = ["prlimit", *["--" + name + "=" + ":".join(
-        "unlimited" if value == -1 else str(value) for value in pair)
-        for name, pair in limits.items()], "--", "setpriv", "--reuid", str(os.getuid()),
+    child = [*limit_command(limits), "setpriv", "--reuid", str(os.getuid()),
         "--regid", str(os.getgid()), "--groups", ",".join(map(str, os.getgroups())),
         "--", "/bin/sh", str(launch)]
     command = ["sudo", "-n", "env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8",

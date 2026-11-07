@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
 import yaml
 
 from scripts import concordia_kernel_native as native
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="actual Linux process-limit envelope")
+def test_original_complete_limits_survive_actual_launcher_without_raising_any_limit():
+    limits = native.process_limits()
+    assert "locks" in limits and "memlock" in limits and "nofile" in limits
+    observed = subprocess.check_output([*native.limit_command(limits), sys.executable, "-c",
+        "import json;from scripts.concordia_kernel_native import process_limits;"
+        "print(json.dumps(process_limits()))"], cwd=native.ROOT, text=True)
+    assert json.loads(observed) == limits
 
 
 def test_markers_select_only_the_original_cold_probe_and_restore_methods_on_error():
