@@ -1,0 +1,102 @@
+# Concordia S18 — independently qualified GitHub mirrors
+
+This PRODUCT workstream consumes unaccepted S17
+`0298f541f8bf8487476fdfcd8317f3bd34cdf269` (including the separate #453 allocation
+repair) under the [ordered development authority](https://github.com/gabned/provelume/issues/383#issuecomment-6706150974).
+No predecessor acceptance, personal account or remote publication authority is
+inferred. Protocol 1.5.2/pin02317e0/97 canonical bytes, PR-local legacy, deferred
+Lifecycle v2 and 0.14.0/development identity remain unchanged. Original S07/S08
+results and #439's original BIND are preserved; this work does not accept them.
+
+## Profile and independent observations
+
+The first profile is GitHub.com REST API version 2022-11-28 plus the independently
+qualified native Git HTTPS transport. Enterprise/other hosts and unqualified API
+or Git versions fail visibly. GitHub, GitLab and Gitea never inherit one another's
+qualification. Git remains optional and all local/offline personal behavior works
+without any hosted profile. Disabled/local-only/no-GitHub gates precede vault,
+process and network access; passive pages do not probe or repair.
+
+Each explicit operation binds the actual repository ID, canonical owner/name and
+HTTPS clone URI, observed visibility and actual credential access. Missing,
+contradictory or unknown visibility blocks private payload. Repository transfers,
+replacement, changed account/credential/grant/policy/scope/branch/ref invalidate
+dependent write previews. A repository permission boolean alone cannot prove a
+token's write capability.
+
+The documented immutable blob-create endpoint requires Contents write permission.
+An explicit, separately described check writes only a fixed public synthetic
+permission-probe blob, validates HTTP 201 and its exact Git object ID, and never
+changes a ref or sends Source content. Read-only/expired/wrong-account credentials
+must fail before Source publication. Probe bytes and any public probe consent are
+part of the reviewable authorization, never an implicit side effect of a GET.
+
+Credentials and their references remain external to canonical/portable data.
+The device OS vault stores provider credentials and immutable logical account or
+installation-access identity. Explicit credential renewal preserves logical
+identity only after independent validation, invalidates pending write previews,
+and may enable read-only UNKNOWN reconciliation; it never grants a resend.
+Tokens never enter URLs, argv, environment, ordinary output, public evidence or
+CI. Dedicated bounded stdin/credential-protocol pipes carry secrets only between
+the authorized parent, native HTTP worker and fixed owned Git helper. Repository,
+system and ambient Git helpers/config/hooks/prompts remain disabled.
+
+## Complete public payload and ownership
+
+Private is the default requested visibility. Public publication additionally
+requires a fresh exact allowlist and confirmation for the entire actual transfer:
+selected payload files, complete manifest, active pointer, owned namespace marker,
+permission-probe bytes and explicit commit identity. Logical Markdown-only
+allowlisting cannot authorize unseen control metadata. No credential, target
+locator, local device/path or secret-bearing reference is an ownership marker.
+
+The owned namespace has a random nonsecret tag bound externally to the current
+destination/grant. Foreign/unknown/incomplete namespaces cannot be silently
+adopted or overwritten. Initial publication atomically introduces its marker,
+complete generation and active pointer in one native ref update. Unrelated paths
+and all previous valid history remain. Native direct-parent proof and exact ref
+lease remain mandatory; no automatic force/NFF repair, merge/rebase or deletion.
+
+Fresh visibility/account/permission/ref observations precede a single claimed
+send. Post-send ref, full SHA-256 inventory and provider observations determine
+the receipt. Changed or incomplete observations stay UNKNOWN; historical receipts
+do not attest current state. Read-only recovery verifies the operation-specific
+commit and complete generation, including after same-root restore. Source and
+canonical knowledge remain unchanged by mirror operations.
+
+## Bounds, surfaces and qualification
+
+Preserve S16's staging limits and S17's 120-second operation / 30-second command,
+2MiB metadata, 32MiB blob and 512MiB local Git object-store bounds. HTTP calls run
+in an owned worker with a 20-second DNS/request deadline within the same operation
+deadline, fixed HTTPS origins, no redirects, bounded responses and closed routes.
+No retry, larger limit, observer-cost subtraction or inferred provider capability
+is a fallback. Limits for API pagination and credentials remain explicit and finite.
+
+CLI, local CSRF UI in both shells/seven catalogues, scheduler, source/frozen helper
+and installed qualification use the same backend and default refusals. Public
+scheduled work cannot approve a newly changed payload automatically. Credential
+expiry, revoke, unknown visibility, wrong target/identity, public-content drift,
+NFF, interruption, read-only recovery, missing components and offline/default-off
+behavior all have independent negative/recovery cases.
+
+Synthetic contract/native-loopback tests are labeled as such. They do not qualify
+a real GitHub account or publication. The scoped real-endpoint driver is prepared
+with a fresh synthetic corpus, exact proposed destinations and complete public
+payload before any authorization request. The approved contract says: “Use
+synthetic fixtures only; no live credentials or personal paths in source/logs/CI.”
+No credential-bearing CI or real remote action is authorized by this document.
+Any such action needs its specific existing or newly explicit maintainer authority.
+Human/manual checks remain DEFERRED_BY_MAINTAINER / NOT_RUN until the completed
+official release on the maintainer's Windows 11 Pro 25H2 PC; no intermediate
+installation on that PC is performed.
+
+## Authoritative sources read
+
+- [GitHub blob creation](https://docs.github.com/en/rest/git/blobs?apiVersion=2022-11-28#create-a-blob): immutable Git blob objects, Contents write permission,
+  supported token types and HTTP 201 response.
+- [Repository metadata](https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository): repository identity, canonical URI, visibility and permission observations.
+- [Installation repository access](https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#list-repositories-accessible-to-the-app-installation): installation-token repository grant and pagination.
+
+Implementation and exact-candidate qualification are in progress. Hosted
+publication is NOT_RUN; no release identity or official publication is changed.
