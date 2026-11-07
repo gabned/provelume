@@ -76,6 +76,79 @@ class Mirrors:
         identifier(identity, "mirid")
         return "mirror_" + self.device()[:32] + "_" + identity
 
+    def operation_slot(self, destination_id):
+        identifier(destination_id, "mirdst")
+        return "mirror_" + self.device()[:32] + "_" + destination_id + "_operations"
+
+    def operation_ledger(self, destination_id, *, epoch=None):
+        value = self.vault.read(self.operation_slot(destination_id))
+        require(
+            type(value) is dict
+            and set(value)
+            == {
+                "schema",
+                "destination_id",
+                "identity_id",
+                "epoch",
+                "destination_sha256",
+                "serial",
+                "inflight",
+                "last_receipt",
+            },
+            "authorization_required",
+        )
+        require(
+            value["schema"] == "provelume-mirror-operation-ledger/v1"
+            and value["destination_id"] == destination_id
+            and type(value["serial"]) is int
+            and 0 <= value["serial"] < 2**63,
+            "authorization_required",
+        )
+        identifier(value["identity_id"], "mirid")
+        require(
+            type(value["epoch"]) is str
+            and HASH.fullmatch(value["epoch"])
+            and type(value["destination_sha256"]) is str
+            and HASH.fullmatch(value["destination_sha256"]),
+            "authorization_required",
+        )
+        require(epoch is None or value["epoch"] == epoch, "authorization_required")
+        pending = value["inflight"]
+        if pending is not None:
+            require(
+                type(pending) is dict
+                and set(pending) == {"operation_id", "generation", "serial", "plan_sha256"},
+                "integrity",
+            )
+            identifier(pending["operation_id"], "mirplan")
+            require(
+                type(pending["serial"]) is int
+                and pending["serial"] == value["serial"]
+                and type(pending["generation"]) is str
+                and HASH.fullmatch(pending["generation"])
+                and type(pending["plan_sha256"]) is str
+                and HASH.fullmatch(pending["plan_sha256"]),
+                "integrity",
+            )
+        terminal = value["last_receipt"]
+        require(
+            terminal is None
+            or (
+                type(terminal) is dict
+                and terminal.get("schema") == "provelume-mirror-receipt/v1"
+                and type(terminal.get("operation_serial")) is int
+                and 1 <= terminal["operation_serial"] <= value["serial"]
+            ),
+            "integrity",
+        )
+        require(len(raw(value)) <= 8192, "limit")
+        return value
+
+    def save_operation_ledger(self, value):
+        slot = self.operation_slot(value["destination_id"])
+        self.vault.write(slot, value)
+        require(self.vault.read(slot) == value, "outcome_unknown")
+
     def _load(self, relative):
         data = read_bytes(self.store, "state/mirrors/" + relative)
         return None if data is None else parse(data)
@@ -312,6 +385,25 @@ class Mirrors:
                 "updated_at": utc_now(),
             }
             self._validate_destination(row)
+            if previous is None:
+                operations = {
+                    "schema": "provelume-mirror-operation-ledger/v1",
+                    "destination_id": destination_id,
+                    "identity_id": identity_id,
+                    "epoch": identity["epoch"],
+                    "destination_sha256": row["destination_sha256"],
+                    "serial": 0,
+                    "inflight": None,
+                    "last_receipt": None,
+                }
+            else:
+                operations = self.operation_ledger(destination_id, epoch=identity["epoch"])
+                require(
+                    operations["inflight"] is None
+                    or operations["destination_sha256"] == row["destination_sha256"],
+                    "outcome_unknown",
+                )
+                operations["destination_sha256"] = row["destination_sha256"]
             # External immutable destination revision precedes the active local policy pointer.
             grant["destinations"][destination_id] = {
                 "revision": row["revision"],
@@ -319,6 +411,7 @@ class Mirrors:
                 "target": deepcopy(target),
             }
             self.vault.write(self.slot(identity_id), grant)
+            self.save_operation_ledger(operations)
             if previous is not None:
                 state["destinations"].remove(previous)
             state["destinations"].append(row)
@@ -347,12 +440,20 @@ class Mirrors:
             fingerprint([identity["profile"], target["target"]]) == row["destination_sha256"],
             "stale",
         )
+        operations = self.operation_ledger(destination_id, epoch=identity["epoch"])
+        require(
+            operations["identity_id"] == identity["id"]
+            and operations["destination_sha256"] == row["destination_sha256"],
+            "stale",
+        )
+        require(operations["inflight"] is None, "outcome_unknown")
         return row, {
             "identity": identity,
             "grant_epoch": grant["epoch"],
             "device": self.device(),
             "policy_sha256": fingerprint(row),
             "access_sha256": fingerprint(access),
+            "operation_serial": operations["serial"],
         }
 
     def preview(
@@ -489,15 +590,25 @@ class Mirrors:
     def _claim_locked(self, plan_id, **arguments):
         """For independently qualified transports only; caller holds guard through claim."""
         plan, manifest = self.validate_preview_locked(plan_id, **arguments)
-        require(
-            not any(
-                other["id"] != plan_id
-                and other["destination_id"] == plan["destination_id"]
-                and other["state"] in {"dispatched", "unknown"}
-                for other in self.plans()
-            ),
-            "outcome_unknown",
+        operations = self.operation_ledger(
+            plan["destination_id"], epoch=plan["authority"]["grant_epoch"]
         )
+        require(
+            operations["serial"] == plan["authority"]["operation_serial"]
+            and operations["inflight"] is None,
+            "stale",
+        )
+        require(operations["serial"] < 2**63 - 1, "limit")
+        operations["serial"] += 1
+        operations["inflight"] = {
+            "operation_id": plan_id,
+            "generation": plan["generation"],
+            "serial": operations["serial"],
+            "plan_sha256": fingerprint(plan),
+        }
+        # This durable claim is outside every Instance backup/restore. Even a
+        # crash before the local journal write consumes this plan permanently.
+        self.save_operation_ledger(operations)
         plan["state"] = "dispatched"
         self._save("plans/" + plan_id + ".json", plan)
         return deepcopy(plan), manifest
@@ -506,7 +617,8 @@ class Mirrors:
         """Transport supplies read-only operation proof and independently reread final inventory."""
         plan = self.plan(plan_id)
         require(
-            operation_id == plan_id and plan["state"] in {"dispatched", "unknown", "completed"},
+            operation_id == plan_id
+            and plan["state"] in {"prepared", "dispatched", "unknown", "completed"},
             "stale",
         )
         destination_observation(observation)
@@ -517,11 +629,24 @@ class Mirrors:
             and observation["inventory"] == manifest["inventory"],
             "destination_incomplete",
         )
-        receipt = self._load("receipts/" + plan_id + ".json")
-        if receipt is None:
+        operations = self.operation_ledger(
+            plan["destination_id"], epoch=plan["authority"]["grant_epoch"]
+        )
+        receipt = operations["last_receipt"]
+        if receipt is None or receipt["operation_id"] != plan_id:
+            original = {**plan, "state": "prepared"}
+            pending = operations["inflight"]
+            require(
+                pending is not None
+                and pending["operation_id"] == plan_id
+                and pending["generation"] == plan["generation"]
+                and pending["plan_sha256"] == fingerprint(original),
+                "stale",
+            )
             receipt = {
                 "schema": "provelume-mirror-receipt/v1",
                 "operation_id": plan_id,
+                "operation_serial": pending["serial"],
                 "destination_sha256": observation["destination_sha256"],
                 "generation": plan["generation"],
                 "source_manifest_sha256": fingerprint(manifest["inventory"]),
@@ -534,12 +659,17 @@ class Mirrors:
                 "destination_deletion": False,
                 "backup_proof": False,
             }
-            self._save("receipts/" + plan_id + ".json", receipt)
+            operations["inflight"] = None
+            operations["last_receipt"] = receipt
+            self.save_operation_ledger(operations)
         require(
             receipt["generation"] == plan["generation"]
             and receipt["destination_manifest_sha256"] == fingerprint(observation["inventory"]),
             "integrity",
         )
+        # External terminal evidence is authoritative after same-root rollback;
+        # restoring an older local receipt can never reopen its consumed serial.
+        self._save("receipts/" + plan_id + ".json", receipt)
         plan["state"] = "completed"
         self._save("plans/" + plan_id + ".json", plan)
         return deepcopy(receipt)
@@ -565,6 +695,8 @@ class Mirrors:
         require(confirmed is True, "consent_required")
         with self.guard():
             plan = self.plan(plan_id)
+            pending = self.operation_ledger(plan["destination_id"])["inflight"]
+            require(pending is None or pending["operation_id"] != plan_id, "outcome_unknown")
             require(plan["state"] in {"completed", "discarded"}, "outcome_unknown")
             checked_path(self.store, "state/mirrors/plans/" + plan_id + ".json").unlink()
             return {"forgotten_local_plan": True, "receipt_retained": True, "remote_effect": False}
@@ -572,6 +704,9 @@ class Mirrors:
     def drop_generation(self, generation, *, confirmed):
         require(confirmed is True, "consent_required")
         with self.guard():
+            for destination in self.state()["destinations"]:
+                pending = self.operation_ledger(destination["id"])["inflight"]
+                require(pending is None or pending["generation"] != generation, "in_use")
             require(
                 not any(
                     plan["generation"] == generation

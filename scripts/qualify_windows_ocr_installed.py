@@ -331,6 +331,7 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert mirror_trial["result"] == "PASS" and not mirror_trial["network_used"]
         assert not mirror_trial["transport_process_used"]
         assert mirror_trial["publication"] == "TRANSPORT_NOT_QUALIFIED"
+        assert mirror_trial["same_root_restore_no_replay"] == "PASS"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))

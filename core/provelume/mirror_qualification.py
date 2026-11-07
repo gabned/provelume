@@ -80,6 +80,7 @@ def qualify_mirrors(root):
             "qualification",
         )
     plan, observation = plans[0]
+    pre_dispatch = instance.backup(destination=root / "Synthetic pre-dispatch backup")
     with engine.guard():
         engine._claim_locked(
             plan["id"],
@@ -113,6 +114,27 @@ def qualify_mirrors(root):
     require(
         receipt["source_manifest_sha256"] == receipt["destination_manifest_sha256"], "qualification"
     )
+    require(instance.restore(pre_dispatch["archive"])["status"] == "restored", "qualification")
+    rolled_back = Mirrors(instance.store, vault=vault)
+    require(rolled_back.plan(plan["id"])["state"] == "prepared", "qualification")
+    try:
+        with rolled_back.guard():
+            rolled_back._claim_locked(
+                plan["id"],
+                expected_plan_sha256=plan["plan_sha256"],
+                observation=observation,
+                confirmed=True,
+            )
+    except MirrorError as error:
+        require(error.code in {"stale", "outcome_unknown"}, "qualification")
+    else:
+        require(False, "qualification")
+    with rolled_back.guard():
+        require(
+            rolled_back._complete_locked(plan["id"], operation_id=plan["id"], observation=completed)
+            == receipt,
+            "qualification",
+        )
     engine.revoke(identities[1]["id"], expected_revision=1, confirmed=True)
     require(engine.snapshots.source_fingerprint() == before, "qualification")
     archive = root / "Synthetic Portable.zip"
@@ -146,6 +168,7 @@ def qualify_mirrors(root):
         "immutable_complete_inventory": "PASS",
         "no_replay_unknown_receipt": "PASS",
         "offline_portable_no_grant": "PASS",
+        "same_root_restore_no_replay": "PASS",
         "canonical_unchanged": True,
         "real_transports": "NOT_RUN",
         "publication": "TRANSPORT_NOT_QUALIFIED",

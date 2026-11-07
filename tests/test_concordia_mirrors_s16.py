@@ -323,10 +323,87 @@ def test_new_plan_cannot_escape_an_unknown_prior_dispatch(tmp_path):
     with engine.guard():
         engine._claim_locked(first["id"], **arguments(first, observation))
         engine._unknown_locked(first["id"])
-    another = preview(engine, destination, observation)
-    assert another["id"] != first["id"]
-    with engine.guard(), pytest.raises(MirrorError, match="outcome_unknown"):
-        engine._claim_locked(another["id"], **arguments(another, observation))
+    with pytest.raises(MirrorError, match="outcome_unknown"):
+        preview(engine, destination, observation)
+
+
+@pytest.mark.parametrize("completed", [False, True])
+def test_real_same_root_backup_restore_cannot_reopen_an_external_dispatch_claim(
+    tmp_path, completed
+):
+    instance, engine, _, destination, observation = seed(tmp_path)
+    plan = preview(engine, destination, observation)
+    backup = instance.backup(destination=tmp_path / "Backups")
+    before = engine.snapshots.source_fingerprint()
+    with engine.guard():
+        engine._claim_locked(plan["id"], **arguments(plan, observation))
+    receipt = None
+    final = {**observation, "inventory": plan["manifest"]["inventory"], "revision": "observed-1"}
+    if completed:
+        with engine.guard():
+            receipt = engine._complete_locked(
+                plan["id"], operation_id=plan["id"], observation=final
+            )
+    assert instance.restore(backup["archive"])["status"] == "restored"
+    restarted = Mirrors(instance.store, vault=engine.vault)
+    assert restarted.snapshots.source_fingerprint() == before
+    assert restarted.plan(plan["id"])["state"] == "prepared"
+    assert restarted.operation_ledger(destination["id"])["serial"] == 1
+    with restarted.guard(), pytest.raises(MirrorError, match="stale|outcome_unknown"):
+        restarted._claim_locked(plan["id"], **arguments(plan, observation))
+    if completed:
+        with restarted.guard():
+            recovered = restarted._complete_locked(
+                plan["id"], operation_id=plan["id"], observation=final
+            )
+        assert recovered == receipt
+        assert restarted.plan(plan["id"])["state"] == "completed"
+    else:
+        with pytest.raises(MirrorError, match="outcome_unknown"):
+            preview(restarted, destination, observation)
+    assert restarted.operation_ledger(destination["id"])["serial"] == 1
+
+
+@pytest.mark.parametrize("phase", ["local_claim", "local_receipt"])
+def test_external_claim_and_terminal_survive_interrupted_local_journal(
+    tmp_path, monkeypatch, phase
+):
+    _, engine, _, destination, observation = seed(tmp_path)
+    plan = preview(engine, destination, observation)
+    save = engine._save
+
+    def interrupted(relative, value):
+        if (
+            phase == "local_claim"
+            and relative.startswith("plans/")
+            and value.get("state") == "dispatched"
+        ) or (phase == "local_receipt" and relative.startswith("receipts/")):
+            raise OSError("synthetic local journal interruption")
+        return save(relative, value)
+
+    if phase == "local_receipt":
+        with engine.guard():
+            engine._claim_locked(plan["id"], **arguments(plan, observation))
+    monkeypatch.setattr(engine, "_save", interrupted)
+    final = {**observation, "inventory": plan["manifest"]["inventory"], "revision": "observed-1"}
+    with engine.guard(), pytest.raises(OSError, match="synthetic local journal interruption"):
+        if phase == "local_claim":
+            engine._claim_locked(plan["id"], **arguments(plan, observation))
+        else:
+            engine._complete_locked(plan["id"], operation_id=plan["id"], observation=final)
+    restarted = Mirrors(engine.store, vault=engine.vault)
+    operations = restarted.operation_ledger(destination["id"])
+    assert operations["serial"] == 1
+    with restarted.guard(), pytest.raises(MirrorError):
+        restarted._claim_locked(plan["id"], **arguments(plan, observation))
+    if phase == "local_receipt":
+        with restarted.guard():
+            receipt = restarted._complete_locked(
+                plan["id"], operation_id=plan["id"], observation=final
+            )
+        assert receipt == operations["last_receipt"]
+    else:
+        assert operations["inflight"]["operation_id"] == plan["id"]
 
 
 @pytest.mark.parametrize("language", ["en", "it", "de", "es", "fr", "pt", "ro"])
