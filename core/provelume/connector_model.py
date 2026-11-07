@@ -18,6 +18,7 @@ CONNECTOR_ADAPTER_PROTOCOL_VERSION = 1
 CONNECTOR_CONFORMANCE_PROFILE = "provelume.connector.v1"
 
 CONNECTOR_CAPABILITIES = (
+    "calendar_read",
     "conditional_metadata",
     "gmail_read",
     "google_native_export",
@@ -28,13 +29,14 @@ CONNECTOR_CAPABILITIES = (
     "revision_read",
     "scheduled_read",
     "source_selection",
+    "task_read",
     "transcript_read",
 )
 CONNECTOR_AUTHORIZATION_MODES = ("none", "external_secret", "oauth2_pkce")
 CONNECTOR_DEFINITION_NETWORK_ACCESS = ("none", "explicit_only")
 CONNECTOR_NETWORK_MODES = ("disabled", "explicit")
 CONNECTOR_SECRET_REFERENCE_KINDS = ("environment", "system_keyring")
-CONNECTOR_SOURCE_KINDS = ("drive", "gmail", "transcript", "web")
+CONNECTOR_SOURCE_KINDS = ("calendar", "drive", "gmail", "icalendar", "tasks", "transcript", "web")
 CONNECTOR_LIFECYCLE_STATES = ("active", "removed")
 MAX_CONNECTOR_DATA_CATEGORIES = 32
 MAX_CONNECTOR_ORIGINS = 32
