@@ -8,6 +8,7 @@ import json
 from contextlib import redirect_stdout
 from pathlib import Path
 
+from .mirror_cli import add_mirror_commands, handle_mirror_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .ocr_kit import OcrKitError, _safe, active_kit, host_root, import_kit, remove_kit
 from .publication import PublicationError
@@ -29,6 +30,27 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     setup.add_argument("--retention", choices=("keep", "transit"), required=True)
     setup.add_argument("--kit", type=Path)
     setup.add_argument("--expected-sha256")
+    personal = commands.add_parser("personal-qualify")
+    personal.add_argument("instance", type=Path)
+    personal.add_argument("--retention", choices=("keep", "transit"), required=True)
+    personal.add_argument("--ocr-ready", action="store_true")
+    personal.add_argument("--kit", type=Path)
+    personal.add_argument("--expected-sha256")
+    calendar = commands.add_parser("icalendar-qualify")
+    calendar.add_argument("instance", type=Path)
+    asana = commands.add_parser("asana-qualify")
+    asana.add_argument("instance", type=Path)
+    tududi = commands.add_parser("tududi-qualify")
+    tududi.add_argument("instance", type=Path)
+    writeback = commands.add_parser("task-writeback-qualify")
+    writeback.add_argument("instance", type=Path)
+    mirror = commands.add_parser("mirror-qualify")
+    mirror.add_argument("instance", type=Path)
+    git_mirror = commands.add_parser("git-mirror-qualify")
+    git_mirror.add_argument("instance", type=Path)
+    github_mirror = commands.add_parser("github-mirror-qualify")
+    github_mirror.add_argument("instance", type=Path)
+    add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -40,11 +62,53 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "setup-qualify":
+                if options.command == "github-mirror-qualify":
+                    from .mirror_github_qualification import qualify_github_mirror
+
+                    result = qualify_github_mirror(options.instance)
+                elif options.command == "git-mirror-qualify":
+                    from .mirror_git_qualification import qualify_git_mirror
+
+                    result = qualify_git_mirror(options.instance)
+                elif options.command == "mirror-qualify":
+                    from .mirror_qualification import qualify_mirrors
+
+                    result = qualify_mirrors(options.instance)
+                elif options.command == "task-writeback-qualify":
+                    from .task_writeback_qualification import qualify_task_writeback
+
+                    result = qualify_task_writeback(options.instance)
+                elif options.command == "tududi-qualify":
+                    from .tududi_qualification import qualify_tududi
+
+                    result = qualify_tududi(options.instance)
+                elif options.command == "asana-qualify":
+                    from .asana_qualification import qualify_asana
+
+                    result = qualify_asana(options.instance)
+                elif options.command == "icalendar-qualify":
+                    from .icalendar_qualification import qualify_icalendar
+
+                    result = qualify_icalendar(options.instance)
+                elif options.command == "personal-qualify":
+                    from .personal_qualification import qualify_personal
+
+                    result = qualify_personal(
+                        options.instance,
+                        retention=options.retention,
+                        ocr_required=options.ocr_ready,
+                        kit=options.kit,
+                        kit_sha256=options.expected_sha256,
+                    )
+                elif options.command == "setup-qualify":
                     from .setup_qualification import qualify_setup
 
-                    result = qualify_setup(options.instance, retention=options.retention,
-                                           kit=options.kit, kit_sha256=options.expected_sha256)
+                    result = qualify_setup(
+                        options.instance,
+                        retention=options.retention,
+                        kit=options.kit,
+                        kit_sha256=options.expected_sha256,
+                    )
                 elif options.command == "kit-import":
                     result = import_kit(
                         options.archive,
@@ -67,7 +131,9 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                 else:
                     output = io.StringIO()
                     with redirect_stdout(output):
-                        code = handle_ocr_command(options)
+                        code = handle_mirror_command(options)
+                        if code is None:
+                            code = handle_ocr_command(options)
                     stream.write(output.getvalue())
                     return code if code in (0, 2) else 2
                 json.dump(result, stream, sort_keys=True)
