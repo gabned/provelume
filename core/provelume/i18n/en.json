@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Generation verified in the receipt; current state requires a fresh check.",
   "mirror.git_state_not_applied": "Publication rejected: no update applied.",
   "mirror.git_state_discarded": "Preview discarded.",
-  "mirror.git_scheduled_paused": "Scheduling is suspended for this revision. Review and reconcile the outcome, then confirm a new policy revision to resume."
+  "mirror.git_scheduled_paused": "Scheduling is suspended for this revision. Review and reconcile the outcome, then confirm a new policy revision to resume.",
+  "mirror.github_profile": "GitHub: repository identity, visibility and complete transfer are bound to this preview.",
+  "mirror.github_publish": "Publish GitHub generation",
+  "mirror.github_confirm": "I confirm this exact transfer to the configured GitHub repository.",
+  "mirror.github_transfer": "Complete transfer: payload, control files, commit identity and public synthetic permission probe.",
+  "mirror.github_probe_notice": "Preparing this preview explicitly checks Contents write permission using only a fixed public synthetic blob. No branch is updated by that check.",
+  "mirror.github_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
 }

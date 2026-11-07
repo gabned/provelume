@@ -657,21 +657,27 @@ class Mirrors:
         )
         destination_observation(observation)
         if transport_proof is not None:
+            require(type(transport_proof) is dict)
+            provider = transport_proof.get("provider_observation")
+            hosted = transport_proof.get("profile") == "github.com/2022-11-28"
             require(
                 type(transport_proof) is dict
                 and set(transport_proof)
-                == {
-                    "profile",
-                    "commit_sha",
-                    "observed_head",
-                    "commit_written",
-                    "git_version",
-                    "evidence_mode",
-                    "publication_time",
-                }
+                == (
+                    {
+                        "profile",
+                        "commit_sha",
+                        "observed_head",
+                        "commit_written",
+                        "git_version",
+                        "evidence_mode",
+                        "publication_time",
+                    }
+                    | ({"provider_observation"} if hosted else set())
+                )
             )
             require(
-                transport_proof["profile"] == "git-local/v1"
+                transport_proof["profile"] in {"git-local/v1", "github.com/2022-11-28"}
                 and type(transport_proof["commit_written"]) is bool
                 and type(transport_proof["git_version"]) is str
                 and len(transport_proof["git_version"]) <= 40
@@ -679,6 +685,17 @@ class Mirrors:
                 in {"direct_verified", "reconciled_current_state"}
                 and transport_proof["publication_time"] is None
             )
+            if hosted:
+                require(
+                    type(provider) is dict
+                    and set(provider) == {"repository_id", "access_sha256", "visibility"}
+                    and type(provider["repository_id"]) is int
+                    and provider["repository_id"] > 0
+                    and type(provider["access_sha256"]) is str
+                    and HASH.fullmatch(provider["access_sha256"])
+                    and provider["visibility"] == observation["visibility"]
+                    and provider["visibility"] in {"private", "public"}
+                )
             for key in ("commit_sha", "observed_head"):
                 require(
                     type(transport_proof[key]) is str

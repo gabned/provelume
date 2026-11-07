@@ -100,6 +100,7 @@ class GitSession:
                 "unsafe_git_storage",
             )
         self.commands = 0
+        self.transport_configuration = []
 
     def run(
         self,
@@ -142,6 +143,7 @@ class GitSession:
             "gc.auto=0",
             "-c",
             "core.longpaths=true",
+            *self.transport_configuration,
             "--git-dir=" + str(git_directory or self.repository),
             *arguments,
         ]

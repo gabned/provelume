@@ -69,11 +69,22 @@ def attach_mirror_routes(app, instance, templates, context_factory):
             "git-initialize": {"destination_id", "destination_sha256"},
             "git-publish": {"plan_id", "plan_sha256", "git_plan_sha256"},
             "git-reconcile": {"plan_id"},
+            "github-prepare": {"destination_id", "revision"},
+            "github-publish": {
+                "plan_id",
+                "plan_sha256",
+                "git_plan_sha256",
+                "transfer_sha256",
+                "public_confirm",
+            },
+            "github-reconcile": {"plan_id"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
-        if selected.startswith("git-"):
-            git = instance.git_mirrors()
+        if selected.startswith(("git-", "github-")):
+            hosted = selected.startswith("github-")
+            git = instance.github_mirrors() if hosted else instance.git_mirrors()
+            selected = selected.replace("github-", "git-", 1)
             if selected == "git-initialize":
                 git.initialize_local(
                     fields["destination_id"],
@@ -89,11 +100,20 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 )
                 return {"plan": plan["id"]}
             if selected == "git-publish":
+                extra = {}
+                if hosted:
+                    require(fields["public_confirm"] in {"yes", "no"})
+                    extra = {
+                        "expected_transfer_sha256": (
+                            fields["transfer_sha256"] if fields["public_confirm"] == "yes" else None
+                        )
+                    }
                 outcome = git.publish(
                     fields["plan_id"],
                     expected_plan_sha256=fields["plan_sha256"],
                     expected_git_plan_sha256=fields["git_plan_sha256"],
                     confirmed=True,
+                    **extra,
                 )
             else:
                 outcome = git.reconcile(fields["plan_id"], confirmed=True)

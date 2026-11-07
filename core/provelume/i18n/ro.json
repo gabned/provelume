@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Generație verificată în chitanță; starea actuală necesită o verificare nouă.",
   "mirror.git_state_not_applied": "Publicare respinsă: nicio modificare aplicată.",
   "mirror.git_state_discarded": "Previzualizare abandonată.",
-  "mirror.git_scheduled_paused": "Programarea este suspendată pentru această revizie. Examinează și reconciliază rezultatul, apoi confirmă o revizie nouă a politicii pentru reluare."
+  "mirror.git_scheduled_paused": "Programarea este suspendată pentru această revizie. Examinează și reconciliază rezultatul, apoi confirmă o revizie nouă a politicii pentru reluare.",
+  "mirror.github_profile": "GitHub: identitatea depozitului, vizibilitatea și transferul complet sunt legate de această previzualizare.",
+  "mirror.github_publish": "Publică generația GitHub",
+  "mirror.github_confirm": "Confirm acest transfer exact către depozitul GitHub configurat.",
+  "mirror.github_transfer": "Transfer complet: conținut, fișiere de control, autorul commitului și probă sintetică publică.",
+  "mirror.github_probe_notice": "Această previzualizare verifică explicit dreptul de scriere cu un blob sintetic public fix. Verificarea nu modifică ramuri.",
+  "mirror.github_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
 }

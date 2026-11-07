@@ -27,30 +27,48 @@ def add_mirror_commands(commands):
         "git-prepare",
         "git-publish",
         "git-reconcile",
+        "github-status",
+        "github-connect",
+        "github-disconnect",
+        "github-prepare",
+        "github-publish",
+        "github-reconcile",
     ):
         command = commands.add_parser("mirror-" + name)
         command.add_argument("instance", type=Path)
-        if name in {"identity", "configure", "access"}:
+        if name in {"identity", "configure", "access", "github-connect"}:
             command.add_argument("configuration_file", type=Path)
-        if name in {"prepare", "disable", "git-prepare"}:
+        if name in {"prepare", "disable", "git-prepare", "github-prepare"}:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name == "revoke":
+        if name in {"revoke", "github-disconnect"}:
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
         if name == "git-initialize":
             command.add_argument("destination_id")
             command.add_argument("--expected-destination-sha256", required=True)
-        if name in {"discard", "forget-plan", "git-publish", "git-reconcile"}:
+        if name in {
+            "discard",
+            "forget-plan",
+            "git-publish",
+            "git-reconcile",
+            "github-publish",
+            "github-reconcile",
+        }:
             command.add_argument("plan_id")
         if name == "discard":
             command.add_argument("--expected-plan-sha256", required=True)
-        if name == "git-publish":
+        if name in {"git-publish", "github-publish"}:
             command.add_argument("--expected-plan-sha256", required=True)
             command.add_argument("--expected-git-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
-        if name not in {"status", "git-status"}:
+        if name == "github-publish":
+            command.add_argument("--expected-transfer-sha256")
+        if name == "github-connect":
+            command.add_argument("--probe-confirm", action="store_true")
+            command.add_argument("--public-probe-confirm", action="store_true")
+        if name not in {"status", "git-status", "github-status"}:
             command.add_argument("--confirm", action="store_true")
 
 
@@ -61,13 +79,30 @@ def handle_mirror_command(options):
         instance = ProvelumeInstance(options.instance)
         engine = instance.mirrors()
         selected = options.command.removeprefix("mirror-")
-        if selected not in {"status", "git-status"}:
+        if selected not in {"status", "git-status", "github-status"}:
             require(options.confirm is True, "consent_required")
-        if selected.startswith("git-"):
-            git = instance.git_mirrors()
-            operation = selected.removeprefix("git-")
+        if selected.startswith(("git-", "github-")):
+            hosted = selected.startswith("github-")
+            git = instance.github_mirrors() if hosted else instance.git_mirrors()
+            operation = selected.split("-", 1)[1]
             if operation == "status":
                 result = git.status()
+            elif operation == "connect":
+                git.credentials.enabled()
+                external = _local_path(options.configuration_file, instance.root)
+                require(external.stat().st_size <= 16384, "limit")
+                configuration = parse(external.read_bytes())
+                require(set(configuration) <= {"name", "target", "token", "mode", "identity_id"})
+                result = git.connect(
+                    **configuration,
+                    confirmed=True,
+                    probe_confirmed=options.probe_confirm,
+                    public_probe_confirmed=options.public_probe_confirm,
+                )
+            elif operation == "disconnect":
+                result = git.disconnect(
+                    options.identity_id, expected_revision=options.expected_revision, confirmed=True
+                )
             elif operation == "initialize":
                 result = git.initialize_local(
                     options.destination_id,
@@ -81,11 +116,15 @@ def handle_mirror_command(options):
                     confirmed=True,
                 )
             elif operation == "publish":
+                extra = (
+                    {"expected_transfer_sha256": options.expected_transfer_sha256} if hosted else {}
+                )
                 result = git.publish(
                     options.plan_id,
                     expected_plan_sha256=options.expected_plan_sha256,
                     expected_git_plan_sha256=options.expected_git_plan_sha256,
                     confirmed=True,
+                    **extra,
                 )
             else:
                 result = git.reconcile(options.plan_id, confirmed=True)

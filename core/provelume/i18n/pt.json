@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Geração verificada no recibo; o estado atual exige nova verificação.",
   "mirror.git_state_not_applied": "Publicação recusada: nenhuma alteração aplicada.",
   "mirror.git_state_discarded": "Pré-visualização descartada.",
-  "mirror.git_scheduled_paused": "O agendamento está suspenso para esta revisão. Reveja e reconcilie o resultado e confirme uma nova revisão da política para retomar."
+  "mirror.git_scheduled_paused": "O agendamento está suspenso para esta revisão. Reveja e reconcilie o resultado e confirme uma nova revisão da política para retomar.",
+  "mirror.github_profile": "GitHub: identidade do repositório, visibilidade e transferência completa vinculadas a esta pré-visualização.",
+  "mirror.github_publish": "Publicar geração GitHub",
+  "mirror.github_confirm": "Confirmo esta transferência exata para o repositório GitHub configurado.",
+  "mirror.github_transfer": "Transferência completa: conteúdos, ficheiros de controlo, autor do commit e prova sintética pública.",
+  "mirror.github_probe_notice": "Esta pré-visualização verifica explicitamente a escrita com um blob sintético público fixo. A verificação não atualiza ramos.",
+  "mirror.github_public_confirm": "Revisei todos os hashes, ficheiros de controlo e campos do commit e confirmo esta transferência pública exata."
 }

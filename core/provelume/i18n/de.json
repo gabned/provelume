@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Generation im Beleg geprüft; der aktuelle Zustand erfordert eine neue Prüfung.",
   "mirror.git_state_not_applied": "Veröffentlichung abgelehnt: keine Änderung angewendet.",
   "mirror.git_state_discarded": "Vorschau verworfen.",
-  "mirror.git_scheduled_paused": "Die Planung ist für diese Revision ausgesetzt. Prüfen Sie den Ausgang und bestätigen Sie danach eine neue Richtlinienrevision."
+  "mirror.git_scheduled_paused": "Die Planung ist für diese Revision ausgesetzt. Prüfen Sie den Ausgang und bestätigen Sie danach eine neue Richtlinienrevision.",
+  "mirror.github_profile": "GitHub: Repository-Identität, Sichtbarkeit und vollständige Übertragung sind an diese Vorschau gebunden.",
+  "mirror.github_publish": "GitHub-Generation veröffentlichen",
+  "mirror.github_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte GitHub-Repository.",
+  "mirror.github_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien, Commit-Autor und öffentliche synthetische Berechtigungsprobe.",
+  "mirror.github_probe_notice": "Diese Vorschau prüft ausdrücklich die Schreibberechtigung mit einem festen öffentlichen synthetischen Blob. Die Prüfung ändert keinen Branch.",
+  "mirror.github_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
 }

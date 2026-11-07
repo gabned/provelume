@@ -349,6 +349,11 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert git_mirror_trial["result"] == "PASS" and not git_mirror_trial["network_used"]
         assert git_mirror_trial["transport_process_used"]
         assert git_mirror_trial["same_root_restore_readonly_reconciliation"] == "PASS"
+        github_mirror_trial = command("github-mirror-qualify", root / "Synthetic GitHub",
+                                      optional_git_path=git_dependency_path)
+        assert github_mirror_trial["result"] == "PASS" and not github_mirror_trial["network_used"]
+        assert github_mirror_trial["real_github"] == "NOT_RUN"
+        assert github_mirror_trial["interruption_restore_readonly_recovery"] == "PASS"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -377,6 +382,7 @@ def qualify(executable, kit, root, output, build_report, installer):
             "s15_task_writeback_trial": writeback_trial,
             "s16_mirror_trial": mirror_trial,
             "s17_git_mirror_trial": git_mirror_trial,
+            "s18_github_mirror_trial": github_mirror_trial,
             "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",

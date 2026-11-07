@@ -48,6 +48,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     mirror.add_argument("instance", type=Path)
     git_mirror = commands.add_parser("git-mirror-qualify")
     git_mirror.add_argument("instance", type=Path)
+    github_mirror = commands.add_parser("github-mirror-qualify")
+    github_mirror.add_argument("instance", type=Path)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -60,7 +62,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "git-mirror-qualify":
+                if options.command == "github-mirror-qualify":
+                    from .mirror_github_qualification import qualify_github_mirror
+
+                    result = qualify_github_mirror(options.instance)
+                elif options.command == "git-mirror-qualify":
                     from .mirror_git_qualification import qualify_git_mirror
 
                     result = qualify_git_mirror(options.instance)
@@ -87,14 +93,22 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                 elif options.command == "personal-qualify":
                     from .personal_qualification import qualify_personal
 
-                    result = qualify_personal(options.instance, retention=options.retention,
-                                              ocr_required=options.ocr_ready, kit=options.kit,
-                                              kit_sha256=options.expected_sha256)
+                    result = qualify_personal(
+                        options.instance,
+                        retention=options.retention,
+                        ocr_required=options.ocr_ready,
+                        kit=options.kit,
+                        kit_sha256=options.expected_sha256,
+                    )
                 elif options.command == "setup-qualify":
                     from .setup_qualification import qualify_setup
 
-                    result = qualify_setup(options.instance, retention=options.retention,
-                                           kit=options.kit, kit_sha256=options.expected_sha256)
+                    result = qualify_setup(
+                        options.instance,
+                        retention=options.retention,
+                        kit=options.kit,
+                        kit_sha256=options.expected_sha256,
+                    )
                 elif options.command == "kit-import":
                     result = import_kit(
                         options.archive,

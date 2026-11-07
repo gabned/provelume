@@ -109,6 +109,22 @@ if sys.argv[2]=='yes':
     git=GitMirrors(instance.store,mirrors=mirrors)
     git.initialize_local(git_target['id'],expected_destination_sha256=git_target['destination_sha256'],confirmed=True)
     fixture['mirror_git_plan_id']=git.prepare(git_target['id'],expected_revision=1,confirmed=True)['id']
+    from provelume.mirror_github_credentials import GitHubCredentials
+    from provelume.mirror_github_qualification import SyntheticApi,SyntheticNativeGitHub,target
+    from provelume.mirror_git import git_work
+    mirrors.set_access(enabled=True,github=True,rsync=False,expected_revision=1,confirmed=True)
+    gh=SyntheticNativeGitHub(instance.store,mirrors=mirrors,
+        credentials=GitHubCredentials(mirrors,vault=mirrors.vault,http=SyntheticApi()))
+    gh_identity=gh.connect(name='Synthetic GitHub browser',target=target(),
+        token='synthetic-browser',
+        mode='user',confirmed=True,probe_confirmed=True)['identity']
+    gh.synthetic_remote=root/'Synthetic hosted file Git.git'
+    with git_work() as session:
+        session.run(['init','--bare','--object-format=sha1',str(gh.synthetic_remote)])
+    gh_target=mirrors.configure(identity_id=gh_identity['id'],name='Synthetic GitHub destination',
+        target=target(),scope={'kind':'area','id':mirror_area['id']},
+        include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
+    fixture['mirror_github_plan_id']=gh.prepare(gh_target['id'],expected_revision=1,confirmed=True)['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -321,6 +337,18 @@ def main():
                                     assert page.evaluate("document.documentElement.scrollWidth <= "
                                                         "document.documentElement.clientWidth")
                                     cell['mirror_git_bound_preview']='AUTOMATIC_NATIVE_LOCAL_PASS'
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_github_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-github-transfer').is_visible()
+                                    transfer=page.locator('#mirror-github-transfer').inner_text()
+                                    assert 'namespace.json' in transfer
+                                    assert 'manifest.json' in transfer
+                                    assert 'active.json' in transfer and 'utf8_content' in transfer
+                                    assert 'synthetic-browser' not in page.content()
+                                    assert page.evaluate('document.documentElement.scrollWidth <= '
+                                                         'document.documentElement.clientWidth')
+                                    cell['mirror_github_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

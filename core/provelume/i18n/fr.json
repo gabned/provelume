@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Génération vérifiée dans le reçu ; l’état actuel exige une nouvelle vérification.",
   "mirror.git_state_not_applied": "Publication refusée : aucune modification appliquée.",
   "mirror.git_state_discarded": "Aperçu abandonné.",
-  "mirror.git_scheduled_paused": "La planification est suspendue pour cette révision. Examinez et rapprochez le résultat, puis confirmez une nouvelle révision pour reprendre."
+  "mirror.git_scheduled_paused": "La planification est suspendue pour cette révision. Examinez et rapprochez le résultat, puis confirmez une nouvelle révision pour reprendre.",
+  "mirror.github_profile": "GitHub : identité du dépôt, visibilité et transfert complet sont liés à cet aperçu.",
+  "mirror.github_publish": "Publier la génération GitHub",
+  "mirror.github_confirm": "Je confirme ce transfert exact vers le dépôt GitHub configuré.",
+  "mirror.github_transfer": "Transfert complet : contenus, fichiers de contrôle, auteur du commit et sonde synthétique publique.",
+  "mirror.github_probe_notice": "Cet aperçu vérifie explicitement le droit d’écriture avec un blob synthétique public fixe. Cette vérification ne modifie aucune branche.",
+  "mirror.github_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact."
 }

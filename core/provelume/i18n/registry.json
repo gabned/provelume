@@ -18202,6 +18202,42 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.github_profile": {
+      "context": "GitHub mirror explicit operation: github_profile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.github_publish": {
+      "context": "GitHub mirror explicit operation: github_publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.github_confirm": {
+      "context": "GitHub mirror explicit operation: github_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.github_transfer": {
+      "context": "GitHub mirror explicit operation: github_transfer",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.github_probe_notice": {
+      "context": "GitHub mirror explicit operation: github_probe_notice",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.github_public_confirm": {
+      "context": "GitHub mirror explicit operation: github_public_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

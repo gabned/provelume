@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Generación verificada en el recibo; el estado actual requiere otra comprobación.",
   "mirror.git_state_not_applied": "Publicación rechazada: ningún cambio aplicado.",
   "mirror.git_state_discarded": "Vista previa descartada.",
-  "mirror.git_scheduled_paused": "La programación está suspendida para esta revisión. Revisa y concilia el resultado; confirma una nueva revisión de la política para continuar."
+  "mirror.git_scheduled_paused": "La programación está suspendida para esta revisión. Revisa y concilia el resultado; confirma una nueva revisión de la política para continuar.",
+  "mirror.github_profile": "GitHub: identidad del repositorio, visibilidad y transferencia completa vinculadas a esta vista previa.",
+  "mirror.github_publish": "Publicar generación GitHub",
+  "mirror.github_confirm": "Confirmo esta transferencia exacta al repositorio GitHub configurado.",
+  "mirror.github_transfer": "Transferencia completa: contenidos, archivos de control, autor del commit y prueba sintética pública.",
+  "mirror.github_probe_notice": "Esta vista previa comprueba explícitamente la escritura con un blob sintético público fijo. La comprobación no actualiza ninguna rama.",
+  "mirror.github_public_confirm": "He revisado cada hash, archivo de control y campo del commit y confirmo esta transferencia pública exacta."
 }

@@ -2748,5 +2748,11 @@
   "mirror.git_state_completed": "Generazione verificata nella ricevuta; lo stato attuale richiede una nuova verifica.",
   "mirror.git_state_not_applied": "Pubblicazione rifiutata: nessun aggiornamento applicato.",
   "mirror.git_state_discarded": "Anteprima scartata.",
-  "mirror.git_scheduled_paused": "Pianificazione sospesa per questa revisione. Esamina e riconcilia l’esito, poi conferma una nuova revisione della policy per riprendere."
+  "mirror.git_scheduled_paused": "Pianificazione sospesa per questa revisione. Esamina e riconcilia l’esito, poi conferma una nuova revisione della policy per riprendere.",
+  "mirror.github_profile": "GitHub: identità del repository, visibilità e trasferimento completo sono vincolati a questa anteprima.",
+  "mirror.github_publish": "Pubblica generazione GitHub",
+  "mirror.github_confirm": "Confermo questo esatto trasferimento al repository GitHub configurato.",
+  "mirror.github_transfer": "Trasferimento completo: contenuti, file di controllo, autore del commit e prova sintetica pubblica dei permessi.",
+  "mirror.github_probe_notice": "Preparare questa anteprima verifica esplicitamente il permesso di scrittura con un solo blob sintetico pubblico fisso. La verifica non aggiorna alcun ramo.",
+  "mirror.github_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico."
 }

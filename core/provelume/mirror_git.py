@@ -145,7 +145,7 @@ def active_generation(session, entries, prefix):
     return generation, payload
 
 
-def build_commit(session, *, mirrors, plan, git_plan, target, entries):
+def publication_files(mirrors, plan, target):
     manifest = mirrors.snapshots.verify(plan["generation"])
     base = target["path"] + "/generations/" + plan["generation"] + "/"
     additions = {}
@@ -162,6 +162,13 @@ def build_commit(session, *, mirrors, plan, git_plan, target, entries):
         "inventory_sha256": fingerprint(manifest["inventory"]),
     }
     additions[target["path"] + "/active.json"] = raw(pointer)
+    return additions
+
+
+def build_commit(session, *, mirrors, plan, git_plan, target, entries, extra_files=None):
+    base = target["path"] + "/generations/" + plan["generation"] + "/"
+    additions = publication_files(mirrors, plan, target)
+    additions.update(extra_files or {})
     require(len(set(entries) | set(additions)) <= MAX_FILES, "limit")
     if git_plan["head"] is None:
         session.run(["read-tree", "--empty"])
@@ -249,6 +256,65 @@ class GitMirrors:
     def __init__(self, store, *, mirrors=None):
         self.store = store
         self.mirrors = mirrors or Mirrors(store)
+
+    @contextmanager
+    def target_session(self, target, *, deadline=None, inspection_operation=None):
+        with (
+            local_target(target, store=self.store, device=self.mirrors.device()) as pinned,
+            git_work(descriptors=pinned["descriptors"], deadline=deadline) as session,
+        ):
+            yield pinned, session
+
+    def active(self, session, entries, target):
+        return active_generation(session, entries, target["path"])
+
+    def build(self, session, *, plan, git_plan, target, entries):
+        return build_commit(
+            session,
+            mirrors=self.mirrors,
+            plan=plan,
+            git_plan=git_plan,
+            target=target,
+            entries=entries,
+        )
+
+    def observation(self, row, pinned, head, payload):
+        return {
+            "destination_sha256": row["destination_sha256"],
+            "visibility": "private",
+            "writable": True,
+            "inventory": payload,
+            "revision": fingerprint([head, pinned["binding"], pinned["marker"]]),
+        }
+
+    def extra_preview(self, plan, git_plan, target, pinned, session, entries):
+        return {}
+
+    def binding_matches(self, pinned, git_plan, *, recovery=False):
+        return fingerprint(pinned["binding"]) == git_plan["root_sha256"]
+
+    def verify_provider(self, pinned, target, session):
+        return None
+
+    def admit_growth(self, pinned, manifest):
+        admit_target_growth(pinned["directory"], manifest)
+
+    def proof(self, pinned, *, candidate, observed, noop, version, recovery=False):
+        return {
+            "profile": "git-local/v1",
+            "commit_sha": candidate,
+            "observed_head": observed,
+            "commit_written": not noop,
+            "git_version": version,
+            "evidence_mode": "reconciled_current_state" if recovery else "direct_verified",
+            "publication_time": None,
+        }
+
+    def public_consent(self, plan, git_plan, *, expected_transfer_sha256=None):
+        return False
+
+    def validate_transfer(self, plan, git_plan, target, pinned, session, entries):
+        return None
 
     def context(self, destination_id, *, inspection_operation=None, scheduled=False):
         with self.mirrors.guard():
@@ -347,26 +413,17 @@ class GitMirrors:
         require(confirmed is True, "consent_required")
         row, authority, target = self.context(destination_id, scheduled=scheduled)
         require(row["revision"] == expected_revision, "stale")
-        with (
-            local_target(target, store=self.store, device=self.mirrors.device()) as pinned,
-            git_work(descriptors=pinned["descriptors"], deadline=_deadline) as session,
-        ):
+        with self.target_session(target, deadline=_deadline) as (pinned, session):
             version = session.probe()
             session.initialize_work()
             head = remote_ref(session, pinned["uri"], target["branch"])
             entries = fetch_ref(session, pinned["uri"], target["branch"], head)
-            generation, payload = active_generation(session, entries, target["path"])
+            generation, payload = self.active(session, entries, target)
             require(
                 remote_ref(session, pinned["uri"], target["branch"]) == head,
                 "destination_changed",
             )
-            observation = {
-                "destination_sha256": row["destination_sha256"],
-                "visibility": "private",
-                "writable": True,
-                "inventory": payload,
-                "revision": fingerprint([head, pinned["binding"], pinned["marker"]]),
-            }
+            observation = self.observation(row, pinned, head, payload)
             with self.mirrors.guard():
                 require(self.mirrors.authority(destination_id)[1] == authority, "stale")
                 plan = self.mirrors._preview_locked(
@@ -391,6 +448,9 @@ class GitMirrors:
                     },
                     "git_version": version,
                 }
+                git_plan.update(
+                    self.extra_preview(plan, git_plan, target, pinned, session, entries)
+                )
                 self.mirrors._save("git/plans/" + plan["id"] + ".json", git_plan)
             return {
                 **plan,
@@ -438,14 +498,11 @@ class GitMirrors:
             plan["destination_id"], epoch=authority["grant_epoch"]
         )
         require(operations["inflight"]["plan_sha256"] == git_plan["original_plan_sha256"], "stale")
-        with (
-            local_target(target, store=self.store, device=self.mirrors.device()) as pinned,
-            git_work(descriptors=pinned["descriptors"]) as session,
-        ):
+        with self.target_session(target, inspection_operation=plan_id) as (pinned, session):
             version = session.probe()
             require(
                 version == git_plan["git_version"]
-                and fingerprint(pinned["binding"]) == git_plan["root_sha256"],
+                and self.binding_matches(pinned, git_plan, recovery=True),
                 "stale",
             )
             session.initialize_work()
@@ -458,7 +515,7 @@ class GitMirrors:
                     "resend_allowed": False,
                 }
             entries = fetch_ref(session, pinned["uri"], target["branch"], observed)
-            generation, payload = active_generation(session, entries, target["path"])
+            generation, payload = self.active(session, entries, target)
             if generation != plan["generation"]:
                 return {
                     "outcome": "UNKNOWN",
@@ -486,10 +543,9 @@ class GitMirrors:
                         monitor_storage=True,
                     )
                     original_entries = tree_entries(session, git_plan["head"])
-                    active_generation(session, original_entries, target["path"])
-                candidate = build_commit(
+                    self.active(session, original_entries, target)
+                candidate = self.build(
                     session,
-                    mirrors=self.mirrors,
                     plan=plan,
                     git_plan=git_plan,
                     target=target,
@@ -505,6 +561,7 @@ class GitMirrors:
                     "live_destination_checked": True,
                     "resend_allowed": False,
                 }
+            self.verify_provider(pinned, target, session)
             with self.mirrors.guard():
                 # Recheck revocation/global policy after all native reads.
                 require(
@@ -515,22 +572,15 @@ class GitMirrors:
                 receipt = self.mirrors._complete_locked(
                     plan_id,
                     operation_id=plan_id,
-                    observation={
-                        "destination_sha256": row["destination_sha256"],
-                        "visibility": "private",
-                        "writable": True,
-                        "inventory": payload,
-                        "revision": fingerprint([candidate, pinned["binding"], pinned["marker"]]),
-                    },
-                    transport_proof={
-                        "profile": "git-local/v1",
-                        "commit_sha": candidate,
-                        "observed_head": observed,
-                        "commit_written": not noop,
-                        "git_version": version,
-                        "evidence_mode": "reconciled_current_state",
-                        "publication_time": None,
-                    },
+                    observation=self.observation(row, pinned, candidate, payload),
+                    transport_proof=self.proof(
+                        pinned,
+                        candidate=candidate,
+                        observed=observed,
+                        noop=noop,
+                        version=version,
+                        recovery=True,
+                    ),
                 )
             return {
                 "receipt": receipt,
@@ -541,7 +591,14 @@ class GitMirrors:
             }
 
     def publish(
-        self, plan_id, *, expected_plan_sha256, expected_git_plan_sha256, confirmed, _deadline=None
+        self,
+        plan_id,
+        *,
+        expected_plan_sha256,
+        expected_git_plan_sha256,
+        confirmed,
+        expected_transfer_sha256=None,
+        _deadline=None,
     ):
         require(confirmed is True, "consent_required")
         plan, git_plan = self.git_plan(plan_id)
@@ -551,6 +608,9 @@ class GitMirrors:
             "stale",
         )
         require(self.mirrors.access()["enabled"], "local_only")
+        public_confirmed = self.public_consent(
+            plan, git_plan, expected_transfer_sha256=expected_transfer_sha256
+        )
         with self.mirrors.guard():
             historical = self.mirrors._recover_terminal_locked(plan_id)
         if historical is not None:
@@ -570,40 +630,28 @@ class GitMirrors:
             == {"name": target["commit_name"], "email": target["commit_email"]},
             "stale",
         )
-        with (
-            local_target(target, store=self.store, device=self.mirrors.device()) as pinned,
-            git_work(descriptors=pinned["descriptors"], deadline=_deadline) as session,
-        ):
+        with self.target_session(target, deadline=_deadline) as (pinned, session):
             version = session.probe()
             require(version == git_plan["git_version"], "git_version_changed")
             session.initialize_work()
             head = remote_ref(session, pinned["uri"], target["branch"])
             require(
-                head == git_plan["head"]
-                and fingerprint(pinned["binding"]) == git_plan["root_sha256"],
+                head == git_plan["head"] and self.binding_matches(pinned, git_plan),
                 "destination_changed",
             )
             entries = fetch_ref(session, pinned["uri"], target["branch"], head)
-            active, payload = active_generation(session, entries, target["path"])
-            observation = {
-                "destination_sha256": row["destination_sha256"],
-                "visibility": "private",
-                "writable": True,
-                "inventory": payload,
-                "revision": fingerprint([head, pinned["binding"], pinned["marker"]]),
-            }
+            active, payload = self.active(session, entries, target)
+            observation = self.observation(row, pinned, head, payload)
             require(observation == plan["observation"], "destination_changed")
+            self.validate_transfer(plan, git_plan, target, pinned, session, entries)
             noop = active == plan["generation"]
             if not noop:
-                admit_target_growth(
-                    pinned["directory"], self.mirrors.snapshots.verify(plan["generation"])
-                )
+                self.admit_growth(pinned, self.mirrors.snapshots.verify(plan["generation"]))
             candidate = (
                 head
                 if noop
-                else build_commit(
+                else self.build(
                     session,
-                    mirrors=self.mirrors,
                     plan=plan,
                     git_plan=git_plan,
                     target=target,
@@ -611,8 +659,8 @@ class GitMirrors:
                 )
             )
             # Verify every candidate blob before its ref can become visible.
-            candidate_generation, candidate_inventory = active_generation(
-                session, tree_entries(session, candidate), target["path"]
+            candidate_generation, candidate_inventory = self.active(
+                session, tree_entries(session, candidate), target
             )
             require(
                 candidate_generation == plan["generation"]
@@ -620,6 +668,7 @@ class GitMirrors:
                 == self.mirrors.snapshots.verify(plan["generation"])["inventory"],
                 "git_incomplete",
             )
+            self.verify_provider(pinned, target, session)
             operation = {
                 "schema": "provelume-git-operation/v1",
                 "plan_id": plan_id,
@@ -637,6 +686,7 @@ class GitMirrors:
                     expected_plan_sha256=expected_plan_sha256,
                     observation=observation,
                     confirmed=True,
+                    public_confirmed=public_confirmed,
                 )
             try:
                 operation["state"] = "send_started" if not noop else "inspecting_noop"
@@ -688,12 +738,13 @@ class GitMirrors:
                 observed_head = remote_ref(session, pinned["uri"], target["branch"])
                 require(observed_head == candidate, "outcome_unknown")
                 fresh = fetch_ref(session, pinned["uri"], target["branch"], candidate)
-                generation, inventory_after = active_generation(session, fresh, target["path"])
+                generation, inventory_after = self.active(session, fresh, target)
                 require(
                     generation == plan["generation"]
                     and remote_ref(session, pinned["uri"], target["branch"]) == candidate,
                     "outcome_unknown",
                 )
+                self.verify_provider(pinned, target, session)
                 final = {
                     **observation,
                     "inventory": inventory_after,
@@ -704,15 +755,13 @@ class GitMirrors:
                         plan_id,
                         operation_id=plan_id,
                         observation=final,
-                        transport_proof={
-                            "profile": "git-local/v1",
-                            "commit_sha": candidate,
-                            "observed_head": observed_head,
-                            "commit_written": not noop,
-                            "git_version": version,
-                            "evidence_mode": "direct_verified",
-                            "publication_time": None,
-                        },
+                        transport_proof=self.proof(
+                            pinned,
+                            candidate=candidate,
+                            observed=observed_head,
+                            noop=noop,
+                            version=version,
+                        ),
                     )
                 operation["state"] = "completed"
                 self.mirrors._save("git/operations/" + plan_id + ".json", operation)
