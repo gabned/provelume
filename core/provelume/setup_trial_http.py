@@ -6,7 +6,7 @@ redirect, external transport, client click or claimed response is accepted.
 
 import asyncio
 
-from .review_effects import ReviewUnavailable
+from .review_effects import ReviewError, ReviewUnavailable
 from .setup_trials import SetupTrials
 
 
@@ -74,3 +74,31 @@ async def verify_trial_http(app, store, op_id, *, host="127.0.0.1", port=8765):
             original = 0, b""
         responses[acquisition["id"]] = document, original
     return await asyncio.to_thread(trials.record_consultation, op_id, responses)
+
+
+async def verify_trial_recovery(app, store, op_id):
+    """Qualify a controlled HTTP failure before Apply expires the trial permit."""
+    trials = SetupTrials(store)
+    count = len(trials.probe_history(op_id))
+
+    async def unavailable(scope, receive, send):
+        if scope["path"].startswith("/documents/"):
+            await send({"type": "http.response.start", "status": 503, "headers": []})
+            await send({"type": "http.response.body", "body": b"Synthetic unavailable"})
+        else:
+            await app(scope, receive, send)
+
+    try:
+        await verify_trial_http(unavailable, store, op_id)
+    except ReviewError:
+        pass
+    else:
+        raise ReviewUnavailable("Failed consultation was incorrectly accepted")
+    history = trials.probe_history(op_id)
+    if len(history) != count + 1 or history[-1]["record"]["success"]:
+        raise ReviewUnavailable("The actual failed HTTP observation was not retained")
+    if trials.observations(op_id)["complete"]:
+        raise ReviewUnavailable("Failed consultation retained a complete result")
+    if not (await verify_trial_http(app, store, op_id))["complete"]:
+        raise ReviewUnavailable("Consultation recovery did not complete")
+    return [row["record"]["success"] for row in trials.probe_history(op_id)]
