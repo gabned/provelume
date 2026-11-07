@@ -25,7 +25,41 @@ from provelume.service import ProvelumeInstance
 root=Path(sys.argv[1])
 report=qualify_personal(root, retention='keep')
 instance=ProvelumeInstance(root/'Synthetic Space')
-print(json.dumps({'native':report,'document_id':instance.list_documents()[0]['id']}))
+fixture={'native':report,'document_id':instance.list_documents()[0]['id']}
+if sys.argv[2]=='yes':
+    from provelume.productivity_contract import ReadPage
+    from provelume.productivity_intake import ProductivityIntake
+    connectors=instance.connectors
+    definition=connectors.register_definition({
+        'adapter_key':'synthetic-calendar-ui','adapter_version':'1.0.0',
+        'display_name':'Synthetic calendar','provider':'synthetic',
+        'conformance_profile':'provelume.connector.v1','adapter_protocol_version':1,
+        'capabilities':['manual_read','source_selection','calendar_read'],
+        'authorization_modes':['none'],'source_kinds':['calendar'],
+        'data_categories':['source.content'],'multi_instance':True,'network_access':'none'})
+    identity=connectors.create_instance(definition['id'],name='Synthetic calendar',
+        provider_identity='synthetic')
+    source=connectors.add_source(identity['id'],name='Synthetic calendar',
+        source_kind='calendar',external_id='synthetic-calendar')['id']
+    host=instance.productivity_connectors()
+    host.consent(source,capabilities=['calendar_read'],mode='manual',expected_revision=0,confirmed=True)
+    mapped={'remote_id':'synthetic-event','revision':'version-1','revision_kind':'version',
+        'kind':'calendar_event','title':'Synthetic calendar example',
+        'description':'SOURCE CALENDAR',
+        'state':'confirmed','due':None,
+        'starts':{'kind':'date','value':'2026-11-07','time_zone':None},
+        'ends':{'kind':'date','value':'2026-11-08','time_zone':None},
+        'provenance':{'container_ids':['synthetic-calendar'],'parent_id':None,'assignees':[],
+            'links':[],'comments':[],'uid':'synthetic-uid','recurrence_id':None,'recurrence':[]}}
+    class Adapter:
+        def read_page(self,**request):
+            raw=json.dumps(mapped).encode()
+            return ReadPage((mapped,),originals=(raw,),response=raw)
+    preview=host.preview(source,'calendar_read',Adapter(),
+        expected_authority=host.authority(source,'calendar_read')['sha256'])
+    ProductivityIntake(instance.store).accept(preview)
+    fixture['provider_object_id']=instance.store.list_canonical('objects')[0]['id']
+print(json.dumps(fixture))
 """
 SERVE = """
 import sys, uvicorn
@@ -52,6 +86,7 @@ def main():
     parser.add_argument("--chromium", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--include-productivity", action="store_true")
     options = parser.parse_args()
     # Resolving the venv interpreter symlink would silently drop its environment.
     runtime, work = options.runtime.absolute(), options.work.resolve()
@@ -66,7 +101,8 @@ def main():
               "commit": head, "host": platform.platform()}
     server = None
     try:
-        prepared = subprocess.run([str(runtime), "-c", PREPARE, str(root)], check=False,
+        prepared = subprocess.run([str(runtime), "-c", PREPARE, str(root),
+                                   "yes" if options.include_productivity else "no"], check=False,
                                   capture_output=True, text=True, timeout=180)
         (work / "native.json").write_text(prepared.stdout, encoding="utf-8")
         (work / "preparation.log").write_text(prepared.stderr, encoding="utf-8")
@@ -140,6 +176,23 @@ def main():
                                 assert response.status == 200
                                 page.go_back()
                                 assert page.locator("#search-query").input_value() == "PROVELUME"
+                                if "provider_object_id" in fixture:
+                                    response = page.goto(
+                                        origin + "/google/connect?lang=" + language)
+                                    assert response.status == 200
+                                    page.locator('select[name="capability"]').first.select_option(
+                                        "calendar")
+                                    assert page.locator('option[value="calendar"]').count() >= 1
+                                    response = page.goto(origin + "/objects/" + fixture[
+                                        "provider_object_id"] + "?lang=" + language)
+                                    assert response.status == 200
+                                    assert page.locator("#connector-readonly").is_visible()
+                                    assert page.locator('a[href*="/edit?"]').count() == 0
+                                    assert "2026-11-07" in page.locator("main").inner_text()
+                                    assert "objects.field.starts_on" not in page.content()
+                                    assert page.evaluate("document.documentElement.scrollWidth <= "
+                                                        "document.documentElement.clientWidth")
+                                    cell["source_surfaces"] = "AUTOMATIC_SYNTHETIC_PASS"
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

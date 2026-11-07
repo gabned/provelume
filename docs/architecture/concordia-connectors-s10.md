@@ -48,6 +48,11 @@ or oversized values fail visibly rather than silently truncating remote data.
 The existing Entitas manual-object write boundary remains authoritative; this
 read contract does not forge a manual object edit or enable task write-back.
 
+[S11](concordia-google-s11.md) adds the concrete attributed read intake, canonical
+read-only Entitas projection, exact response Originals and complete-generation
+cursor publication. Page continuation and whole-Source completeness are distinct;
+the pre-existing S10 preview remains side-effect free.
+
 Qualification uses actual synthetic Core Instances, independent identities and
 Source histories with closed deterministic adapters. It exercises mid-response
 authority/revision changes, no-network admission, cursor loops, date/DST semantics,

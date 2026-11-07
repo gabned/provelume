@@ -86,6 +86,12 @@ class ProvelumeInstance:
 
         return ProductivityConnectors(self.store)
 
+    def list_productivity_records(self, source_id):
+        """Attributed local task/event projections remain readable offline."""
+        from .productivity_intake import ProductivityIntake
+
+        return ProductivityIntake(self.store).records(source_id)
+
     @staticmethod
     def ai_provider_configuration(profile, config):
         """Internal local validation; no lookup, DNS or provider contact."""
@@ -221,6 +227,7 @@ class ProvelumeInstance:
         self.google_sources = GoogleSourceManager(self.store)
         self.google = GoogleJobManager(self.store)
         self.google_connection = GoogleConnectionManager(self.store)
+        self.google.calendar_connection = self.google_connection
         self.transcript_sources = TranscriptSourceManager(self.store)
         self.transcripts = TranscriptJobManager(self.store)
         self.qualification = QualificationManager(self.store)

@@ -1037,7 +1037,7 @@
   "google_connection.google_scope_mismatch": "A concessão devolvida tem permissões diferentes. Volte a ligar apenas com o âmbito de leitura deste serviço.",
   "google_connection.google_secure_store_unavailable": "Desbloqueie o armazenamento de credenciais do sistema e tente novamente. O Windows requer o mesmo utilizador ligado; o Linux requer um Serviço Secreto desbloqueado; o macOS requer acesso ao Keychain.",
   "google_connection.jobs": "Atividade de entrada",
-  "google_connection.lead": "Ligue o Gmail e o Drive em separado, com acesso de leitura apenas. Os seus Originais existentes permanecem disponíveis offline e após a desconexão.",
+  "google_connection.lead": "Ligue o Gmail, o Drive e o Agenda em separado, com acesso de leitura apenas. Os seus Originais existentes permanecem disponíveis offline e após a desconexão.",
   "google_connection.local_only": "Ligue-se a partir do browser no computador que aloja esta instância.",
   "google_connection.name": "Nome da ligação",
   "google_connection.network": "Acesso à rede da instância",
@@ -2546,5 +2546,11 @@
   "search.type.email": "Email",
   "search.type.other": "Outro ficheiro",
   "search.type.format": "{kind} ({format})",
-  "search.edit_before_remove": "Encurte ou corrija o texto da pesquisa antes de remover os filtros."
+  "search.edit_before_remove": "Encurte ou corrija o texto da pesquisa antes de remover os filtros.",
+  "google_connection.calendar": "Google Agenda",
+  "objects.field.due_date": "Data de vencimento",
+  "objects.field.starts_on": "Data de início",
+  "objects.field.ends_on": "Data de fim",
+  "objects.connector_readonly": "Este elemento provém de uma fonte ligada e está disponível aqui apenas para leitura.",
+  "objects.connector_not_current": "Esta revisão não é confirmada pela última leitura completa da fonte. O histórico continua disponível."
 }

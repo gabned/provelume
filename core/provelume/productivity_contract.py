@@ -88,8 +88,7 @@ def validate_item(value):
             and value["revision_kind"] in {"etag", "version", "content_sha256"})
     if value["revision_kind"] == "content_sha256":
         require(re.fullmatch(r"[0-9a-f]{64}", value["revision"]) is not None)
-    text(value["title"], 240, empty=value["kind"] == "calendar_event"
-         and value["state"] == "cancelled")
+    text(value["title"], 240, empty=value["kind"] == "calendar_event")
     text(value["description"], 128 * 1024, empty=True)
     require(type(value["kind"]) is str and value["kind"] in {"task", "calendar_event"})
     require(type(value["state"]) is str)
@@ -136,6 +135,10 @@ class ReadPage:
     items: tuple[dict, ...]
     next_cursor: str | None = None
     checkpoint: str | None = None
+    originals: tuple[bytes, ...] = field(default=(), repr=False)
+    media_type: str = "application/json"
+    response: bytes | None = field(default=None, repr=False)
+    snapshot_mode: str = "full"
 
     def validate(self):
         require(type(self.items) is tuple and len(self.items) <= MAX_PAGE_ITEMS, "limit")
@@ -148,6 +151,15 @@ class ReadPage:
             if cursor is not None:
                 text(cursor, MAX_CURSOR_BYTES)
         require(not (self.next_cursor is not None and self.checkpoint is not None))
+        require(self.media_type in {"application/json", "text/calendar"})
+        require(type(self.originals) is tuple and (not self.originals
+                or len(self.originals) == len(self.items)))
+        require(all(type(raw) is bytes and raw for raw in self.originals))
+        unique = {hashlib.sha256(raw).hexdigest(): len(raw) for raw in self.originals}
+        require(sum(unique.values()) <= MAX_PAGE_BYTES, "limit")
+        require(self.response is None or (type(self.response) is bytes
+                and 0 < len(self.response) <= MAX_PAGE_BYTES), "limit")
+        require(type(self.snapshot_mode) is str and self.snapshot_mode in {"full", "delta"})
         return self
 
 

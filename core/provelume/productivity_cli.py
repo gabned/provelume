@@ -10,7 +10,7 @@ from .service import ProvelumeInstance
 
 
 def add_productivity_commands(commands):
-    for name in ("productivity-policy", "productivity-consent"):
+    for name in ("productivity-policy", "productivity-consent", "productivity-records"):
         command = commands.add_parser(name)
         command.add_argument("instance", type=Path)
         command.add_argument("source_id")
@@ -24,11 +24,16 @@ def add_productivity_commands(commands):
 
 
 def handle_productivity_command(arguments):
-    if arguments.command not in {"productivity-policy", "productivity-consent"}:
+    if arguments.command not in {"productivity-policy", "productivity-consent",
+                                 "productivity-records"}:
         return None
     try:
         manager = ProvelumeInstance(arguments.instance).productivity_connectors()
-        if arguments.command == "productivity-policy":
+        if arguments.command == "productivity-records":
+            from .productivity_intake import ProductivityIntake
+
+            result = ProductivityIntake(manager.store).records(arguments.source_id)
+        elif arguments.command == "productivity-policy":
             result = manager.policy(arguments.source_id)
         else:
             result = manager.consent(arguments.source_id,

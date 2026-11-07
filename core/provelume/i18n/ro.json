@@ -1037,7 +1037,7 @@
   "google_connection.google_scope_mismatch": "Dreptul de acces (grant) primit conține permisiuni diferite. Reconectează-te utilizând doar domeniul de acces „doar citire” (read-only) al acestui serviciu.",
   "google_connection.google_secure_store_unavailable": "Deblochează stocul de credențiale al sistemului și reîncearcă. Windows necesită același utilizator autentificat; Linux necesită un serviciu „Secret Service” deblocat; macOS necesită acces la Keychain.",
   "google_connection.jobs": "Activitate de preluare a datelor",
-  "google_connection.lead": "Conectează Gmail și Drive separat, cu acces doar pentru citire. Fișierele originale existente rămân disponibile offline și după deconectare.",
+  "google_connection.lead": "Conectează Gmail, Drive și Calendar separat, cu acces doar pentru citire. Fișierele originale existente rămân disponibile offline și după deconectare.",
   "google_connection.local_only": "Conectează-te din browserul computerului care găzduiește această instanță.",
   "google_connection.name": "Numele conexiunii",
   "google_connection.network": "Accesul la rețea al instanței",
@@ -2546,5 +2546,11 @@
   "search.type.email": "E-mail",
   "search.type.other": "Alt fișier",
   "search.type.format": "{kind} ({format})",
-  "search.edit_before_remove": "Scurtează sau corectează textul căutării înainte de a elimina filtrele."
+  "search.edit_before_remove": "Scurtează sau corectează textul căutării înainte de a elimina filtrele.",
+  "google_connection.calendar": "Google Calendar",
+  "objects.field.due_date": "Data scadentă",
+  "objects.field.starts_on": "Data începerii",
+  "objects.field.ends_on": "Data încheierii",
+  "objects.connector_readonly": "Acest element provine dintr-o sursă conectată și aici este disponibil doar pentru citire.",
+  "objects.connector_not_current": "Această revizie nu este confirmată de ultima citire completă a sursei. Istoricul rămâne disponibil."
 }

@@ -1037,7 +1037,7 @@
   "google_connection.google_scope_mismatch": "Die zurückgegebene Berechtigung (Grant) weist abweichende Berechtigungen auf. Stellen Sie die Verbindung erneut her, wobei nur der Lesezugriff (Read-only-Scope) für diesen Dienst verwendet wird.",
   "google_connection.google_secure_store_unavailable": "Entsperren Sie den Anmeldeinformationsspeicher Ihres Systems und versuchen Sie es erneut. Windows erfordert denselben angemeldeten Benutzer; Linux erfordert einen entsperrten Secret Service; macOS erfordert Zugriff auf den Schlüsselbund.",
   "google_connection.jobs": "Aufnahmevorgang",
-  "google_connection.lead": "Gmail und Drive getrennt mit schreibgeschütztem Zugriff verbinden. Ihre vorhandenen Originale bleiben offline und nach dem Trennen verfügbar.",
+  "google_connection.lead": "Gmail, Drive und Kalender getrennt mit schreibgeschütztem Zugriff verbinden. Ihre vorhandenen Originale bleiben offline und nach dem Trennen verfügbar.",
   "google_connection.local_only": "Die Verbindung im Browser auf dem Computer herstellen, auf dem diese Instance läuft.",
   "google_connection.name": "Verbindungsname",
   "google_connection.network": "Netzwerkzugriff der Instanz",
@@ -2546,5 +2546,11 @@
   "search.type.email": "E-Mail",
   "search.type.other": "Andere Datei",
   "search.type.format": "{kind} ({format})",
-  "search.edit_before_remove": "Kürzen oder korrigieren Sie den Suchtext, bevor Sie die Filter entfernen."
+  "search.edit_before_remove": "Kürzen oder korrigieren Sie den Suchtext, bevor Sie die Filter entfernen.",
+  "google_connection.calendar": "Google Kalender",
+  "objects.field.due_date": "Fälligkeitsdatum",
+  "objects.field.starts_on": "Startdatum",
+  "objects.field.ends_on": "Enddatum",
+  "objects.connector_readonly": "Dieses Element stammt aus einer verbundenen Quelle und ist hier schreibgeschützt.",
+  "objects.connector_not_current": "Diese Version wird durch die letzte vollständige Quellenabfrage nicht bestätigt. Der Verlauf bleibt verfügbar."
 }

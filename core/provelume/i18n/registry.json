@@ -892,7 +892,8 @@
         "retry_wait",
         "processed",
         "skipped",
-        "errors"
+        "errors",
+        "calendar"
       ],
       "namespace": "google_connection"
     },
@@ -16984,6 +16985,42 @@
     },
     "search.edit_before_remove": {
       "context": "Search B: existing return-context bounds cannot retain exact words in the remove-filters link. Explain edit-first while preserving input, filters and all existing bounds. Ordinary navigation copy, no data deletion.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "google_connection.calendar": {
+      "context": "google_connection: label/navigation; google_connection_i18n.py / google_connection.calendar",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.due_date": {
+      "context": "objects: Source snapshot display; objects.field.due_date",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.starts_on": {
+      "context": "objects: Source snapshot display; objects.field.starts_on",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.ends_on": {
+      "context": "objects: Source snapshot display; objects.field.ends_on",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_readonly": {
+      "context": "objects: Source snapshot display; objects.connector_readonly",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_not_current": {
+      "context": "objects: Source snapshot display; objects.connector_not_current",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

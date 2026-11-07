@@ -1037,7 +1037,7 @@
   "google_connection.google_scope_mismatch": "Il consenso restituito ha permessi diversi. Riconnetti con il solo ambito di lettura di questo servizio.",
   "google_connection.google_secure_store_unavailable": "Sblocca l'archivio credenziali di sistema e riprova. Windows richiede lo stesso utente connesso; Linux richiede Secret Service sbloccato; macOS richiede accesso al Portachiavi.",
   "google_connection.jobs": "Attività di acquisizione",
-  "google_connection.lead": "Connetti Gmail e Drive separatamente, in sola lettura. Gli Originals già acquisiti restano disponibili offline e dopo la disconnessione.",
+  "google_connection.lead": "Connetti Gmail, Drive e Calendar separatamente, in sola lettura. Gli Originals già acquisiti restano disponibili offline e dopo la disconnessione.",
   "google_connection.local_only": "Connettiti dal browser sul computer che ospita questa istanza.",
   "google_connection.name": "Nome della connessione",
   "google_connection.network": "Accesso alla rete dell'istanza",
@@ -2546,5 +2546,11 @@
   "search.type.email": "Email",
   "search.type.other": "Altro file",
   "search.type.format": "{kind} ({format})",
-  "search.edit_before_remove": "Abbrevia o correggi il testo della ricerca prima di rimuovere i filtri."
+  "search.edit_before_remove": "Abbrevia o correggi il testo della ricerca prima di rimuovere i filtri.",
+  "google_connection.calendar": "Google Calendar",
+  "objects.field.due_date": "Scadenza",
+  "objects.field.starts_on": "Data di inizio",
+  "objects.field.ends_on": "Data di fine",
+  "objects.connector_readonly": "Questo elemento proviene da una fonte collegata ed è disponibile qui in sola lettura.",
+  "objects.connector_not_current": "Questa revisione non è confermata dall’ultima lettura completa della fonte. Lo storico resta disponibile."
 }

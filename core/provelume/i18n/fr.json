@@ -1037,7 +1037,7 @@
   "google_connection.google_scope_mismatch": "L'autorisation renvoyée présente des droits différents. Reconnectez-vous en utilisant uniquement la portée en lecture seule de ce service.",
   "google_connection.google_secure_store_unavailable": "Déverrouillez le magasin d'identifiants de votre système et réessayez. Windows nécessite que l'utilisateur connecté soit le même ; Linux nécessite un service « Secret Service » déverrouillé ; macOS nécessite l'accès au trousseau d'accès (Keychain).",
   "google_connection.jobs": "Activité d'ingestion",
-  "google_connection.lead": "Connectez Gmail et Drive séparément, avec un accès en lecture seule. Vos fichiers originaux existants restent disponibles hors ligne et après la déconnexion.",
+  "google_connection.lead": "Connectez Gmail, Drive et Agenda séparément, avec un accès en lecture seule. Vos fichiers originaux existants restent disponibles hors ligne et après la déconnexion.",
   "google_connection.local_only": "Connectez-vous depuis le navigateur de l'ordinateur hébergeant cette instance.",
   "google_connection.name": "Nom de la connexion",
   "google_connection.network": "Accès réseau de l'instance",
@@ -2546,5 +2546,11 @@
   "search.type.email": "E-mail",
   "search.type.other": "Autre fichier",
   "search.type.format": "{kind} ({format})",
-  "search.edit_before_remove": "Raccourcissez ou corrigez le texte de recherche avant de supprimer les filtres."
+  "search.edit_before_remove": "Raccourcissez ou corrigez le texte de recherche avant de supprimer les filtres.",
+  "google_connection.calendar": "Google Agenda",
+  "objects.field.due_date": "Date d’échéance",
+  "objects.field.starts_on": "Date de début",
+  "objects.field.ends_on": "Date de fin",
+  "objects.connector_readonly": "Cet élément provient d’une source connectée et est disponible ici en lecture seule.",
+  "objects.connector_not_current": "Cette révision n’est pas confirmée par la dernière lecture complète de la source. L’historique reste disponible."
 }

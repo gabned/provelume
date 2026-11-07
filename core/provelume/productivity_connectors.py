@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from copy import deepcopy
 
@@ -25,6 +26,25 @@ MAX_READ_ITEMS = 5000
 MAX_READ_SECONDS = 60
 SOURCE_CAPABILITIES = {"tasks": {"task_read"}, "calendar": {"calendar_read"},
                        "icalendar": {"calendar_read"}}
+
+
+def preview_digest(value):
+    return fingerprint([value["authority"], value["items"], value["checkpoint"],
+        [(hashlib.sha256(raw).hexdigest() if raw else None, media_type)
+         for raw, media_type in value["_originals"]],
+        [(hashlib.sha256(raw).hexdigest(), media_type) for raw, media_type in value["_responses"]],
+        value["snapshot_mode"], value["schema"], value.get("continuation")],
+        maximum=MAX_SESSION_BYTES)
+
+
+def read_preview(authority, items, originals, responses, checkpoint, mode, *, page=False,
+                 continuation=None):
+    value = {"schema": "productivity-page-preview/v1" if page else "productivity-read-preview/v1",
+             "authority": authority, "items": items, "checkpoint": checkpoint,
+             "_originals": originals, "_responses": responses, "snapshot_mode": mode,
+             "continuation": continuation, "canonical_mutation": False, "cursor_advanced": False}
+    value["sha256"] = preview_digest(value)
+    return value
 
 
 class ProductivityConnectors:
@@ -128,6 +148,7 @@ class ProductivityConnectors:
             authorization = credentials.resolve(identity["id"], capability).validate(
                 identity["id"], capability)
         deadline, cursor, seen, items = time.monotonic() + MAX_READ_SECONDS, None, set(), []
+        originals, original_sizes, responses, snapshot_mode = [], {}, [], None
         for _page_number in range(MAX_READ_PAGES):
             require(not cancelled(), "cancelled")
             require(time.monotonic() < deadline, "deadline")
@@ -139,6 +160,11 @@ class ProductivityConnectors:
             page = adapter.read_page(identity=deepcopy(identity), source=deepcopy(source),
                                      cursor=cursor, credential=deepcopy(
                                          current.payload) if authorization else None).validate()
+            require(snapshot_mode is None or snapshot_mode == page.snapshot_mode, "response")
+            snapshot_mode = page.snapshot_mode
+            if page.response is not None:
+                responses.append((page.response, page.media_type))
+                original_sizes[hashlib.sha256(page.response).hexdigest()] = len(page.response)
             require(not cancelled(), "cancelled")
             require(time.monotonic() < deadline, "deadline")
             require(self.authority(source_id, capability, scheduled=scheduled) == admitted, "stale")
@@ -147,17 +173,31 @@ class ProductivityConnectors:
                     identity["id"], capability).revision_sha256 == authorization.revision_sha256,
                     "stale")
             items.extend(deepcopy(page.items))
+            originals.extend(zip(page.originals, [page.media_type] * len(page.originals),
+                                 strict=True)
+                             if page.originals else [(None, page.media_type)] * len(page.items))
+            for raw in page.originals:
+                original_sizes[hashlib.sha256(raw).hexdigest()] = len(raw)
+            require(sum(original_sizes.values()) <= MAX_SESSION_BYTES, "limit")
             require(len(items) <= MAX_READ_ITEMS, "limit")
             fingerprint(items, maximum=MAX_SESSION_BYTES)
             if page.next_cursor is None:
                 keys = [item["remote_id"] for item in items]
                 require(len(keys) == len(set(keys)), "duplicate")
-                return {"schema": "productivity-read-preview/v1", "authority": admitted,
-                        "items": items, "checkpoint": page.checkpoint,
-                        "sha256": fingerprint([admitted, items, page.checkpoint],
-                                              maximum=MAX_SESSION_BYTES),
-                        "canonical_mutation": False, "cursor_advanced": False}
+                return read_preview(admitted, items, originals, responses,
+                                    page.checkpoint, snapshot_mode)
             require(page.next_cursor not in seen, "cursor_loop")
             seen.add(page.next_cursor)
             cursor = page.next_cursor
         raise ProductivityError("limit")
+
+    def page_preview(self, source_id, capability, page, *, expected_authority, scheduled=False):
+        """One actual provider page, explicitly distinct from Source completeness."""
+        authority = self.authority(source_id, capability, scheduled=scheduled)
+        require(authority["sha256"] == expected_authority, "stale")
+        page.validate()
+        require(len(page.originals) == len(page.items), "original_required")
+        return read_preview(authority, deepcopy(list(page.items)),
+            list(zip(page.originals, [page.media_type] * len(page.originals), strict=True)),
+            [(page.response, page.media_type)] if page.response is not None else [],
+            page.checkpoint, page.snapshot_mode, page=True, continuation=page.next_cursor)
