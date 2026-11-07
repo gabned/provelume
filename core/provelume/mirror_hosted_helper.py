@@ -7,12 +7,14 @@ import sys
 from pathlib import Path
 
 from .mirror_contract import require
+from .mirror_credential_context import credential_environment
 from .mirrors import Mirrors
 from .storage import InstanceStore
 
 
 def configure_session(session, *, store, destination_id, binding, reference, provider):
     require(provider in {"github", "gitlab"})
+    session.environment.update(credential_environment())
     command = [sys.executable]
     if getattr(sys, "frozen", False):
         command += ["--internal-" + provider + "-git-credential"]
