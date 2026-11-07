@@ -115,3 +115,18 @@ profile/destination is separately authorized and independently qualified.
 The implementation is being developed; native/browser/frozen/CI/review gates have
 not yet qualified an S17 candidate. Package identity remains 0.14.0/development.
 No Concordia release is published by normal CI or this workstream.
+
+## Exact external Git versions
+
+The closed candidate set is Linux Git 2.52.0 (this development environment), Linux
+Git 2.56.0 (observed in the permanent Ubuntu CI and release-source-gate jobs), and
+Git for Windows 2.56.0.windows.4 (observed in Windows CI). Each requires its own
+native conformance evidence; admission to the candidate set is not qualification.
+Any other version, including another patch version, fails before transport work.
+No timing/resource/coverage limit or required test is relaxed for a version change.
+
+The original `a209963` Ubuntu and release dry-run source-gate failures are retained:
+they correctly reported `git_version_unsupported` on the runner's 2.56.0, which
+was missing from the original closed set. The corrected candidate still requires
+full exact-head native, CI, installed/frozen, browser and review evidence. Its
+Linux 2.52.0 results cannot qualify the runner's 2.56.0 or Windows on another head.
