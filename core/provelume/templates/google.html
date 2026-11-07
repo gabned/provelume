@@ -43,8 +43,8 @@
   <form method="post" action="/google?lang={{ lang }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="create-source">
     <label>Identity <select name="connector_instance_id">{% for item in google_instances %}<option value="{{ item.connector.id }}">{{ item.connector.name }}</option>{% endfor %}</select></label>
     <label>Name <input name="name" maxlength="120" required></label>
-    <label>Capability <select name="capability"><option value="gmail">gmail</option><option value="drive">drive</option></select></label>
-    <label>Selection <select name="selection_kind"><option value="mailbox">mailbox</option><option value="label">label</option><option value="file">file</option><option value="folder">folder</option></select></label>
+    <label>Capability <select name="capability"><option value="gmail">gmail</option><option value="drive">drive</option><option value="calendar">{{ t('google_connection.calendar') }}</option></select></label>
+    <label>Selection <select name="selection_kind"><option value="mailbox">mailbox</option><option value="label">label</option><option value="file">file</option><option value="folder">folder</option><option value="calendar">{{ t('google_connection.calendar') }}</option></select></label>
     <label>Explicit selectors, one per line <textarea name="selectors" maxlength="8192" required></textarea></label>
     <button>{{ t('google.create_source') }}</button>
   </form>
