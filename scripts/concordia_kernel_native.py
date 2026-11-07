@@ -89,6 +89,8 @@ def limit_command(limits):
 
 
 def host():
+    if sys.platform != "linux":
+        raise ValueError("kernel native admission requires Linux")
     if os.geteuid() == 0 or any(shutil.which(name) is None for name in
                                ("bpftrace", "strace", "setpriv", "prlimit")):
         raise ValueError("native controller must retain ordinary runner identity")
@@ -272,10 +274,10 @@ def startup_control(source, output):
 def admit(output):
     output.mkdir(parents=True, exist_ok=False)
     receipt = {"schema": "concordia-kernel-native-admission/v1", "status": "NOT_ADMITTED",
-               "native_inference": "NOT_RUN", "qualification_eligible": False,
-               "admitted_boot_ns": time.clock_gettime_ns(time.CLOCK_BOOTTIME)}
+               "native_inference": "NOT_RUN", "qualification_eligible": False}
     try:
         receipt.update(source=sources(), host=host())
+        receipt["admitted_boot_ns"] = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
         version = subprocess.check_output(["bpftrace", "--version"]).decode().strip()
         if version != "bpftrace v0.20.2":
             raise ValueError("unreviewed observer version")
