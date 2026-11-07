@@ -2576,5 +2576,6 @@
   "icalendar.error": "La acción no se completó. Comprueba el calendario, el permiso y la conexión, y consulta Operaciones.",
   "icalendar.empty": "No hay calendarios iCalendar configurados.",
   "icalendar.duplicates": "Eventos en varios calendarios",
-  "icalendar.duplicates_help": "Los UID y las instancias coincidentes permanecen separados por proceder de fuentes distintas. Se conserva la evidencia original."
+  "icalendar.duplicates_help": "Los UID y las instancias coincidentes permanecen separados por proceder de fuentes distintas. Se conserva la evidencia original.",
+  "scheduler.kind.productivity.intake": "Adquisición de calendarios y tareas"
 }

@@ -2576,5 +2576,6 @@
   "icalendar.error": "L’action n’a pas abouti. Vérifiez le calendrier, l’autorisation et la connexion, puis consultez les opérations.",
   "icalendar.empty": "Aucun calendrier iCalendar configuré.",
   "icalendar.duplicates": "Événements dans plusieurs calendriers",
-  "icalendar.duplicates_help": "Les UID et occurrences identiques restent séparés car les sources diffèrent. Les preuves originales sont conservées."
+  "icalendar.duplicates_help": "Les UID et occurrences identiques restent séparés car les sources diffèrent. Les preuves originales sont conservées.",
+  "scheduler.kind.productivity.intake": "Acquisition de calendriers et tâches"
 }

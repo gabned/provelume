@@ -2576,5 +2576,6 @@
   "icalendar.error": "Die Aktion wurde nicht abgeschlossen. Kalender, Zustimmung und Verbindung prüfen, dann Vorgänge ansehen.",
   "icalendar.empty": "Keine iCalendar-Kalender eingerichtet.",
   "icalendar.duplicates": "Termine in mehreren Kalendern",
-  "icalendar.duplicates_help": "Gleiche UID und Vorkommen bleiben wegen unterschiedlicher Quellen getrennt. Originalbelege bleiben erhalten."
+  "icalendar.duplicates_help": "Gleiche UID und Vorkommen bleiben wegen unterschiedlicher Quellen getrennt. Originalbelege bleiben erhalten.",
+  "scheduler.kind.productivity.intake": "Kalender und Aufgaben erfassen"
 }
