@@ -431,3 +431,95 @@ def test_access_modes_refuse_before_credential_or_destination_access(
         preview(engine, destination, observation)
     assert engine.vault.reads == reads and engine.plans() == []
     assert not (tmp_path / "destination").exists()
+
+
+def test_pdf_asset_is_excluded_by_default_and_exact_bytes_require_attachment_rule(tmp_path):
+    from PIL import Image
+
+    from provelume.bundles import DocumentBundleManager
+
+    instance, engine, identity, destination, observation = seed(tmp_path)
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    Image.new("RGB", (8, 8), (40, 80, 120)).save(assets / "synthetic.pdf")
+    instance.ingest_run(assets)
+    document = next(
+        row for row in instance.store.list_canonical("documents") if row["title"] == "synthetic.pdf"
+    )
+    bundle = DocumentBundleManager(instance.store).build_document(document["id"])["manifest"]
+    assert len(bundle["assets"]) == 1
+    asset = bundle["assets"][0]
+    first = preview(engine, destination, observation)
+    assert not any(row["category"] == "attachment" for row in first["manifest"]["inventory"])
+    markdown_name = "documents/" + document["id"] + ".md"
+    assert (
+        "attachment-excluded"
+        in (engine.snapshots.root() / first["generation"] / markdown_name).read_text()
+    )
+    destination = engine.configure(
+        identity_id=identity["id"],
+        name=destination["name"],
+        target=engine._grant(identity)["destinations"][destination["id"]]["target"],
+        scope=destination["scope"],
+        include_rules={"originals": [], "attachments": [asset["id"]], "ai_receipts": []},
+        mode="manual",
+        destination_id=destination["id"],
+        expected_revision=1,
+        confirmed=True,
+    )
+    second = preview(engine, destination, observation)
+    entry = next(row for row in second["manifest"]["inventory"] if row["category"] == "attachment")
+    assert entry["path"].endswith(".jpg")
+    assert (engine.snapshots.root() / second["generation"] / entry["path"]).read_bytes() == (
+        instance.root / asset["storage_ref"]
+    ).read_bytes()
+    assert (
+        "../" + entry["path"]
+        in (engine.snapshots.root() / second["generation"] / markdown_name).read_text()
+    )
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+def test_exact_ai_receipt_include_requires_selected_native_document_and_version(
+    tmp_path, monkeypatch, foreign
+):
+    # Synthetic scheduler DTO seam only; this does not qualify an AI/provider execution.
+    instance, engine, identity, destination, observation = seed(tmp_path)
+    document = instance.store.list_canonical("documents")[0]
+    receipt_id, job_id = "receipt_" + "a" * 32, "job_" + "b" * 32
+    receipt = {"id": receipt_id, "job_id": job_id, "job_kind": "ai.execute", "status": "succeeded"}
+    context = {
+        "instance_id": instance.store.read_config()["instance"]["id"],
+        "document_id": document["id"],
+        "version_id": document["current_version_id"],
+    }
+    if foreign:
+        context["version_id"] = "ver_" + "f" * 32
+    job = {"id": job_id, "job_kind": "ai.execute", "ai": {"request": {"context": context}}}
+    monkeypatch.setattr(
+        "provelume.scheduler.SchedulerStore.get_receipt", lambda _self, _id: receipt
+    )
+    monkeypatch.setattr("provelume.scheduler.SchedulerStore.get_job", lambda _self, _id: job)
+    destination = engine.configure(
+        identity_id=identity["id"],
+        name=destination["name"],
+        target=engine._grant(identity)["destinations"][destination["id"]]["target"],
+        scope=destination["scope"],
+        include_rules={"originals": [], "attachments": [], "ai_receipts": [receipt_id]},
+        mode="manual",
+        destination_id=destination["id"],
+        expected_revision=1,
+        confirmed=True,
+    )
+    if foreign:
+        with pytest.raises(MirrorError, match="include_scope"):
+            preview(engine, destination, observation)
+    else:
+        plan = preview(engine, destination, observation)
+        entry = next(
+            row for row in plan["manifest"]["inventory"] if row["category"] == "ai_receipt"
+        )
+        assert (
+            json.loads((engine.snapshots.root() / plan["generation"] / entry["path"]).read_bytes())
+            == receipt
+        )

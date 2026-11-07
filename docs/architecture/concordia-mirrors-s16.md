@@ -1,7 +1,7 @@
 # Concordia S16 — shared one-way mirror contract
 
 This PRODUCT owner develops S16 under the [ordered development authority](https://github.com/gabned/provelume/issues/383#issuecomment-6706150974).
-It consumes the unaccepted S15 candidate `5da972ad3fa757f6164560f54174ef2bc455ecd6`
+It consumes the unaccepted S15 candidate `aef710d0a06b26147da726a1b5fa666f5decb4df`
 and preserves the ordinary main merge `fadeb47f84004d48b282046e36bb3081cd1d878b`.
 The S07 CPU finding remains open. The maintainer [explicitly deferred unsupported
 Asana/Tududi writes from 0.15.0](https://github.com/gabned/provelume/issues/383#issuecomment-6711131611);

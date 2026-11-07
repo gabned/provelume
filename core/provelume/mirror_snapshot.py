@@ -141,6 +141,16 @@ class MirrorSnapshots:
         originals = {row["id"]: row for row in records["originals"]}
         reader = DocumentContentReader(self.store)
         eligible_originals, eligible_assets, navigation = set(), {}, []
+
+        def asset_name(asset):
+            suffix = {
+                "image/jpeg": ".jpg",
+                "image/png": ".png",
+                "image/gif": ".gif",
+                "image/webp": ".webp",
+            }.get(asset["media_type"], ".bin")
+            return "attachments/" + asset["id"] + suffix
+
         for document in sorted(documents, key=lambda row: row["id"]):
             if document["id"] not in chosen:
                 continue
@@ -166,7 +176,7 @@ class MirrorSnapshots:
                 reference = "assets/" + asset["filename"]
                 if asset["id"] in rules["attachments"]:
                     markdown = markdown.replace(
-                        "(" + reference + ")", "(../attachments/" + asset["id"] + ".bin)"
+                        "(" + reference + ")", "(../" + asset_name(asset) + ")"
                     )
                 else:
                     markdown = markdown.replace("(" + reference + ")", "(attachment-excluded)")
@@ -233,7 +243,7 @@ class MirrorSnapshots:
                     and sha(data) == asset["sha256"],
                     "integrity",
                 )
-                add("attachments/" + selected + ".bin", data, "attachment")
+                add(asset_name(asset), data, "attachment")
                 continue
             attachment = attachments.get(selected)
             require(
@@ -256,10 +266,15 @@ class MirrorSnapshots:
                     receipt is not None and receipt["job_kind"] == "ai.execute", "include_scope"
                 )
                 job = scheduler.get_job(receipt["job_id"])
+                context = ((job or {}).get("ai") or {}).get("request", {}).get("context", {})
+                selected_version = versions.get(context.get("version_id"))
                 require(
                     job is not None
-                    and job.get("ai", {}).get("request", {}).get("context", {}).get("document_id")
-                    in chosen,
+                    and job["job_kind"] == receipt["job_kind"]
+                    and context.get("instance_id") == self.store.read_config()["instance"]["id"]
+                    and context.get("document_id") in chosen
+                    and selected_version is not None
+                    and selected_version["document_id"] == context["document_id"],
                     "include_scope",
                 )
                 add("ai-receipts/" + receipt_id + ".json", raw(receipt), "ai_receipt")
