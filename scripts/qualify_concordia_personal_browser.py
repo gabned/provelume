@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import socket
 import subprocess
@@ -94,6 +95,12 @@ def main():
     options = parser.parse_args()
     # Resolving the venv interpreter symlink would silently drop its environment.
     runtime, work = options.runtime.absolute(), options.work.resolve()
+    source = Path(__file__).absolute().parents[1]
+    if Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"],
+                                   text=True).strip()).resolve() != source.resolve():
+        raise RuntimeError("Browser driver and candidate checkout differ")
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(source / "core")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     if head != options.commit or subprocess.check_output(
             ["git", "status", "--porcelain"], text=True).strip():
@@ -107,7 +114,7 @@ def main():
     try:
         prepared = subprocess.run([str(runtime), "-c", PREPARE, str(root),
                                    "yes" if options.include_productivity else "no"], check=False,
-                                  capture_output=True, text=True, timeout=180)
+                                  capture_output=True, text=True, timeout=180, env=environment)
         (work / "native.json").write_text(prepared.stdout, encoding="utf-8")
         (work / "preparation.log").write_text(prepared.stderr, encoding="utf-8")
         prepared.check_returncode()
@@ -124,7 +131,7 @@ def main():
         origin = f"http://127.0.0.1:{port}"
         with (work / "server.log").open("x", encoding="utf-8") as log:
             server = subprocess.Popen([str(runtime), "-c", SERVE, str(root), str(port)],
-                                      stdout=log, stderr=subprocess.STDOUT)
+                                      stdout=log, stderr=subprocess.STDOUT, env=environment)
             deadline = time.monotonic() + 20
             while True:
                 try:
@@ -150,7 +157,7 @@ def main():
                 page = context.new_page()
                 for mode in ("current", "preview"):
                     subprocess.run([str(runtime), "-c", MODE, str(root), mode], check=True,
-                                   capture_output=True, timeout=15)
+                                   capture_output=True, timeout=15, env=environment)
                     for language in ("en", "it", "de", "es", "fr", "pt", "ro"):
                         for width in (1280, 320):
                             cell = {"mode": mode, "language": language, "width": width,
