@@ -354,6 +354,9 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert github_mirror_trial["result"] == "PASS" and not github_mirror_trial["network_used"]
         assert github_mirror_trial["real_github"] == "NOT_RUN"
         assert github_mirror_trial["interruption_restore_readonly_recovery"] == "PASS"
+        assert github_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        assert github_mirror_trial["native_vault_helper"]["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        assert github_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))

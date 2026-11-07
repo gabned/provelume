@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .mirror_contract import require
+from .mirror_credential_context import credential_environment
 from .mirror_github_contract import configuration
 from .mirror_github_credentials import GitHubCredentials
 from .mirrors import Mirrors
@@ -14,6 +15,7 @@ from .storage import InstanceStore
 
 
 def configure_session(session, *, store, destination_id, binding, reference):
+    session.environment.update(credential_environment())
     command = [sys.executable]
     if getattr(sys, "frozen", False):
         command += ["--internal-github-git-credential"]

@@ -142,3 +142,22 @@ interoperability nor a real account grant. Separate source tests cover public
 logical/physical approval, drift, read-only token, namespace ownership, renewal,
 interruption/real same-root restore and no replay. Exact-candidate full native,
 browser, CI, installed and review results remain required before acceptance.
+
+### Owned helper OS-vault context correction
+
+A controlled source-level negative on 4ebe162 showed that a valid synthetic
+Windows vault locator was lost when building the owned Git environment; the
+child locator was unavailable. The D-Bus session locator was also absent. This
+was a locator simulation, not native DPAPI or a real-account test. Its original
+negative evidence is retained. The transport now forwards only the local Windows
+LOCALAPPDATA or local Unix D-Bus/runtime locators, never token-bearing ambient
+variables; remote/multi-transport bus addresses and remote/malformed Windows
+vault roots fail visibly before helper dispatch.
+
+The permanent installed GitHub qualification additionally creates an isolated
+synthetic LOCALAPPDATA, stores only new synthetic slots through actual current-user
+DPAPI, invokes the actual source/frozen helper through native `git credential fill`,
+checks its secret-pipe reply in memory without logging it, and revokes the synthetic
+local identity/credential. It contacts no remote and leaves personal credential
+storage untouched. Linux reports this Windows-only native case NOT_RUN. Synthetic
+API/native file Git PASS still does not qualify real GitHub HTTPS or a real account.
