@@ -52,7 +52,9 @@ Last valid remote history and canonical knowledge survive every failure.
 
 Before qualification the transport fixes: 120 seconds overall per explicit
 operation, 30 seconds per ordinary command within that deadline, 64KiB captured
-command output, 512MiB admitted local Git object storage, 5,000 admitted tree files
+ordinary diagnostic output, 2MiB stdin/structured metadata and up to the unchanged
+32MiB S16 bound for a separately verified blob payload; 512MiB admitted local Git
+object storage, 5,000 admitted tree files
 and the unchanged S16 payload/manifest bounds. An oversized fetched repository,
 disk-full, missing Git/version/credential, unsafe root/config/hook/alternate,
 unsupported protocol or unproved activation fails visibly before publication.
