@@ -75,6 +75,7 @@ from .startup_readiness import (
 from .startup_readiness import (
     ROUTE as STARTUP_READINESS_ROUTE,
 )
+from .task_writeback_activity import attach_task_writeback_routes
 from .transcript_activity import attach_transcript_routes
 from .tududi_activity import attach_tududi_routes
 from .video_activity import attach_video_routes
@@ -629,6 +630,7 @@ def create_app(
     attach_asana_routes(app, instance, TEMPLATES, _context,
                        redirect_uri=f"http://{callback_host}:{selected_port}/asana/oauth/callback")
     attach_tududi_routes(app, instance, TEMPLATES, _context)
+    attach_task_writeback_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(

@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from importlib.resources import files
 from typing import Protocol
 from urllib.parse import urlsplit
@@ -73,6 +73,30 @@ def temporal(value):
         require(instant.astimezone(zone).utcoffset() == instant.utcoffset(), "time_zone")
         return instant
     except (ValueError, OSError, ZoneInfoNotFoundError):
+        raise ProductivityError("time_zone") from None
+
+
+def local_instant(day, clock, name):
+    """Explicit day/clock/zone input; never guess an ambiguous or missing DST offset."""
+    temporal({"kind": "date", "value": day, "time_zone": None})
+    require(type(clock) is str and re.fullmatch(r"\d{2}:\d{2}", clock) is not None)
+    require(type(name) is str and re.fullmatch(
+        r"[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)*", name)
+        and all(part not in {".", ".."} for part in name.split("/")), "time_zone")
+    try:
+        with files(shipped_zones).joinpath(*name.split("/")).open("rb") as stream:
+            selected = ZoneInfo.from_file(stream, key=name)
+        local = datetime.fromisoformat(day + "T" + clock)
+        first = local.replace(tzinfo=selected, fold=0)
+        second = local.replace(tzinfo=selected, fold=1)
+
+        require(first.utcoffset() == second.utcoffset()
+                and first.astimezone(UTC).astimezone(selected).replace(tzinfo=None) == local,
+                "time_zone")
+        result = {"kind": "instant", "value": first.isoformat(), "time_zone": name}
+        temporal(result)
+        return result
+    except (OSError, ValueError):
         raise ProductivityError("time_zone") from None
 
 

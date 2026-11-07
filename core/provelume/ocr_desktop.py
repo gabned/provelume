@@ -41,6 +41,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     asana.add_argument("instance", type=Path)
     tududi = commands.add_parser("tududi-qualify")
     tududi.add_argument("instance", type=Path)
+    writeback = commands.add_parser("task-writeback-qualify")
+    writeback.add_argument("instance", type=Path)
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -52,7 +54,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "tududi-qualify":
+                if options.command == "task-writeback-qualify":
+                    from .task_writeback_qualification import qualify_task_writeback
+
+                    result = qualify_task_writeback(options.instance)
+                elif options.command == "tududi-qualify":
                     from .tududi_qualification import qualify_tududi
 
                     result = qualify_tududi(options.instance)

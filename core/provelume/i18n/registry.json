@@ -17661,6 +17661,228 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "task_write.title": {
+      "context": "Guarded remote task diff and outcome: title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.back": {
+      "context": "Guarded remote task diff and outcome: back",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.lead": {
+      "context": "Guarded remote task diff and outcome: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unavailable": {
+      "context": "Guarded remote task diff and outcome: unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unavailable_help": {
+      "context": "Guarded remote task diff and outcome: unavailable_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.consent": {
+      "context": "Guarded remote task diff and outcome: consent",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.confirm": {
+      "context": "Guarded remote task diff and outcome: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.prepare": {
+      "context": "Guarded remote task diff and outcome: prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.diff": {
+      "context": "Guarded remote task diff and outcome: diff",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.expires": {
+      "context": "Guarded remote task diff and outcome: expires",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.field": {
+      "context": "Guarded remote task diff and outcome: field",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.before": {
+      "context": "Guarded remote task diff and outcome: before",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.after": {
+      "context": "Guarded remote task diff and outcome: after",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.completed": {
+      "context": "Guarded remote task diff and outcome: completed",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.due": {
+      "context": "Guarded remote task diff and outcome: due",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.yes": {
+      "context": "Guarded remote task diff and outcome: yes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.no": {
+      "context": "Guarded remote task diff and outcome: no",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.enabled": {
+      "context": "Guarded remote task diff and outcome: enabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.disabled": {
+      "context": "Guarded remote task diff and outcome: disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unchanged": {
+      "context": "Guarded remote task diff and outcome: unchanged",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.none": {
+      "context": "Guarded remote task diff and outcome: none",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.date": {
+      "context": "Guarded remote task diff and outcome: date",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.instant": {
+      "context": "Guarded remote task diff and outcome: instant",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.day": {
+      "context": "Guarded remote task diff and outcome: day",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.clock": {
+      "context": "Guarded remote task diff and outcome: clock",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.zone": {
+      "context": "Guarded remote task diff and outcome: zone",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.confirm_button": {
+      "context": "Guarded remote task diff and outcome: confirm_button",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.discard_button": {
+      "context": "Guarded remote task diff and outcome: discard_button",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.reconcile": {
+      "context": "Guarded remote task diff and outcome: reconcile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.no_retry": {
+      "context": "Guarded remote task diff and outcome: no_retry",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.readback": {
+      "context": "Guarded remote task diff and outcome: readback",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.saved": {
+      "context": "Guarded remote task diff and outcome: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.error": {
+      "context": "Guarded remote task diff and outcome: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.APPLIED": {
+      "context": "Guarded remote task diff and outcome: APPLIED",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.CONFLICT": {
+      "context": "Guarded remote task diff and outcome: CONFLICT",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.NOT_APPLIED": {
+      "context": "Guarded remote task diff and outcome: NOT_APPLIED",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.UNKNOWN": {
+      "context": "Guarded remote task diff and outcome: UNKNOWN",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

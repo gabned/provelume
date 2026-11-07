@@ -68,6 +68,13 @@ if sys.argv[2]=='yes':
     _,_,tududi_source=seed_tududi(instance)
     fixture['tududi_object_id']=next(row['id'] for row in instance.store.list_canonical('objects')
         if row['origin'].get('source_id')==tududi_source)
+    from provelume.task_writeback_qualification import SyntheticWriteBackFixture
+    write_fixture=SyntheticWriteBackFixture(instance)
+    write_fixture.consent()
+    write_plan=write_fixture.prepare({'completed':True,'due':{
+        'kind':'date','value':'2026-11-08','time_zone':None}})
+    fixture['writeback_object_id']=write_fixture.object_id
+    fixture['writeback_plan_id']=write_plan['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -248,6 +255,20 @@ def main():
                                     assert page.evaluate("document.documentElement.scrollWidth <= "
                                                         "document.documentElement.clientWidth")
                                     cell["tududi_surfaces"] = "AUTOMATIC_SYNTHETIC_PASS"
+                                    response = page.goto(origin + "/task-writeback/" + fixture[
+                                        "tududi_object_id"] + "?lang=" + language)
+                                    assert response.status == 200
+                                    assert page.locator("#task-write-unavailable").is_visible()
+                                    response = page.goto(origin + "/task-writeback/" + fixture[
+                                        "writeback_object_id"] + "?" + urlencode({
+                                            "lang": language,
+                                            "plan": fixture["writeback_plan_id"]}))
+                                    assert response.status == 200
+                                    assert page.locator("#task-write-diff").is_visible()
+                                    assert "2026-11-08" in page.locator("main").inner_text()
+                                    assert page.evaluate("document.documentElement.scrollWidth <= "
+                                                        "document.documentElement.clientWidth")
+                                    cell["writeback_readonly_preview"] = "AUTOMATIC_SYNTHETIC_PASS"
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

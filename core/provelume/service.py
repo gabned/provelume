@@ -80,6 +80,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def task_writeback(self):
+        from .task_writeback import TaskWriteBack
+
+        if not hasattr(self, "_task_writeback_manager"):
+            self._task_writeback_manager = TaskWriteBack(self.store)
+        return self._task_writeback_manager
+
     def tududi_connection(self):
         from .tududi_connection import TududiConnection
 
