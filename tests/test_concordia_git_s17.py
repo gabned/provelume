@@ -58,6 +58,23 @@ def test_real_publication_noop_and_historical_receipt_without_resend(tmp_path):
     assert mirrors.snapshots.source_fingerprint() == before
 
 
+def test_legacy_branches_directory_is_admitted_only_when_empty(tmp_path, monkeypatch):
+    _instance, _mirrors, git, destination = initialized(tmp_path)
+    branches = tmp_path / "Destination.git" / "branches"
+    branches.mkdir(exist_ok=True)
+    assert git.prepare(destination["id"], expected_revision=1, confirmed=True)["publication"]
+    unexpected = branches / "unknown-remote"
+    unexpected.write_text("https://example.invalid/never-contacted\n")
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Legacy branch content reached native Git")
+
+    monkeypatch.setattr(GitSession, "run", forbidden)
+    with pytest.raises(MirrorError, match="unsafe_git_target"):
+        git.prepare(destination["id"], expected_revision=1, confirmed=True)
+    assert unexpected.read_text() == "https://example.invalid/never-contacted\n"
+
+
 def git_fixture(tmp_path):
     from provelume.mirror_git import GitMirrors
     from provelume.mirrors import Mirrors
@@ -116,7 +133,7 @@ def test_real_private_bare_target_initialization_and_first_readonly_preview(tmp_
 def test_native_git_version_bare_objects_and_bounded_input(tmp_path):
     make_private(tmp_path)
     session = GitSession(tmp_path)
-    assert session.probe() in {"2.52.0", "2.56.0", "2.56.0.windows.4"}
+    assert session.probe() in {"2.43.0", "2.52.0", "2.56.0", "2.56.0.windows.4"}
     session.initialize_work()
     _code, oid = session.run(
         ["hash-object", "-w", "--stdin", "--no-filters"],
