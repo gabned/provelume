@@ -44,7 +44,7 @@ class GoogleConnectionEvidence:
                 not isinstance(item, dict)
                 or set(item) != fields
                 or item["event"] not in EVENTS
-                or item["capability"] not in {None, "gmail", "drive"}
+                or item["capability"] not in {None, "gmail", "drive", "calendar"}
                 or item["provider_observation"] not in {"google_rest", "local_or_synthetic"}
             ):
                 raise ValueError("google_qualification_evidence_invalid")
@@ -64,7 +64,7 @@ class GoogleConnectionEvidence:
         return value
 
     def record(self, event, *, capability=None, source_id=None, live=False):
-        if event not in EVENTS or capability not in {None, "gmail", "drive"}:
+        if event not in EVENTS or capability not in {None, "gmail", "drive", "calendar"}:
             raise ValueError("google_qualification_evidence_invalid")
         build = current_build_info()
         entry = {
@@ -94,7 +94,7 @@ class GoogleConnectionEvidence:
             raise ValueError("google_qualification_exact_head_required")
         events = [item for item in self.read() if item["build_commit"] == expected_head]
         checks = {}
-        for capability in ("gmail", "drive"):
+        for capability in ("gmail", "drive", "calendar"):
             connected = [
                 item
                 for item in events
@@ -114,7 +114,8 @@ class GoogleConnectionEvidence:
                 if job.get("status") == "succeeded"
                 and (job.get("google_run") or {}).get("capability") == capability
                 and job["google_run"].get("build_commit") == expected_head
-                and job["google_run"].get("execution_adapter") == "google_rest"
+                and job["google_run"].get("execution_adapter") == (
+                    "google_calendar_rest" if capability == "calendar" else "google_rest")
                 and job["google_run"].get("limits", {}).get("max_items_per_run") == 50
                 and job["google_run"].get("limits", {}).get("max_pages_per_run") == 2
                 and job["google_run"].get("limits", {}).get("max_total_bytes_per_run") == 67108864

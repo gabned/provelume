@@ -2,6 +2,14 @@
 
 Provelume's public license does not replace the licenses of third-party dependencies.
 
+Concordia calendar feeds use icalendar 7.3.0 (BSD-2-Clause) and python-dateutil
+4.0.0 (BSD-3-Clause), acquired from their public PyPI publisher distributions.
+Complete wheel-provided license and author notices are retained verbatim under
+`core/provelume/runtime_notices/icalendar-7.3.0-LICENSE.rst`,
+`python_dateutil-4.0.0-LICENSE` and `python_dateutil-4.0.0-AUTHORS.md`.
+The component catalogue records their exact runtime contracts. Their inclusion
+is not a general security or provider qualification claim.
+
 Custodia 0.12 includes the reviewed optional native runtime libraries, with model
 weights acquired separately. They were absent from the published 0.11.0 preview.
 The local recommendation is limited to the documented EN/IT extractive profile.
