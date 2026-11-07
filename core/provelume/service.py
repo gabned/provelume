@@ -80,6 +80,13 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def tududi_connection(self):
+        from .tududi_connection import TududiConnection
+
+        if not hasattr(self, "_tududi_manager"):
+            self._tududi_manager = TududiConnection(self.store)
+        return self._tududi_manager
+
     def asana_connection(self):
         from .asana_connection import AsanaConnection
 

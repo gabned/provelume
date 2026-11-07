@@ -109,9 +109,16 @@ def validate_item(value):
                 isinstance(start, datetime) and start == end)), "time_range")
     provenance = value["provenance"]
     require(type(provenance) is dict and set(provenance) - {
-        "original_time_zones", "response_sha256", "display_names"} == {
+        "original_time_zones", "response_sha256", "display_names", "task_context"} == {
         "container_ids", "parent_id", "assignees", "links", "comments", "uid", "recurrence_id",
         "recurrence"})
+    if "task_context" in provenance:
+        context = provenance["task_context"]
+        require(value["kind"] == "task" and type(context) is dict and set(context)
+                == {"status", "start_date", "start_time", "time_zone"})
+        for key in context:
+            if context[key] is not None:
+                text(context[key], 100)
     if "display_names" in provenance:
         names = provenance["display_names"]
         require(type(names) is dict and set(names) == {"assignees", "containers", "parent"})

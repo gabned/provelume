@@ -17421,6 +17421,246 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "tududi.account_scope": {
+      "context": "Tududi connection or acquired task: account_scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.completed": {
+      "context": "Tududi connection or acquired task: completed",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.configuration": {
+      "context": "Tududi connection or acquired task: configuration",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.configuration_help": {
+      "context": "Tududi connection or acquired task: configuration_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.confirm": {
+      "context": "Tududi connection or acquired task: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.connect": {
+      "context": "Tududi connection or acquired task: connect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.continuation": {
+      "context": "Tududi connection or acquired task: continuation",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.disconnect": {
+      "context": "Tududi connection or acquired task: disconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.empty": {
+      "context": "Tududi connection or acquired task: empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.error": {
+      "context": "Tududi connection or acquired task: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.lead": {
+      "context": "Tududi connection or acquired task: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.load_projects": {
+      "context": "Tududi connection or acquired task: load_projects",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.network": {
+      "context": "Tududi connection or acquired task: network",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.offline": {
+      "context": "Tududi connection or acquired task: offline",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.project": {
+      "context": "Tududi connection or acquired task: project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.rate_limited": {
+      "context": "Tududi connection or acquired task: rate_limited",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.read": {
+      "context": "Tududi connection or acquired task: read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.reconnect": {
+      "context": "Tududi connection or acquired task: reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.reset": {
+      "context": "Tududi connection or acquired task: reset",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.revoke_help": {
+      "context": "Tududi connection or acquired task: revoke_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.saved": {
+      "context": "Tududi connection or acquired task: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.security": {
+      "context": "Tududi connection or acquired task: security",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.select": {
+      "context": "Tududi connection or acquired task: select",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.source_name": {
+      "context": "Tududi connection or acquired task: source_name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.source_state": {
+      "context": "Tududi connection or acquired task: source_state",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.sources": {
+      "context": "Tududi connection or acquired task: sources",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.starts": {
+      "context": "Tududi connection or acquired task: starts",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.archived": {
+      "context": "Tududi connection or acquired task: status.archived",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.authorized": {
+      "context": "Tududi connection or acquired task: status.authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.cancelled": {
+      "context": "Tududi connection or acquired task: status.cancelled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.done": {
+      "context": "Tududi connection or acquired task: status.done",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.in_progress": {
+      "context": "Tududi connection or acquired task: status.in_progress",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.not_authorized": {
+      "context": "Tududi connection or acquired task: status.not_authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.not_started": {
+      "context": "Tududi connection or acquired task: status.not_started",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.planned": {
+      "context": "Tududi connection or acquired task: status.planned",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.revoked": {
+      "context": "Tududi connection or acquired task: status.revoked",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.waiting": {
+      "context": "Tududi connection or acquired task: status.waiting",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.task_link": {
+      "context": "Tududi connection or acquired task: task_link",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.version_help": {
+      "context": "Tududi connection or acquired task: version_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.unsupported": {
+      "context": "Unsupported Tududi public contract",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

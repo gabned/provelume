@@ -39,6 +39,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     calendar.add_argument("instance", type=Path)
     asana = commands.add_parser("asana-qualify")
     asana.add_argument("instance", type=Path)
+    tududi = commands.add_parser("tududi-qualify")
+    tududi.add_argument("instance", type=Path)
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -50,7 +52,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "asana-qualify":
+                if options.command == "tududi-qualify":
+                    from .tududi_qualification import qualify_tududi
+
+                    result = qualify_tududi(options.instance)
+                elif options.command == "asana-qualify":
                     from .asana_qualification import qualify_asana
 
                     result = qualify_asana(options.instance)

@@ -321,6 +321,8 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert calendar_trial["result"] == "PASS" and not calendar_trial["network_used"]
         asana_trial = command("asana-qualify", root / "Synthetic Asana")
         assert asana_trial["result"] == "PASS" and not asana_trial["network_used"]
+        tududi_trial = command("tududi-qualify", root / "Synthetic Tududi")
+        assert tududi_trial["result"] == "PASS" and not tududi_trial["network_used"]
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -345,6 +347,7 @@ def qualify(executable, kit, root, output, build_report, installer):
             "s09_personal_trials": personal_trials,
             "s12_icalendar_trial": calendar_trial,
             "s13_asana_trial": asana_trial,
+            "s14_tududi_trial": tududi_trial,
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS",
             "external_python_required": False,

@@ -46,6 +46,7 @@
 {% endif %}{% endfor %}</dl>{% if row.aliases %}<p>{{ t('objects.aliases') }}: {{ row.aliases|join(', ') }}</p>{% endif %}{% endif %}</section>
 {% if not relation and row.origin.kind == 'connector' %}{% set origin = view.provider_snapshot.item.provenance %}{% set labels = origin.display_names|default({}) %}
 <section class="panel" id="connector-provenance"><h2>{{ view.provider_snapshot.source_name }}</h2>
+{% if origin.task_context is defined %}<dl><dt>{{ t('tududi.source_state') }}</dt><dd>{{ t('tududi.status.' ~ origin.task_context.status) }}</dd>{% if origin.task_context.start_date %}<dt>{{ t('tududi.starts') }}</dt><dd>{{ origin.task_context.start_date }} {{ origin.task_context.start_time or '' }} {{ origin.task_context.time_zone }}</dd>{% endif %}</dl>{% endif %}
 {% if origin.assignees %}<h3>{{ t('objects.connector_assignees') }}</h3><ul>{% for id in origin.assignees %}<li class="object-text">{{ labels.get('assignees', {}).get(id, id) }}</li>{% endfor %}</ul>{% endif %}
 {% if origin.parent_id %}<h3>{{ t('objects.connector_parent') }}</h3><p class="object-text">{{ labels.get('parent') or origin.parent_id }}</p>{% endif %}
 {% if origin.container_ids %}<details><summary>{{ t('objects.connector_containers') }}</summary><ul>{% for id in origin.container_ids %}<li class="object-text">{{ labels.get('containers', {}).get(id, id) }}</li>{% endfor %}</ul></details>{% endif %}

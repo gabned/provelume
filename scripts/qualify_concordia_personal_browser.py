@@ -64,6 +64,10 @@ if sys.argv[2]=='yes':
     _,_,asana_source=seed_asana(instance)
     fixture['task_object_id']=next(row['id'] for row in instance.store.list_canonical('objects')
         if row['origin'].get('source_id')==asana_source)
+    from provelume.tududi_qualification import seed_tududi
+    _,_,tududi_source=seed_tududi(instance)
+    fixture['tududi_object_id']=next(row['id'] for row in instance.store.list_canonical('objects')
+        if row['origin'].get('source_id')==tududi_source)
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -229,6 +233,21 @@ def main():
                                     assert page.evaluate("document.documentElement.scrollWidth <= "
                                                         "document.documentElement.clientWidth")
                                     cell["asana_surfaces"] = "AUTOMATIC_SYNTHETIC_PASS"
+                                    response = page.goto(
+                                        origin + "/tududi/connect?lang=" + language)
+                                    assert response.status == 200
+                                    assert "tududi.lead" not in page.content()
+                                    assert "tt_synthetic_token" not in page.content()
+                                    response = page.goto(origin + "/objects/" + fixture[
+                                        "tududi_object_id"] + "?lang=" + language)
+                                    assert response.status == 200
+                                    assert page.locator("#connector-provenance").is_visible()
+                                    assert "Exact retained comment" in page.locator(
+                                        "main").inner_text()
+                                    assert page.locator('a[href*="/edit?"]').count() == 0
+                                    assert page.evaluate("document.documentElement.scrollWidth <= "
+                                                        "document.documentElement.clientWidth")
+                                    cell["tududi_surfaces"] = "AUTOMATIC_SYNTHETIC_PASS"
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

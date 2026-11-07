@@ -42,6 +42,7 @@ from .shell_settings import (
     settings_path,
 )
 from .transcript_cli import add_transcript_commands, handle_transcript_command
+from .tududi_cli import add_tududi_commands, handle_tududi_command
 from .updates import UpdateError, check_for_updates
 from .web import create_app, create_recovery_app
 from .web_security import loopback_host
@@ -233,6 +234,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_productivity_commands(subparsers)
     add_icalendar_commands(subparsers)
     add_asana_commands(subparsers)
+    add_tududi_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -286,6 +288,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     asana_result = handle_asana_command(args)
     if asana_result is not None:
         return asana_result
+    tududi_result = handle_tududi_command(args)
+    if tududi_result is not None:
+        return tududi_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result

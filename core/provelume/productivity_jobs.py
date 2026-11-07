@@ -17,11 +17,12 @@ def canonical_fingerprint(store):
 
 
 class ProductivityJobs:
-    def __init__(self, store, *, feeds=None, asana=None):
+    def __init__(self, store, *, feeds=None, asana=None, tududi=None):
         self.store, self.host = store, ProductivityConnectors(store)
         self.scheduler = SchedulerStore(store)
         self.feeds = feeds
         self.asana = asana
+        self.tududi = tududi
         self.network_used, self.canonical_mutation = False, False
 
     def policy(self, source_id, *, interval_seconds=None):
@@ -58,45 +59,54 @@ class ProductivityJobs:
 
         source_id = job["scope"]["id"]
         _identity, _source, definition = self.host._records(source_id)
-        require(definition["provider"] in {"icalendar", "asana"}, "unsupported")
+        require(definition["provider"] in {"icalendar", "asana", "tududi"}, "unsupported")
         scheduled = job.get("reason") in {"scheduled", "coalesced", "catch_up"}
 
         def cancelled():
             current = self.scheduler.get_job(job["id"])
             return current is None or current["status"] in {"cancelling", "cancelled", "pausing"}
 
-        if definition["provider"] == "asana":
+        if definition["provider"] in {"asana", "tududi"}:
             from .asana_connection import AsanaConnection
             from .asana_intake import execute_asana_job
             from .review_decisions import checked_path
 
             before = canonical_fingerprint(self.store)
-            connection = self.asana or AsanaConnection(self.store)
+            provider = definition["provider"]
+            if provider == "tududi":
+                from .tududi_connection import TududiConnection
+                from .tududi_intake import execute_tududi_job
+
+                connection = self.tududi or TududiConnection(self.store)
+                execute = execute_tududi_job
+            else:
+                connection, execute = self.asana or AsanaConnection(self.store), execute_asana_job
             connection.network_used = False
             try:
-                result = execute_asana_job(self.store, job, connection=connection,
-                                           cancelled=cancelled)
+                result = execute(self.store, job, connection=connection, cancelled=cancelled)
                 self.network_used = result["network_used"]
                 self.store._atomic_json(checked_path(self.store,
-                    f"state/productivity-providers/asana-runs/{job['id']}.json"), {
+                    f"state/productivity-providers/{provider}-runs/{job['id']}.json"), {
                     "source_id": source_id, "job_id": job["id"], "status": "completed"
                     if result["status"] == "completed" else "continuation_available",
                     "progress": result["progress"], "network_used": self.network_used})
-                self._asana_status(job, "completed" if result["status"] == "completed"
-                                   else "continuation_available")
+                self._provider_status(provider, job, "completed" if result["status"] == "completed"
+                                      else "continuation_available")
                 return result["progress"]
             except (ValueError, OSError) as error:
                 code = getattr(error, "code", "invalid")
                 allowed = {"rate_limited", "authorization_required", "stale", "scope_mismatch",
                            "account_mismatch", "transport", "response", "cursor_loop",
                            "cursor_invalidated", "selection", "limit", "deadline", "cancelled",
-                           "invalid", "unsupported", "integrity", "disabled", "network_disabled"}
+                           "invalid", "unsupported", "integrity", "disabled", "network_disabled",
+                           "time_zone", "endpoint"}
                 self.store._atomic_json(checked_path(self.store,
-                    f"state/productivity-providers/asana-runs/{job['id']}.json"), {
+                    f"state/productivity-providers/{provider}-runs/{job['id']}.json"), {
                     "source_id": source_id, "job_id": job["id"], "status": "failed",
                     "error_code": code if code in allowed else "invalid",
                     "network_used": connection.network_used})
-                self._asana_status(job, "failed", code if code in allowed else "invalid")
+                self._provider_status(provider, job, "failed",
+                                      code if code in allowed else "invalid")
                 raise
             finally:
                 self.network_used = connection.network_used
@@ -113,11 +123,11 @@ class ProductivityJobs:
             self.network_used = feeds.network_used
             self.canonical_mutation = canonical_fingerprint(self.store) != before
 
-    def _asana_status(self, job, status, error_code=None):
+    def _provider_status(self, provider, job, status, error_code=None):
         from .review_decisions import checked_path
         from .storage import utc_now
 
         self.store._atomic_json(checked_path(self.store,
-            f"state/productivity-providers/asana-status/{job['scope']['id']}.json"), {
+            f"state/productivity-providers/{provider}-status/{job['scope']['id']}.json"), {
             "source_id": job["scope"]["id"], "job_id": job["id"], "status": status,
             "error_code": error_code, "finished_at": utc_now()})
