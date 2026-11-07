@@ -20,6 +20,9 @@ NOTICE_RESOURCES = {
     **{name: ("notices", name) for name in NOTICE_NAMES},
     "Lucide LICENSE": ("notices", "lucide-LICENSE.txt"),
     "qrcode LICENSE": ("notices", "qrcode-LICENSE.txt"),
+    "icalendar LICENSE": ("runtime_notices", "icalendar-7.3.0-LICENSE.rst"),
+    "python-dateutil LICENSE": ("runtime_notices", "python_dateutil-4.0.0-LICENSE"),
+    "python-dateutil AUTHORS": ("runtime_notices", "python_dateutil-4.0.0-AUTHORS.md"),
 }
 
 

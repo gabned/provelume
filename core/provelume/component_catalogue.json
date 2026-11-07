@@ -345,6 +345,64 @@
       },
       "sbom_required": true,
       "eol": false
+    },
+    {
+      "id": "python.icalendar",
+      "category": "python_package",
+      "name": "icalendar",
+      "purpose": {
+        "en": "Parses bounded local and HTTPS calendar feeds",
+        "it": "Analizza calendari locali e HTTPS entro limiti espliciti"
+      },
+      "dependency_relation": "runtime_direct",
+      "delivery": "python_distribution",
+      "update_route": "verified_release",
+      "origin": "https://github.com/collective/icalendar",
+      "license": "BSD-2-Clause",
+      "notices": "Third-party distribution metadata and license",
+      "purl": "pkg:pypi/icalendar",
+      "expected_sha256": null,
+      "required": true,
+      "approved_version": null,
+      "version_constraint": "==7.3.0",
+      "platforms": [
+        "any"
+      ],
+      "detection": {
+        "kind": "distribution",
+        "value": "icalendar"
+      },
+      "sbom_required": true,
+      "eol": false
+    },
+    {
+      "id": "python.python-dateutil",
+      "category": "python_package",
+      "name": "python-dateutil",
+      "purpose": {
+        "en": "Interprets source calendar timezone definitions",
+        "it": "Interpreta le definizioni di fuso orario dei calendari"
+      },
+      "dependency_relation": "runtime_direct",
+      "delivery": "python_distribution",
+      "update_route": "verified_release",
+      "origin": "https://github.com/dateutil/dateutil",
+      "license": "BSD-3-Clause",
+      "notices": "Third-party distribution metadata and license",
+      "purl": "pkg:pypi/python-dateutil",
+      "expected_sha256": null,
+      "required": true,
+      "approved_version": null,
+      "version_constraint": "==4.0.0",
+      "platforms": [
+        "any"
+      ],
+      "detection": {
+        "kind": "distribution",
+        "value": "python-dateutil"
+      },
+      "sbom_required": true,
+      "eol": false
     }
   ],
   "class_coverage": [

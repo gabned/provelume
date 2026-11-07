@@ -154,6 +154,7 @@ class _AdapterContract:
     authorization_origin: str
     token_endpoint: str
     token_origin: str
+    authorization_consent_profile: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -249,6 +250,14 @@ def _adapter_contract(adapter: InstalledAppOAuthAdapter) -> _AdapterContract:
         getattr(adapter, "token_endpoint", None),
         "OAuth token endpoint",
     )
+    profile = getattr(adapter, "authorization_consent_profile", "prompt-consent-v1")
+    if profile not in {"prompt-consent-v1", "asana-scoped-pkce-v1"}:
+        raise OAuthAdapterError("OAuth authorization consent profile is unsupported")
+    if profile == "asana-scoped-pkce-v1" and (
+        adapter_key, adapter_version, authorization_endpoint, token_endpoint
+    ) != ("concordia-asana-readonly", "1.0.0", "https://app.asana.com/-/oauth_authorize",
+          "https://app.asana.com/-/oauth_token"):
+        raise OAuthAdapterError("Asana consent profile requires its exact registered endpoints")
     return _AdapterContract(
         adapter_key=adapter_key,
         adapter_version=adapter_version,
@@ -256,6 +265,7 @@ def _adapter_contract(adapter: InstalledAppOAuthAdapter) -> _AdapterContract:
         authorization_origin=authorization_origin,
         token_endpoint=token_endpoint,
         token_origin=token_origin,
+        authorization_consent_profile=profile,
     )
 
 
@@ -297,8 +307,13 @@ def _validate_authorization_uri(
         "code_challenge": request.code_challenge,
         "code_challenge_method": "S256",
         "scope": " ".join(request.scopes),
-        "prompt": "consent",
     }
+    if request.consent != "explicit":
+        raise OAuthAdapterError("OAuth authorization requires explicit local consent")
+    if contract.authorization_consent_profile == "prompt-consent-v1":
+        expected["prompt"] = "consent"
+    elif "prompt" in query:
+        raise OAuthAdapterError("Asana authorization contains an undocumented consent parameter")
     for key, selected in expected.items():
         if not hmac.compare_digest(_single_query_value(query, key), selected):
             raise OAuthAdapterError(f"authorization URI did not preserve the {key} binding")
@@ -441,6 +456,10 @@ class InstalledAppAuthorizationManager:
             if policy.get("effective_network") != "explicit":
                 raise OAuthPolicyError("OAuth capability is blocked by network policy")
             contract = _adapter_contract(adapter)
+            if contract.authorization_consent_profile != policy.get(
+                "authorization_consent_profile", "prompt-consent-v1"
+            ):
+                raise OAuthAdapterError("OAuth consent profile does not match capability authority")
             if (contract.adapter_key, contract.adapter_version) != (
                 policy.get("adapter_key"), policy.get("adapter_version")
             ):
@@ -470,6 +489,8 @@ class InstalledAppAuthorizationManager:
                 "OAuth authorization is blocked by connector or Instance network policy"
             )
         contract = _adapter_contract(adapter)
+        if contract.authorization_consent_profile != "prompt-consent-v1":
+            raise OAuthAdapterError("Provider consent requires its native capability authority")
         if (
             contract.adapter_key != definition["adapter_key"]
             or contract.adapter_version != definition["adapter_version"]
