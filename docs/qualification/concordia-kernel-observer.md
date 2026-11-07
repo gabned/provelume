@@ -94,7 +94,7 @@ MODEL_FREE_CONTROL_COMPLETE certifies only those controls on that exact host.
 It does not grant native admission: complete syscall pairing and event-to-Capture
 window binding/cost validation still precede a real measurement.
 
-## Phase B: discriminating design, execution locked
+## Phase B: one native sequence after fresh admission
 
 After complete Phase A evidence, bind exact marker identities to original Capture
 submit/process windows without changing payload, original clocks/evaluator or
@@ -117,8 +117,9 @@ Source/input/host drift, missing events/overflow, application/network or non-tim
 failure stops collection. All reports stay DIAGNOSTIC_ONLY with original gates
 and every FAIL preserved.
 
-The native-inference part of Phase B is a design, not a dispatched or qualified
-command. The model-free Capture-window preparation below is separate. Any causal PRODUCT
+The implemented native command below remains NOT_RUN until a separately recorded
+dispatch; command availability is not admission or qualification. The model-free
+Capture-window preparation below is separate. Any causal PRODUCT
 correction is subsequent work under the same owner, followed by exact-candidate
 native/CI/review/preflight and actual-main acceptance. Existing ABBA is never
 resumed. S07/S08 remain NOT_ACCEPTED, S09 unopened, identity0.14.0/development,
@@ -269,3 +270,71 @@ Analyze scheduler state inside that frame rather than joining across disabled
 windows. Any other FAIL survives but cannot supply attribution to an unobserved
 interval. Exact native host/source/input/containment/marker gates still precede
 execution. No native inference is requested by these preparation controls.
+
+## Native driver and admission contract
+
+`scripts/concordia_kernel_native.py` implements the one native experiment, under
+the same owner and original BIND. Its sole selector is `native-cold-810`, with
+observer-study and kernel-control both true, on the exact owner branch/attempt1.
+Every previous study and the standalone model-free control job is excluded.
+No fixed four-arm block, completed source contrast or inference experiment repeats.
+
+Before acquisition or inference, `admit` checks committed source, fresh accepted
+main, unchanged baseline/qualifier/evaluator/corpora and current kernel/tool/CPU/
+cgroup/identity/placement. Actual tracepoint formats are retained. State decoding
+accepts only the independently recovered sched_switch print contract from the
+verified42358282166 artifact; another format refuses. The baseline's actual
+containment must deny socket/process creation, keep the original two-worker-CPU
+policy and remain visible under the unchanged network-only strace.
+
+One fresh-host AI-Off Capture binding is an admission prerequisite, distinct from
+the completed observer experiment. It runs with the ordinary runner identity,
+not root. Only bpftrace uses the ephemeral job's existing sudo capability; its
+child drops to the original user before strace/application execution. A clean
+environment excludes workflow credentials. The full original process-limit
+envelope is restored before dropping privilege with setpriv, because bpftrace
+may raise its own memlock limit; neither the application limits nor placement are
+increased. Child UID/GID/groups, affinity, nice and every process limit must match
+the admitted runner. Exact six raw markers, clock envelopes,
+owned fork/exit and original trace inventories, paired syscalls and the unchanged
+5ms marker-cost bound must pass. This refreshes host evidence; it supplies no CPU
+acceptance. Admission expires after15minutes and is consumed with exclusive creation.
+
+The BPF pairing addition retains an owned futex/fsync entry timestamp in a map,
+without emitting work outside the frame. If its exit is inside the frame, the
+actual earlier entry is emitted; an entry inside the frame retains its actual
+later exit. Both emissions have independent kernel counters. No synthetic syscall
+exit or duration is fabricated. The2MiB/default-buffer/loss gates are unchanged;
+incomplete pairing refuses. Scheduler emission still covers only frame9–10.
+
+`run` verifies every locked model/runtime byte before and after copying to a fresh
+equal-depth store. It consumes one clean immutable d5 worktree and invokes the
+original complete measure function without replacing its evaluator, configuration,
+model, inference, payload, cancellation, pool or durability logic. Marker wrappers
+activate only during the original synthesis probe810; all other probes return
+their original results. Sample810 may occur only once. Module origins, actual
+child identity/placement, all original reports and the full strace are retained.
+
+Application execution remains bounded1200s and the original network observation
+60s. The separate30min workflow budget includes bootstrap/acquisition; it does not
+extend either execution bound. All native failures and the unchanged stop-control
+projection survive. The original report is retained before network evaluation,
+and a separate copy receives the original evaluator. Costs are recorded, never
+deducted. Frame/submit/process markers are matched to their TID/BOOTTIME envelopes;
+the prediction uses that cold probe's own unchanged idle-derived Capture limit.
+
+An incomplete event/identity/clock/exit/marker/cost observation stays UNKNOWN.
+With complete evidence, no cold810 Capture exceedance is NON_REPRODUCTION and
+permanently closes this experiment. A supported or refuted event shape is only
+temporal evidence; neither establishes a PRODUCT correction or historical cause.
+Every other original FAIL remains an independent finding. All S07/S08 acceptance,
+ordinary exact-head CI/review/integration and final release gates remain separate.
+
+Commands, only after source review and the retained pre-execution declaration:
+
+```bash
+.venv/bin/python scripts/concordia_kernel_native.py admit --output .agent/kernel-native-admission
+.venv/bin/python scripts/ai_runtime_acquire.py --directory "$NATIVE_INPUTS" --accept-licenses --include-model
+.venv/bin/python scripts/concordia_kernel_native.py run --inputs "$NATIVE_INPUTS" \
+  --admission .agent/kernel-native-admission/admission.json --output .agent/kernel-native-sequence
+```

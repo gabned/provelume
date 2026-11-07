@@ -31,6 +31,8 @@ ALLOWED_PATHS = {"scripts/concordia_kernel_observer.py", "scripts/concordia_kern
                  "tests/test_concordia_kernel_observer.py",
                  "scripts/concordia_capture_marker_fixture.py",
                  "tests/test_concordia_capture_marker_fixture.py",
+                 "scripts/concordia_kernel_native.py",
+                 "tests/test_concordia_kernel_native.py",
                  "docs/qualification/concordia-kernel-observer.md",
                  ".github/workflows/ai-runtime-candidate.yml"}
 

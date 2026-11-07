@@ -110,7 +110,7 @@ def test_control_mode_excludes_every_old_job_and_has_no_model_acquisition():
     workflow = yaml.safe_load(path.read_text())
     jobs = workflow["jobs"]
     for name, job in jobs.items():
-        if name != "concordia-kernel-control":
+        if name not in {"concordia-kernel-control", "concordia-kernel-native"}:
             condition = job["if"]
             guarded = condition.startswith(
                 chr(36) + "{{ inputs.concordia_kernel_control != true && (")

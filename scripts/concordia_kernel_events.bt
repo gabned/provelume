@@ -48,31 +48,53 @@ tracepoint:raw_syscalls:sys_enter
 }
 
 tracepoint:syscalls:sys_enter_futex
-/(!CAPTURE_BINDING || @active) && @owned[tid]/
+/@owned[tid]/
 {
-  @emitted[5] = count();
-  printf("U %llu %d 1\n", nsecs, tid);
+  @futex_start[tid] = nsecs;
+  if (!CAPTURE_BINDING || @active) {
+    @futex_recorded[tid] = 1;
+    @emitted[5] = count();
+    printf("U %llu %d 1\n", @futex_start[tid], tid);
+  }
 }
 
 tracepoint:syscalls:sys_exit_futex
-/(!CAPTURE_BINDING || @active) && @owned[tid]/
+/@owned[tid]/
 {
-  @emitted[5] = count();
-  printf("U %llu %d 0\n", nsecs, tid);
+  if (CAPTURE_BINDING && @active && !@futex_recorded[tid] && @futex_start[tid]) {
+    @emitted[5] = count();
+    printf("U %llu %d 1\n", @futex_start[tid], tid);
+  }
+  if (!CAPTURE_BINDING || @active || @futex_recorded[tid]) {
+    @emitted[5] = count();
+    printf("U %llu %d 0\n", nsecs, tid);
+  }
+  delete(@futex_start[tid]); delete(@futex_recorded[tid]);
 }
 
 tracepoint:syscalls:sys_enter_fsync
-/(!CAPTURE_BINDING || @active) && @owned[tid]/
+/@owned[tid]/
 {
-  @emitted[6] = count();
-  printf("D %llu %d 1\n", nsecs, tid);
+  @fsync_start[tid] = nsecs;
+  if (!CAPTURE_BINDING || @active) {
+    @fsync_recorded[tid] = 1;
+    @emitted[6] = count();
+    printf("D %llu %d 1\n", @fsync_start[tid], tid);
+  }
 }
 
 tracepoint:syscalls:sys_exit_fsync
-/(!CAPTURE_BINDING || @active) && @owned[tid]/
+/@owned[tid]/
 {
-  @emitted[6] = count();
-  printf("D %llu %d 0\n", nsecs, tid);
+  if (CAPTURE_BINDING && @active && !@fsync_recorded[tid] && @fsync_start[tid]) {
+    @emitted[6] = count();
+    printf("D %llu %d 1\n", @fsync_start[tid], tid);
+  }
+  if (!CAPTURE_BINDING || @active || @fsync_recorded[tid]) {
+    @emitted[6] = count();
+    printf("D %llu %d 0\n", nsecs, tid);
+  }
+  delete(@fsync_start[tid]); delete(@fsync_recorded[tid]);
 }
 
 tracepoint:sched:sched_process_exit
@@ -83,4 +105,8 @@ tracepoint:sched:sched_process_exit
   delete(@owned[tid]);
 }
 
-END { clear(@owned); clear(@active); }
+END {
+  clear(@owned); clear(@active);
+  clear(@futex_start); clear(@futex_recorded);
+  clear(@fsync_start); clear(@fsync_recorded);
+}
