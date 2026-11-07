@@ -26,6 +26,7 @@ from .instance_cli import (
 from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
+from .productivity_cli import add_productivity_commands, handle_productivity_command
 from .publication_cli import add_publication_commands, handle_publication_command
 from .qualification_cli import add_qualification_commands, handle_qualification_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
@@ -227,6 +228,7 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_instance_lifecycle_commands(subparsers)
     add_hierarchy_commands(subparsers)
     add_connector_commands(subparsers)
+    add_productivity_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -271,6 +273,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     connector_result = handle_connector_command(args)
     if connector_result is not None:
         return connector_result
+    productivity_result = handle_productivity_command(args)
+    if productivity_result is not None:
+        return productivity_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result

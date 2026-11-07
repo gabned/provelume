@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 MAX_RECORD_BYTES = 256 * 1024
@@ -185,7 +185,16 @@ def validate_evidence(value: Any) -> dict:
     return value
 
 
-def _body(kind: str, body: Any) -> None:
+def _date(value):
+    _require(type(value) is str and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value))
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise KnowledgeObjectError() from None
+
+
+def _body(kind: str, body: Any, *, state=None, connector=False) -> None:
+    _require(type(body) is dict)
     fields = {"description"}
     if kind == "claim":
         fields = {"statement"}
@@ -193,16 +202,35 @@ def _body(kind: str, body: Any) -> None:
         fields = {"rationale"}
     elif kind in {"task", "commitment"}:
         fields.add("due_at")
+        if connector and kind == "task":
+            fields.add("due_date")
     elif kind == "calendar_event":
         fields |= {"starts_at", "ends_at", "time_zone"}
+        if connector and "starts_on" in body:
+            fields |= {"starts_on", "ends_on"}
+    if connector and "description_from_source" in body:
+        fields.add("description_from_source")
+        _require(body["description_from_source"] is True and body["description"] == "")
     _closed(body, fields)
-    for field in fields - {"due_at", "starts_at", "ends_at", "time_zone"}:
+    for field in fields - {"due_at", "due_date", "starts_at", "ends_at", "time_zone",
+                           "starts_on", "ends_on", "description_from_source"}:
         _text(body[field], empty=kind not in {"claim", "decision"})
     if "due_at" in fields and body["due_at"] is not None:
         _timestamp(body["due_at"])
+    if "due_date" in fields and body["due_date"] is not None:
+        _require(body["due_at"] is None)
+        _date(body["due_date"])
     if kind == "calendar_event":
-        _require(_timestamp(body["starts_at"]) < _timestamp(body["ends_at"]))
-        _match(body["time_zone"], _ZONE)
+        if "starts_on" in fields:
+            _require(body["starts_at"] is None and body["ends_at"] is None
+                     and body["time_zone"] is None)
+            if body["starts_on"] is None:
+                _require(state == "cancelled" and body["ends_on"] is None)
+            else:
+                _require(_date(body["starts_on"]) < _date(body["ends_on"]))
+        else:
+            _require(_timestamp(body["starts_at"]) < _timestamp(body["ends_at"]))
+            _match(body["time_zone"], _ZONE)
 
 
 def validate_object(value: Any) -> dict:
@@ -224,10 +252,22 @@ def validate_object(value: Any) -> dict:
     for alias in aliases:
         normalized.append(unicodedata.normalize("NFC", _text(alias, 240).strip()).casefold())
     _require(len(set(normalized)) == len(normalized))
-    _body(kind, value["body"])
+    origin = value["origin"]
+    _require(type(origin) is dict and type(origin.get("kind")) is str)
+    connector = origin["kind"] == "connector"
+    if connector:
+        _closed(origin, {"kind", "proposal_id", "source_id", "document_id", "remote_id_sha256"})
+        _require(kind in {"task", "calendar_event"} and origin["proposal_id"] is None)
+        _id(origin["source_id"], "src")
+        _id(origin["document_id"], "doc")
+        _match(origin["remote_id_sha256"], _HASH)
+        _require(bool(value["evidence_ids"]))
+    _body(kind, value["body"], state=value["state"], connector=connector)
     _references(value["evidence_ids"])
     _require(kind != "claim" or bool(value["evidence_ids"]))
     origin = value["origin"]
+    if connector:
+        return value
     _closed(origin, {"kind", "proposal_id"})
     _require(type(origin["kind"]) is str and origin["kind"] in {"manual", "reviewed_proposal"})
     if origin["kind"] == "manual":
@@ -268,6 +308,9 @@ def validate_successor(previous: Any, current: Any, *, relation: bool = False) -
     validator(current)
     keys = {"id", "instance_id", "created_at"} | (set() if relation else {"kind"})
     _require(all(previous[k] == current[k] for k in keys), "conflict")
+    if not relation and (previous["origin"]["kind"] == "connector"
+                         or current["origin"]["kind"] == "connector"):
+        _require(previous["origin"] == current["origin"], "conflict")
     _require(current["revision"] == previous["revision"] + 1, "conflict")
     _require(current["previous_sha256"] == record_digest(previous), "conflict")
     _require(_timestamp(previous["updated_at"]) <= _timestamp(current["updated_at"]), "conflict")

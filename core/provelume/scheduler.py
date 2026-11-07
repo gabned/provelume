@@ -1828,7 +1828,7 @@ class SchedulerCoordinator:
                         pass
                     error_class = "manual_intervention"
                 elif exc.code == "google_cursor_invalidated":
-                    manager.sources.reset_cursor(source_id)
+                    manager.sources.reset_cursor(source_id, invalidated=True)
                     error_class = "manual_intervention"
                 elif exc.code == "google_cancelled":
                     error_class = "cancelled"

@@ -11,6 +11,7 @@ import contextvars
 import hashlib
 import json
 import os
+import re
 import selectors
 import shutil
 import signal
@@ -34,6 +35,53 @@ S06 = "8b3f467aa9e7c059e23f22644786ef0f87582cc3"
 S08 = "e2c9244df692cdd9dbd636a0109a7d920a21ac1b"
 SCRIPT = Path(__file__).resolve()
 CURRENT = contextvars.ContextVar("concordia_probe", default=None)
+
+
+def observer_source(repository, revision):
+    """Bind an optional observer experiment to the freshly fetched default ref."""
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("observer source requires a full commit SHA")
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=repository):
+        raise ValueError("observer driver source is not clean")
+    actual = subprocess.check_output(
+        ["git", "rev-parse", "refs/remotes/origin/main"], cwd=repository, text=True).strip()
+    if revision != actual:
+        raise ValueError("observer source differs from fetched main")
+    if subprocess.check_output(
+            ["git", "cat-file", "-t", revision], cwd=repository, text=True).strip() != "commit":
+        raise ValueError("observer source is not a commit")
+    tree = subprocess.check_output(
+        ["git", "rev-parse", revision + "^{tree}"], cwd=repository, text=True).strip()
+    return {"source": revision, "tree": tree, "reference": "refs/remotes/origin/main"}
+
+
+def admit_observer(repository, revision, output):
+    """Require source, counters and real tracing before acquiring any model."""
+    if output.exists() or output.is_symlink():
+        raise ValueError("preserve existing observer admission")
+    selected = observer_source(repository, revision)
+    portable = admit_portable(output.with_suffix(".portable.json"))
+    result = {**portable, "selected_source": selected, "status": "CAPABILITY_MISSING"}
+    try:
+        sys.path.insert(0, str(repository / "core"))
+        from provelume.ai_runtime_contract import hardware
+
+        result["native_hardware"] = hardware()
+        with tempfile.TemporaryDirectory(prefix="observer-trace-") as scratch:
+            trace = Path(scratch) / "network"
+            smoke = subprocess.run([
+                "strace", "-ff", "-tt", "-e", "trace=network", "-o", str(trace),
+                sys.executable, "-c", "import socket; s=socket.socket(); s.close()",
+            ], capture_output=True, text=True, timeout=20)
+            traces = [path.read_text() for path in trace.parent.glob("network.*")]
+            result["strace_control"] = {"exit_code": smoke.returncode,
+                                       "stderr": smoke.stderr, "traces": traces}
+            if smoke.returncode or not any("socket(AF_INET" in row for row in traces):
+                raise ValueError("actual observer strace control failed")
+        result["status"] = "OBSERVER_SOURCE_ADMITTED"
+    finally:
+        write_json(output, result)
+    return result
 
 
 def portable_tracer_plan(allowed=None, topology=Path("/sys/devices/system/cpu")):
@@ -400,6 +448,13 @@ def accounting():
     return result
 
 
+def caller_clocks():
+    """No task wrapping, resource counters, /proc reads or durability hooks."""
+    return {"monotonic_ns": time.monotonic_ns(),
+            "process_cpu_ns": time.process_time_ns(),
+            "thread_cpu_ns": time.thread_time_ns(), "tid": threading.get_native_id()}
+
+
 class BoundaryCounters:
     """Preopen numeric counters outside capture; bracket even very short calls.
 
@@ -543,7 +598,8 @@ def nonqualifying(evaluate):
     return wrapped
 
 
-def observe_operation(original, name):
+def observe_operation(original, name, clock=None):
+    clock = clock or accounting
     def wrapped(*args, **kwargs):
         context = CURRENT.get()
         if context is None:
@@ -552,21 +608,104 @@ def observe_operation(original, name):
         boundary = context.get("_boundary")
         if boundary is not None:
             row["boundary_before"] = boundary.snapshot()
-            context["active_operation"] = name
-        row["before"] = accounting()
+        context["active_operation"] = name
+        row["before"] = clock()
         try:
             return original(*args, **kwargs)
         finally:
-            row["after"] = accounting()
+            row["after"] = clock()
             if boundary is not None:
                 row["boundary_after"] = boundary.snapshot()
-                context.pop("active_operation", None)
+            context.pop("active_operation", None)
             context["operations"].append(row)
     return wrapped
 
 
+def observe_span(original, name, clock=None):
+    """Time a caller-bound method directly; never use a cross-thread profile stack."""
+    clock = clock or accounting
+    def wrapped(*args, **kwargs):
+        context = CURRENT.get()
+        if context is None:
+            return original(*args, **kwargs)
+        row = {"span": name, "operation": context.get("active_operation"),
+               "before": clock()}
+        try:
+            return original(*args, **kwargs)
+        except BaseException as error:
+            row["error"] = type(error).__name__
+            raise
+        finally:
+            row["after"] = clock()
+            context["spans"].append(row)
+    return wrapped
+
+
+class PrefixStop(BaseException):
+    """Let the unchanged qualifier finalize its partial report and native cleanup."""
+    def __init__(self, reason, evidence=None):
+        self.reason = reason
+        self.evidence = evidence
+
+
+def prefix_warm_case(original):
+    def wrapped(report, store, runtime, selection, evidence, case, run):
+        if report.get("failures"):
+            raise PrefixStop("APPLICATION_FAILURE")
+        busy = report.get("deterministic_busy", [])
+        if not busy or not all(row.get("worker_observed") for row in busy):
+            raise PrefixStop("MISSING_CONCURRENCY")
+        if run == 1:
+            if len(report.get("samples", [])) != 20 or len(busy) != 2:
+                raise PrefixStop("INCOMPLETE_PREFIX")
+            raise PrefixStop("TARGET_PREFIX_COMPLETE")
+        result = original(report, store, runtime, selection, evidence, case, run)
+        if report.get("failures") or not report["samples"][-1]["pass"]:
+            raise PrefixStop("APPLICATION_FAILURE")
+        return result
+    return wrapped
+
+
+def prefix_self_test(original):
+    def wrapped(*args, **kwargs):
+        evidence = original(*args, **kwargs)
+        if evidence.result != "PASSED":
+            raise PrefixStop("SELF_TEST_FAILED", evidence.public_record())
+        return evidence
+    return wrapped
+
+
+def prefix_environment():
+    """Retain host path/locale selectors without credentials or proxy headers."""
+    result = {name: os.environ[name] for name in
+              ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TMP", "TEMP")
+              if name in os.environ}
+    result["PYTHONNOUSERSITE"] = "1"
+    return result
+
+
 def worker(source, artifacts, output, mode="legacy", placement=None,
-           inherited_affinity=None, tracer_cpu=None):
+           inherited_affinity=None, tracer_cpu=None, pool_accounting=False, pool_prefix=False,
+           caller_spans=False, clock_only=False):
+    if clock_only and (not caller_spans or pool_accounting or pool_prefix
+                       or mode != "boundary" or placement is not None
+                       or inherited_affinity is not None or tracer_cpu is not None):
+        raise ValueError("clock-only collection requires isolated caller clocks")
+    if pool_prefix and (mode != "boundary" or not pool_accounting or placement is not None
+                        or inherited_affinity is not None or tracer_cpu is not None):
+        raise ValueError("pool prefix requires boundary accounting without placement changes")
+    if caller_spans and (pool_prefix or mode != "boundary"
+                         or (not pool_accounting and not clock_only)
+                         or placement is not None or inherited_affinity is not None
+                         or tracer_cpu is not None):
+        raise ValueError("caller spans require full boundary accounting without placement changes")
+    if (pool_prefix or caller_spans) and any(
+            (output / name).exists() or (output / name).is_symlink()
+            for name in ("report-before-observer.json", "probe-accounting.jsonl",
+                         "prefix-state.json")):
+        raise ValueError("preserve existing prefix evidence")
+    if pool_accounting and mode == "legacy":
+        raise ValueError("pool accounting requires operation-boundary counters")
     # The tracer alone receives its one-CPU condition. Restore the child before
     # application imports, hardware checks or any native worker can be created.
     if inherited_affinity is not None:
@@ -597,6 +736,7 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
                                    pass_fds=(read_pipe,))
         os.close(read_pipe)
     raw_probe = ai_runtime_report.deterministic_probe
+    clock = caller_clocks if clock_only else accounting
     sequence = 0
     active = None
 
@@ -605,7 +745,11 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
         sequence += 1
         context = {"probe_id": sequence, "sample": number, "operations": [],
                    "caller": Path(sys._getframe(1).f_code.co_filename).name,
-                   "before": accounting()}
+                   "before": clock()}
+        if clock_only:
+            context["counter_collection"] = "NOT_COLLECTED / CLOCK_ONLY"
+        if pool_prefix or caller_spans:
+            context["spans"] = []
         roles = {"parent": [os.getpid()], "tracer": [os.getppid()],
                  "sampler": [sampler.pid] if sampler else [],
                  "workers": [r._process.pid for r in instances if r._process is not None]}
@@ -624,7 +768,7 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
         if write_pipe is not None:
             os.write(write_pipe, (json.dumps(event) + "\n").encode())
         boundary = BoundaryCounters(roles, cgroup_boundaries=placement is not None) \
-            if mode != "legacy" else None
+            if mode != "legacy" and not clock_only else None
         if boundary is not None:
             context.update(_boundary=boundary, boundary_inventory=boundary.inventory,
                            roles=roles, durability=[], observation_mode=mode, pool_tasks=[])
@@ -640,7 +784,7 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
             row["diagnostic_timeline"] = context
             return row
         finally:
-            context["after"] = accounting()
+            context["after"] = clock()
             CURRENT.reset(token)
             active = None
             if boundary is not None:
@@ -653,15 +797,17 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
                 os.write(write_pipe, (json.dumps({"kind": "end", "probe_id": sequence,
                          "monotonic_ns": time.monotonic_ns()}) + "\n").encode())
 
+    prefix_state = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
+                    "stop": "APPLICATION_ERROR"}
     try:
         with ExitStack() as stack:
-            if placement is not None:
+            if placement is not None or pool_accounting:
                 stack.enter_context(patch.object(ThreadPoolExecutor, "submit",
                     pool_observer(ThreadPoolExecutor.submit)))
             stack.enter_context(patch.object(LocalRuntime, "__init__", runtime_init))
             stack.enter_context(patch.object(ai_runtime_report, "deterministic_probe", probe))
             stack.enter_context(patch.object(qualify_ai_runtime, "deterministic_probe", probe))
-            if mode != "legacy":
+            if mode != "legacy" and not clock_only:
                 for name in ("fsync", "fdatasync"):
                     stack.enter_context(patch.object(os, name, durability_observer(
                         getattr(os, name), name, lambda: active)))
@@ -670,13 +816,37 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
                                                   nonqualifying(target.evaluate)))
             for name in ("submit", "process"):
                 stack.enter_context(patch.object(CaptureAdapter, name,
-                    observe_operation(getattr(CaptureAdapter, name), name)))
-            report = qualify_ai_runtime.measure(artifacts, output / "report-before-observer.json")
+                    observe_operation(getattr(CaptureAdapter, name), name, clock)))
+            if pool_prefix or caller_spans:
+                from provelume.atomic_commit import AtomicInstanceCommit
+
+                for name in ("_prepare", "_publish_entries", "_shutdown_pool"):
+                    stack.enter_context(patch.object(AtomicInstanceCommit, name,
+                        observe_span(getattr(AtomicInstanceCommit, name), name, clock)))
+            if pool_prefix:
+                from provelume.ai_model_store import ModelStore
+
+                stack.enter_context(patch.object(qualify_ai_runtime, "measure_warm_case",
+                    prefix_warm_case(qualify_ai_runtime.measure_warm_case)))
+                stack.enter_context(patch.object(ModelStore, "self_test",
+                    prefix_self_test(ModelStore.self_test)))
+            try:
+                report = qualify_ai_runtime.measure(
+                    artifacts, output / "report-before-observer.json")
+            except PrefixStop as stopped:
+                if not pool_prefix:
+                    raise
+                prefix_state.update(stop=stopped.reason, evidence=stopped.evidence)
+                report = json.loads((output / "report-before-observer.json").read_text())
             report["diagnostic_driver_sha256"] = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
             report["diagnostic_observation_mode"] = mode
             report["diagnostic_placement"] = placement
+            if clock_only:
+                report["diagnostic_counter_collection"] = "NOT_COLLECTED / CLOCK_ONLY"
             write_json(output / "report-before-observer.json", report)
     finally:
+        if pool_prefix:
+            write_json(output / "prefix-state.json", prefix_state)
         if write_pipe is not None:
             os.close(write_pipe)
         if sampler is not None and sampler.wait(timeout=30) != 0:
@@ -706,11 +876,11 @@ def _observed_task_counters(value):
     return len(numbers) == 3 and min(numbers) >= 0 and bool(value["io"])
 
 
-def verify_digest_accounting(output):
+def verify_digest_accounting(output, expected_probes=25):
     """Refuse another arm when the required contemporaneous counters are absent."""
     rows = [json.loads(line) for line in
             (output / "probe-accounting.jsonl").read_text().splitlines()]
-    if [row["probe_id"] for row in rows] != list(range(1, 26)):
+    if [row["probe_id"] for row in rows] != list(range(1, expected_probes + 1)):
         raise ValueError("digest_probe_collection_incomplete")
     pool_count = 0
     for row in rows:
@@ -729,15 +899,156 @@ def verify_digest_accounting(output):
                 raise ValueError("digest_pool_counter_gap")
     if not pool_count:
         raise ValueError("digest_pool_collection_incomplete")
-    return {"status": "REQUIRED_COUNTERS_COMPLETE", "probes": 25, "operations": 50,
-            "snapshots": 100, "pool_tasks": pool_count}
+    return {"status": "REQUIRED_COUNTERS_COMPLETE", "probes": expected_probes,
+            "operations": 2 * expected_probes, "snapshots": 4 * expected_probes,
+            "pool_tasks": pool_count}
+
+
+def method_span_errors(rows):
+    """Require complete same-caller spans inside every original operation."""
+    errors = []
+    for row in rows:
+        spans = row.get("spans", [])
+        if sorted(s["span"] for s in spans) != sorted(
+                ["_prepare", "_publish_entries", "_shutdown_pool"] * 2):
+            errors.append("direct method spans incomplete")
+            break
+        operations = {op["operation"]: op for op in row["operations"]}
+        if any(sorted(s["span"] for s in spans if s["operation"] == name)
+               != ["_prepare", "_publish_entries", "_shutdown_pool"] for name in operations):
+            errors.append("transaction span sequence incomplete")
+        for span in spans:
+            operation = operations.get(span["operation"])
+            before, after = span["before"], span["after"]
+            if (operation is None or before["tid"] != after["tid"]
+                    or before["tid"] != operation["before"]["tid"]
+                    or not operation["before"]["monotonic_ns"] <= before["monotonic_ns"]
+                    <= after["monotonic_ns"] <= operation["after"]["monotonic_ns"]):
+                errors.append("direct span caller or interval mismatch")
+    return errors
+
+
+def verify_caller_collection(output, *, clock_only):
+    """Validate light observations without inventing absent kernel counters."""
+    rows = [json.loads(line) for line in
+            (output / "probe-accounting.jsonl").read_text().splitlines()]
+    if [r["probe_id"] for r in rows] != list(range(1, 26)):
+        raise ValueError("caller_probe_collection_incomplete")
+    if method_span_errors(rows):
+        raise ValueError("caller_method_collection_incomplete")
+    for row in rows:
+        if sorted(op["operation"] for op in row["operations"]) != ["process", "submit"]:
+            raise ValueError("caller_operation_collection_incomplete")
+        if clock_only and (row.get("counter_collection") != "NOT_COLLECTED / CLOCK_ONLY"
+                           or any(k in row for k in ("pool_tasks", "durability",
+                                                     "boundary_inventory", "_boundary"))):
+            raise ValueError("clock_only_counter_contract_changed")
+        intervals = [row, *row["operations"], *row["spans"]]
+        for interval in intervals:
+            before, after = interval["before"], interval["after"]
+            for key in ("monotonic_ns", "process_cpu_ns", "thread_cpu_ns", "tid"):
+                if any(type(point.get(key)) is not int or point[key] < 0
+                       for point in (before, after)):
+                    raise ValueError("caller_clock_unobserved")
+            if before["tid"] != after["tid"] or before["tid"] != row["before"]["tid"]:
+                raise ValueError("caller_clock_thread_changed")
+            if any(after[k] < before[k] for k in
+                   ("monotonic_ns", "process_cpu_ns", "thread_cpu_ns")):
+                raise ValueError("caller_clock_reversed")
+            if not (row["before"]["monotonic_ns"] <= before["monotonic_ns"]
+                    <= after["monotonic_ns"] <= row["after"]["monotonic_ns"]):
+                raise ValueError("caller_clock_outside_probe")
+        if clock_only and any("boundary_before" in op or "boundary_after" in op
+                              for op in row["operations"]):
+            raise ValueError("clock_only_boundary_contract_changed")
+    report = json.loads((output / "report.json").read_text())
+    if (report.get("status") != "DIAGNOSTIC_ONLY"
+            or report.get("qualification_eligible") is not False
+            or "instrumented_evaluated_status" not in report
+            or report.get("network") != "PASS"):
+        raise ValueError("caller_original_verdict_or_network_incomplete")
+    exits = {}
+    for pid in report.get("worker_pids", []):
+        path = output / ("network." + str(pid))
+        exits[str(pid)] = path.is_file() and bool(re.search(
+            r"\+\+\+ (?:exited with \d+|killed by SIG[^\n]+) \+\+\+", path.read_text()))
+    if not exits or not all(exits.values()):
+        raise ValueError("caller_native_exit_unobserved")
+    return {"status": "CALLER_COLLECTION_COMPLETE", "probes": 25, "operations": 50,
+            "method_spans": 150, "qualification_eligible": False,
+            "kernel_counters": "NOT_COLLECTED / CLOCK_ONLY" if clock_only else "RICH_BUNDLE",
+            "native_exits": exits}
+
+
+def inspect_prefix(output):
+    """Check collection of the partial prefix without qualifying a full network gate."""
+    report = json.loads((output / "report.json").read_text())
+    state = json.loads((output / "prefix-state.json").read_text())
+    rows = [json.loads(line) for line in
+            (output / "probe-accounting.jsonl").read_text().splitlines()]
+    errors = []
+    if state.get("stop") != "TARGET_PREFIX_COMPLETE" or report.get("failures"):
+        errors.append("prefix application or boundary failure")
+    if (report.get("status") != "DIAGNOSTIC_ONLY"
+            or report.get("qualification_eligible") is not False
+            or "instrumented_evaluated_status" not in report):
+        errors.append("original partial verdict not preserved")
+    if (report.get("network") != "NOT_RUN"
+            or report.get("network_observation", {}).get("complete_phases") is not False):
+        errors.append("partial prefix cannot qualify the original full-phase network gate")
+    idle, busy = report.get("deterministic_idle", []), report.get("deterministic_busy", [])
+    if (len(idle) != 3 or len(busy) != 2 or len(report.get("samples", [])) != 20
+            or not all(p.get("preserved") and p.get("search_found") for p in idle + busy)
+            or not all(p.get("worker_observed") for p in busy)
+            or not all(p.get("pass") for p in report.get("samples", []))):
+        errors.append("prefix cases or concurrency incomplete")
+    try:
+        counters = verify_digest_accounting(output, expected_probes=5)
+    except ValueError as error:
+        counters = None
+        errors.append(str(error))
+    errors.extend(method_span_errors(rows))
+    traces = list(output.glob("network.*"))
+    calls = [line for path in traces for line in path.read_text().splitlines()
+             if re.search(r"\b(socket|connect|sendto|sendmsg|sendmmsg)\(", line)]
+    unexpected = [line for line in calls if "= -1 EPERM" not in line]
+    if unexpected:
+        errors.append("unexpected prefix network call")
+    exits = {}
+    for pid in report.get("worker_pids", []):
+        path = output / ("network." + str(pid))
+        exits[str(pid)] = path.is_file() and bool(re.search(
+            r"\+\+\+ (?:exited with \d+|killed by SIG[^\n]+) \+\+\+", path.read_text()))
+    if not exits or not all(exits.values()):
+        errors.append("native exits not observed")
+    result = {"status": "PREFIX_COLLECTION_COMPLETE" if not errors else "INCOMPLETE",
+              "qualification_eligible": False, "errors": errors, "counters": counters,
+              "prefix_network_calls": calls, "native_trace_exits": exits,
+              "full_phase_network_gate": "NOT_RUN",
+              "original_partial_evaluated_status": report.get("instrumented_evaluated_status")}
+    write_json(output / "prefix-inspection.json", result)
+    return result
 
 
 def run(repository, inputs, output, reverse=False, observer_study=False, placement_study=False,
-        tracer_study=False, portable_tracer_study=False, digest_study=False):
-    """Four fixed arms, once each, same runner/interpreter/path; no retry-to-green."""
+        tracer_study=False, portable_tracer_study=False, digest_study=False,
+        observer_revision=None, pool_prefix=False, caller_spans=False, clock_bundle=False):
+    """Run the selected fixed arms once; preserve every outcome without retry."""
     if digest_study and reverse:
         raise ValueError("bounded digest comparison has one fixed AB/BA order")
+    if pool_prefix and (not observer_study or observer_revision is None):
+        raise ValueError("pool prefix requires an explicit observer source")
+    if caller_spans and (pool_prefix or not observer_study or observer_revision is None):
+        raise ValueError("caller spans require one explicit full observer source")
+    if clock_bundle and (pool_prefix or caller_spans or not observer_study
+                         or observer_revision is None):
+        raise ValueError("clock bundle requires its own explicit full observer source")
+    selected = None
+    if observer_revision is not None:
+        if not observer_study or reverse or any((placement_study, tracer_study,
+                                                portable_tracer_study, digest_study)):
+            raise ValueError("single-source observer control requires its fixed ABBA order")
+        selected = observer_source(repository, observer_revision)
     output.mkdir(parents=True, exist_ok=False)
     candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository,
                                         text=True).strip()
@@ -750,6 +1061,18 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
              ("s08-original", S08, "legacy"), ("candidate", candidate, "legacy")])
     if reverse:
         arms.reverse()
+    if selected is not None:
+        arms = [("main-boundary-a", observer_revision, "boundary"),
+                ("main-extended-b1", observer_revision, "extended"),
+                ("main-extended-b2", observer_revision, "extended"),
+                ("main-boundary-a2", observer_revision, "boundary")]
+    if pool_prefix:
+        arms = [("main-pool-prefix", observer_revision, "boundary")]
+    if caller_spans:
+        arms = [("main-governed-caller-spans", observer_revision, "boundary")]
+    if clock_bundle:
+        arms = [("main-clock-only", observer_revision, "boundary"),
+                ("main-rich-observer", observer_revision, "boundary")]
     placements = {}
     tracer_cpus = {}
     if placement_study:
@@ -785,7 +1108,10 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                 "sched_schedstats": read_text(Path("/proc/sys/kernel/sched_schedstats")),
                 "observer": "strace -ff -ttt -T; syscall set recorded per arm",
                 "sampling_seconds": 0.01, "order": [name for name, _, _ in arms],
-                "experiment": "bounded-digest-product-comparison" if digest_study else
+                "experiment": "caller-bound-pool-prefix" if pool_prefix else
+                    "common-observer-bundle-contrast" if clock_bundle else
+                    "governed-caller-spans" if caller_spans else
+                    "bounded-digest-product-comparison" if digest_study else
                     "portable-tracer-placement" if portable_tracer_study else
                     "tracer-placement" if tracer_study else
                     "SMT-placement" if placement_study else
@@ -794,6 +1120,27 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                                 "OS cache not flushed", "task exits can truncate task accounting",
                                 "proc sampling does not prove individual syscall causality"]}
     write_json(output / "manifest.json", manifest)
+    if selected is not None:
+        manifest["experiment"] = ("caller-bound-pool-prefix" if pool_prefix
+                                  else "common-observer-bundle-contrast" if clock_bundle
+                                  else "governed-caller-spans" if caller_spans
+                                  else "current-main-observer-bundle")
+        manifest["selected_source"] = selected
+        manifest["common_pool_accounting"] = True
+        if clock_bundle:
+            manifest["common_pool_accounting"] = False
+            manifest["observer"] = "strace -ff -tt; original qualifying network-only options"
+            manifest["sampling_seconds"] = None
+            manifest["trace_options"] = ["-ff", "-tt", "-e", "trace=network"]
+            manifest["limitations"].extend([
+                "one fixed light/rich pair cannot exclude order/cache/host drift",
+                "aggregate observer factor does not isolate each component",
+                "light arm does not collect kernel counters; none are fabricated"])
+        manifest["limitations"].append("new-task observer cost is retained, never subtracted")
+        if pool_prefix:
+            manifest["prefix"] = "3 idle; run0 busy and 20 warm cases; run1 busy; stop before warm"
+            manifest["limitations"].append("partial prefix cannot qualify full-phase network")
+        write_json(output / "manifest.json", manifest)
     shutil.copyfile(SCRIPT, output / "driver.py")
     if digest_study:
         manifest["product_comparison"] = digest_comparison(repository, candidate)
@@ -857,18 +1204,37 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     placement_args = ["--placement", placements[name]] \
                         if (placement_study or tracer_study or portable_tracer_study
                             or digest_study) else []
+                    clock_only = clock_bundle and name == "main-clock-only"
+                    if clock_bundle:
+                        arm["counter_collection"] = ("NOT_COLLECTED / CLOCK_ONLY"
+                                                     if clock_only else "RICH_COMMON_BUNDLE")
+                        arm["trace_options"] = ["-ff", "-tt", "-e", "trace=network"]
+                        write_json(output / "manifest.json", manifest)
+                    if selected is not None and not clock_only:
+                        placement_args += ["--pool-accounting"]
+                    if pool_prefix:
+                        placement_args += ["--pool-prefix"]
+                    if caller_spans or clock_bundle:
+                        placement_args += ["--caller-spans"]
+                    if clock_only:
+                        placement_args += ["--clock-only"]
                     if tracer_study or portable_tracer_study or digest_study:
                         placement_args += ["--inherited-affinity",
                             ",".join(map(str, manifest["placement_plan"]["allowed"])),
                             "--tracer-cpu", str(tracer_cpus[name])]
-                    command = ["strace", "-ff", "-ttt", "-T", "-e",
+                    trace_options = ["-ff", "-tt"] if clock_bundle else ["-ff", "-ttt", "-T"]
+                    command = ["strace", *trace_options, "-e",
                         "trace=" + arm["trace"], "-o", str(arm_output / "network"),
                         sys.executable, str(SCRIPT), "worker", "--source", str(source),
                         "--artifacts", str(data), "--output", str(arm_output), "--mode", mode,
                         *placement_args]
                     if tracer_study or portable_tracer_study or digest_study:
                         command = ["taskset", "--cpu-list", str(tracer_cpus[name]), *command]
-                    process = subprocess.Popen(command,
+                    child_environment = None
+                    if pool_prefix or caller_spans or clock_bundle:
+                        # Preserve harmless selectors, excluding credentials and proxy headers.
+                        child_environment = prefix_environment()
+                    process = subprocess.Popen(command, env=child_environment,
                         cwd=source, stdout=stream, stderr=subprocess.STDOUT,
                         start_new_session=True)
                     try:
@@ -888,6 +1254,44 @@ def run(repository, inputs, output, reverse=False, observer_study=False, placeme
                     arm["observer_exit_code"] = observed.returncode
                 arm["finished_ns"] = time.time_ns()
                 write_json(output / "manifest.json", manifest)
+                if pool_prefix:
+                    if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
+                        raise RuntimeError("prefix execution or observation failed; no retry")
+                    arm["prefix_inspection"] = inspect_prefix(arm_output)
+                    write_json(output / "manifest.json", manifest)
+                    if arm["prefix_inspection"]["status"] != "PREFIX_COLLECTION_COMPLETE":
+                        raise RuntimeError("prefix collection incomplete; no retry")
+                    continue
+                if selected is not None:
+                    if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
+                        raise RuntimeError("observer_arm_or_collection_failed; no next arm")
+                    report = json.loads((arm_output / "report.json").read_text())
+                    if report.get("network") != "PASS" or report.get("failures"):
+                        raise RuntimeError("observer_network_or_application_failed; no next arm")
+                    if not clock_only:
+                        arm["accounting_integrity"] = verify_digest_accounting(arm_output)
+                    if clock_bundle:
+                        arm["caller_collection"] = verify_caller_collection(
+                            arm_output, clock_only=clock_only)
+                    if caller_spans:
+                        rows = [json.loads(line) for line in
+                                (arm_output / "probe-accounting.jsonl").read_text().splitlines()]
+                        errors = method_span_errors(rows)
+                        if errors:
+                            arm["caller_span_errors"] = errors
+                            write_json(output / "manifest.json", manifest)
+                            raise RuntimeError("caller span collection incomplete; no retry")
+                        arm["caller_span_integrity"] = "COMPLETE / diagnostic only"
+                    stop_path = arm_output / "non-timing-stop-control.json"
+                    subprocess.run([sys.executable, str(repository / "scripts" /
+                        "compare_concordia_journal.py"), "inspect", "--source", str(source),
+                        "--report", str(arm_output / "report.json"), "--output", str(stop_path)],
+                        cwd=source, check=True, timeout=60)
+                    stop = json.loads(stop_path.read_text())
+                    arm["non_timing_conjuncts_pass"] = stop["non_capture_conjuncts_checked"]
+                    write_json(output / "manifest.json", manifest)
+                    if not arm["non_timing_conjuncts_pass"]:
+                        raise RuntimeError("observer_non_timing_failure; no next arm")
                 if placement_study or tracer_study or portable_tracer_study or digest_study:
                     if arm["exit_code"] != 0 or arm.get("observer_exit_code") != 0:
                         raise RuntimeError("SMT_arm_or_observer_failed; no next arm")
@@ -919,6 +1323,10 @@ def main():
     measurement.add_argument("--artifacts", type=Path, required=True)
     measurement.add_argument("--output", type=Path, required=True)
     measurement.add_argument("--mode", choices=("legacy", "boundary", "extended"), default="legacy")
+    measurement.add_argument("--pool-accounting", action="store_true")
+    measurement.add_argument("--pool-prefix", action="store_true")
+    measurement.add_argument("--caller-spans", action="store_true")
+    measurement.add_argument("--clock-only", action="store_true")
     measurement.add_argument("--placement",
                              choices=("same_logical", "smt_sibling", "portable_foreground"))
     measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
@@ -931,6 +1339,10 @@ def main():
     digest = commands.add_parser("digest-admission")
     digest.add_argument("--repository", type=Path, required=True)
     digest.add_argument("--output", type=Path, required=True)
+    observer_admission = commands.add_parser("observer-admission")
+    observer_admission.add_argument("--repository", type=Path, required=True)
+    observer_admission.add_argument("--source", required=True)
+    observer_admission.add_argument("--output", type=Path, required=True)
     observation = commands.add_parser("observe")
     observation.add_argument("--source", type=Path, required=True)
     observation.add_argument("--output", type=Path, required=True)
@@ -939,6 +1351,10 @@ def main():
     controlled.add_argument("--inputs", type=Path, required=True)
     controlled.add_argument("--output", type=Path, required=True)
     controlled.add_argument("--reverse", action="store_true")
+    controlled.add_argument("--observer-source")
+    controlled.add_argument("--pool-prefix", action="store_true")
+    controlled.add_argument("--caller-spans", action="store_true")
+    controlled.add_argument("--clock-bundle", action="store_true")
     study = controlled.add_mutually_exclusive_group()
     study.add_argument("--observer-study", action="store_true")
     study.add_argument("--placement-study", action="store_true")
@@ -950,7 +1366,10 @@ def main():
         sample(args.pipe, args.output)
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
-               args.placement, args.inherited_affinity, args.tracer_cpu)
+               args.placement, args.inherited_affinity, args.tracer_cpu, args.pool_accounting,
+               args.pool_prefix, args.caller_spans, args.clock_only)
+    elif args.command == "observer-admission":
+        admit_observer(args.repository.resolve(), args.source, args.output)
     elif args.command == "portable-topology":
         admit_portable(args.output)
     elif args.command == "digest-admission":
@@ -972,7 +1391,8 @@ def main():
     else:
         run(args.repository.resolve(), args.inputs.resolve(), args.output.resolve(), args.reverse,
             args.observer_study, args.placement_study, args.tracer_study,
-            args.portable_tracer_study, args.bounded_digest_study)
+            args.portable_tracer_study, args.bounded_digest_study, args.observer_source,
+            args.pool_prefix, args.caller_spans, args.clock_bundle)
 
 
 if __name__ == "__main__":
