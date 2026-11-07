@@ -118,7 +118,8 @@ No Concordia release is published by normal CI or this workstream.
 
 ## Exact external Git versions
 
-The closed candidate set is Linux Git 2.52.0 (this development environment), Linux
+The closed candidate set is Linux Git 2.51.1 (the pinned workspace tool), Linux
+Git 2.52.0 (this development environment), Linux
 Git 2.56.0 (observed in the permanent Ubuntu CI and release-source-gate jobs), and
 Git for Windows 2.56.0.windows.4 (observed in Windows CI). Each requires its own
 native conformance evidence; admission to the candidate set is not qualification.
@@ -152,3 +153,30 @@ preserved. All process/storage/operation limits and the unknown-version refusal
 remain unchanged. The corrected native Git 2.43.0 cases passed (34 passed, one
 native Windows skip). Full suite and permanent CI must qualify the new exact
 candidate, including the actual pinned image and Windows binary independently.
+
+### Correction: selected tool versus package inventory
+
+The exact same upstream image history also declares installed Git tool **2.51.1**
+(line 41), separately from the distro package 2.43.0 (line 52). The a6b5a59
+workspace run42422481454 still refused its selected Git (26 failures, 5,785
+passes); the distro package inventory was insufficient to establish executable
+selection. The original a6 results remain FAIL. Native diagnostics now record
+the selected binary/version in the conformance test before admission, rather than
+guessing from a package list.
+
+Git 2.43.0 source-build transport cases passed34/one native skip, but its full
+toolchain run failed the preexisting Protocol no-lazy-fetch sentinel (5,809
+passed,64skips,419subtests). Upstream2.43 lacks GIT_NO_LAZY_FETCH; it is not the
+declared development host and is removed from the supported candidate set. This
+is not a Protocol exception or test change. Original logs remain, and native
+checks are independently run on the actual development host Git2.52.0.
+
+The exact separately installed workspace Git2.51.1 was independently built from
+upstream commit `81f86aacc4eb74cdb9c2c8082d36d2070c666045`, annotated tag
+`2932bfe29fa1c966e0230ee81b0aaccf5c78af1f`. Its native transport and Protocol
+no-lazy-fetch sentinel cases passed35/one native Windows skip before admission.
+An added negative control explicitly refuses2.43.0 as well as unknown versions.
+Actual pinned-image CI, each other supported Git
+binary and the exact resulting candidate still need their own complete checks.
+No unsupported version is accepted by a range, no limit or required check changes,
+and no original result or head identity is replaced.
