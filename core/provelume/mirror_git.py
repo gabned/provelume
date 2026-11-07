@@ -261,7 +261,6 @@ class GitMirrors:
             require(grant["credential"] == {"reference": ""}, "git_local_credentials")
             target = grant["destinations"][destination_id]["target"]
             target_configuration(target)
-            exclude_instance_tree(Path(target["repository"]), self.store)
             return row, authority, target
 
     def status(self):
@@ -278,8 +277,22 @@ class GitMirrors:
         row, authority, target = self.context(destination_id)
         require(row["destination_sha256"] == expected_destination_sha256, "stale")
         selected = Path(target["repository"])
+        with pinned_parent(selected) as (path, _parent):
+            # Qualify locality and every physical parent before any leaf probe.
+            exclude_instance_tree(path.parent.resolve() / path.name, self.store)
+            require(
+                not path.is_symlink() and not path.is_junction() and not path.exists(),
+                "git_target_exists",
+            )
+        return self._initialize_admitted(destination_id, row, authority, selected)
+
+    def _initialize_admitted(self, destination_id, row, authority, selected):
         with pinned_parent(selected) as (path, parent), git_work() as session:
-            require(not path.exists() and not path.is_symlink(), "git_target_exists")
+            exclude_instance_tree(path.parent.resolve() / path.name, self.store)
+            require(
+                not path.is_symlink() and not path.is_junction() and not path.exists(),
+                "git_target_exists",
+            )
             version = session.probe()
             require(self.mirrors.authority(destination_id)[1] == authority, "stale")
             if os.name == "posix":
@@ -314,6 +327,8 @@ class GitMirrors:
             }
 
     def _initialize_pinned(self, session, pinned, binding):
+        exclude_instance_tree(pinned.resolve(), self.store)
+        require(not any(pinned.iterdir()), "git_target_not_empty")
         session.run(["init", "--bare", "--object-format=sha1"], git_directory=pinned)
         marker = {
             "schema": "provelume-local-git-target/v1",

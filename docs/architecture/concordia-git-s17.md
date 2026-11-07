@@ -77,7 +77,11 @@ CLI controls are `mirror-git-status`, `mirror-git-initialize`, `mirror-git-prepa
 the same controls. Configuration remains an explicit external JSON file passed to
 the shared identity/configure commands. Only a fresh absent private bare root may
 be initialized. Existing roots/config/helpers/hooks/alternates/links are never
-silently adopted or repaired. The local UI shows branch/path/commit identity,
+silently adopted or repaired. Filesystem locality and pinned parents precede all
+target metadata probes; physical parent/root paths exclude canonical and registered
+Source roots without resolving or contacting those Source inputs. Initialization
+rechecks that the actual pinned root is empty before Git may write to it. Any
+unexpected preexisting content remains intact. The local UI shows branch/path/commit identity,
 exact preview, confirmation, conflict/UNKNOWN and historical receipt limitations.
 
 The existing `mirror.prepare` scheduler publishes this profile only for a current

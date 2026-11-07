@@ -102,9 +102,19 @@ def target_configuration(value):
     return value
 
 
+def _reference_path(value):
+    text = str(value)
+    if os.name == "nt" and text.startswith("\\\\?\\UNC\\"):
+        text = "\\\\" + text[8:]
+    elif os.name == "nt" and text.startswith("\\\\?\\"):
+        text = text[4:]
+    return Path(os.path.abspath(text))
+
+
 def exclude_instance_tree(repository, store):
-    root = store.paths.root.resolve()
-    selected = repository.absolute()
+    # Caller has admitted locality and pinned the physical parent/root first.
+    root = _reference_path(store.paths.root.resolve())
+    selected = _reference_path(repository)
     require(
         not selected.is_relative_to(root) and not root.is_relative_to(selected), "unsafe_git_target"
     )
@@ -112,9 +122,15 @@ def exclude_instance_tree(repository, store):
     require(not selected.is_relative_to(control), "unsafe_git_target")
     sources = store.read_config().get("sources") or {}
     require(type(sources) is dict and len(sources) <= MAX_RECORDS, "limit")
-    for source_id in sources:
-        observed = store.source_path(source_id)
-        if observed is not None:
+    for source in sources.values():
+        require(type(source) is dict, "invalid")
+        configured = source.get("path")
+        if configured is not None:
+            require(type(configured) is str and configured and "\x00" not in configured, "invalid")
+            # Registered Source paths are already canonicalized at enrollment.
+            # Normalize portable references lexically; never resolve/probe an
+            # offline or remote Source just to prepare a local mirror.
+            observed = _reference_path(root / configured)
             require(
                 not selected.is_relative_to(observed) and not observed.is_relative_to(selected),
                 "unsafe_git_target",
@@ -219,7 +235,6 @@ def audit_bare_root(root, *, instance_id, device, binding):
 def local_target(target, *, store, device):
     target_configuration(target)
     selected = Path(target["repository"])
-    exclude_instance_tree(selected, store)
     if os.name == "posix":
         with pinned_parent(selected) as (path, parent):
             descriptor = os.open(
@@ -234,6 +249,7 @@ def local_target(target, *, store, device):
                 binding = directory_binding(descriptor)
                 pinned = Path("/proc/self/fd") / str(descriptor)
                 require(pinned.is_dir(), "git_containment")
+                exclude_instance_tree(pinned.resolve(), store)
                 marker = audit_bare_root(
                     pinned,
                     instance_id=store.read_config()["instance"]["id"],
@@ -256,6 +272,7 @@ def local_target(target, *, store, device):
                 os.close(descriptor)
     else:
         with open_local_directory(selected) as (path, binding):
+            exclude_instance_tree(path.resolve(), store)
             private_directory(path)
             marker = audit_bare_root(
                 path,
