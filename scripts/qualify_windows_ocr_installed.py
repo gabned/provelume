@@ -310,10 +310,27 @@ def qualify(executable, kit, root, output, build_report, installer):
         faults = [_fault(current / WORKER, temporary, kind) for kind in ("cancel", "timeout")]
         assert _snapshot(instance) == before
         assert not list(instance.ocr.temporary_root.iterdir())
-        setup_trials = [command("setup-qualify", root / ("Setup " + mode),
-                                "--retention", mode, "--kit", kit,
-                                "--expected-sha256", identity["sha256"])
-                        for mode in ("keep", "transit")]
+        personal_trials = [command("personal-qualify", root / ("Personal " + mode),
+                                   "--retention", mode, "--ocr-ready", "--kit", kit,
+                                   "--expected-sha256", identity["sha256"])
+                           for mode in ("keep", "transit")]
+        assert all(result["result"] == "PASS" and result["ocr"] == "AUTOMATIC_PASS"
+                   and result["backup_restore"] == "PASS" for result in personal_trials)
+        setup_trials = [result["setup"] for result in personal_trials]
+        calendar_trial = command("icalendar-qualify", root / "Synthetic Calendars")
+        assert calendar_trial["result"] == "PASS" and not calendar_trial["network_used"]
+        asana_trial = command("asana-qualify", root / "Synthetic Asana")
+        assert asana_trial["result"] == "PASS" and not asana_trial["network_used"]
+        tududi_trial = command("tududi-qualify", root / "Synthetic Tududi")
+        assert tududi_trial["result"] == "PASS" and not tududi_trial["network_used"]
+        writeback_trial = command("task-writeback-qualify", root / "Synthetic Task Writes")
+        assert writeback_trial["result"] == "PASS" and not writeback_trial["network_used"]
+        assert writeback_trial["release_gate"] == "DEFERRED_BY_MAINTAINER"
+        assert writeback_trial["release_scope"] == "ASANA_TUDUDI_READ_ONLY_0_15_0"
+        mirror_trial = command("mirror-qualify", root / "Synthetic Mirrors")
+        assert mirror_trial["result"] == "PASS" and not mirror_trial["network_used"]
+        assert not mirror_trial["transport_process_used"]
+        assert mirror_trial["publication"] == "TRANSPORT_NOT_QUALIFIED"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -335,6 +352,12 @@ def qualify(executable, kit, root, output, build_report, installer):
             "missing_components": negatives,
             "faults": faults,
             "s07_setup_trials": setup_trials,
+            "s09_personal_trials": personal_trials,
+            "s12_icalendar_trial": calendar_trial,
+            "s13_asana_trial": asana_trial,
+            "s14_tududi_trial": tududi_trial,
+            "s15_task_writeback_trial": writeback_trial,
+            "s16_mirror_trial": mirror_trial,
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS",
             "external_python_required": False,

@@ -30,6 +30,8 @@ SCHEDULER_JOB_KINDS = (
     "ocr.execute",
     "email.intake",
     "google.intake",
+    "productivity.intake",
+    "mirror.prepare",
     "transcript.intake",
 )
 USER_SCHEDULER_JOB_KINDS = tuple(
@@ -37,7 +39,7 @@ USER_SCHEDULER_JOB_KINDS = tuple(
     for kind in SCHEDULER_JOB_KINDS
     if kind not in {
         "ai.execute", "processing.execute", "ocr.execute", "email.intake", "google.intake",
-        "transcript.intake", "setup.trial"
+        "transcript.intake", "setup.trial", "productivity.intake", "mirror.prepare"
     }
 )
 EXECUTABLE_JOB_KINDS = SCHEDULER_JOB_KINDS
@@ -49,6 +51,7 @@ SOURCE_SCOPED_JOB_KINDS = frozenset(
         "maintenance.source_reconcile",
         "email.intake",
         "google.intake",
+        "productivity.intake",
         "transcript.intake",
     }
 )

@@ -892,7 +892,8 @@
         "retry_wait",
         "processed",
         "skipped",
-        "errors"
+        "errors",
+        "calendar"
       ],
       "namespace": "google_connection"
     },
@@ -1312,7 +1313,8 @@
         "scheduler.kind.google.intake",
         "scheduler.kind.transcript.intake",
         "scheduler.kind.processing.execute",
-        "scheduler.error.processing_denied"
+        "scheduler.error.processing_denied",
+        "scheduler.kind.productivity.intake"
       ],
       "namespace": ""
     },
@@ -1652,7 +1654,8 @@
         "scheduler.no_network_delete",
         "scheduler.boundary_title",
         "scheduler.boundary",
-        "scheduler.kind.setup.trial"
+        "scheduler.kind.setup.trial",
+        "scheduler.kind.mirror.prepare"
       ],
       "namespace": ""
     },
@@ -16879,6 +16882,1212 @@
       "rendering": "text",
       "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
+    },
+    "search.edit": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.remove_filters": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type_details": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.pdf": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.text": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.markdown": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.web": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.document": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.spreadsheet": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.presentation": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.image": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.audio": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.video": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.archive": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.email": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.other": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.format": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.edit_before_remove": {
+      "context": "Search B: existing return-context bounds cannot retain exact words in the remove-filters link. Explain edit-first while preserving input, filters and all existing bounds. Ordinary navigation copy, no data deletion.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "google_connection.calendar": {
+      "context": "google_connection: label/navigation; google_connection_i18n.py / google_connection.calendar",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.due_date": {
+      "context": "objects: Source snapshot display; objects.field.due_date",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.starts_on": {
+      "context": "objects: Source snapshot display; objects.field.starts_on",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.field.ends_on": {
+      "context": "objects: Source snapshot display; objects.field.ends_on",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_readonly": {
+      "context": "objects: Source snapshot display; objects.connector_readonly",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_not_current": {
+      "context": "objects: Source snapshot display; objects.connector_not_current",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.title": {
+      "context": "iCalendar Source control: title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.lead": {
+      "context": "iCalendar Source control: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.kind": {
+      "context": "iCalendar Source control: kind",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.local": {
+      "context": "iCalendar Source control: local",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.location": {
+      "context": "iCalendar Source control: location",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.authorization": {
+      "context": "iCalendar Source control: authorization",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.time_zone": {
+      "context": "iCalendar Source control: time_zone",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.device": {
+      "context": "iCalendar Source control: device",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.confirm": {
+      "context": "iCalendar Source control: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.name": {
+      "context": "iCalendar Source control: name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.add": {
+      "context": "iCalendar Source control: add",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.read": {
+      "context": "iCalendar Source control: read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.policy": {
+      "context": "iCalendar Source control: policy",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.disabled": {
+      "context": "iCalendar Source control: mode.disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.manual": {
+      "context": "iCalendar Source control: mode.manual",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.mode.scheduled": {
+      "context": "iCalendar Source control: mode.scheduled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.interval": {
+      "context": "iCalendar Source control: interval",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.save": {
+      "context": "iCalendar Source control: save",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.reconnect": {
+      "context": "iCalendar Source control: reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.saved": {
+      "context": "iCalendar Source control: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.error": {
+      "context": "iCalendar Source control: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "icalendar.empty": {
+      "context": "iCalendar Source control: empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.duplicates": {
+      "context": "iCalendar Source control: duplicates",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "icalendar.duplicates_help": {
+      "context": "iCalendar Source control: duplicates_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "scheduler.kind.productivity.intake": {
+      "context": "Scheduler productivity source acquisition kind",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.lead": {
+      "context": "Asana read connection or source observation: asana.lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.confirm": {
+      "context": "Asana read connection or source observation: asana.confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.network": {
+      "context": "Asana read connection or source observation: asana.network",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.offline": {
+      "context": "Asana read connection or source observation: asana.offline",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.client": {
+      "context": "Asana read connection or source observation: asana.client",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.client_help": {
+      "context": "Asana read connection or source observation: asana.client_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.callback": {
+      "context": "Asana read connection or source observation: asana.callback",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.connect": {
+      "context": "Asana read connection or source observation: asana.connect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.reconnect": {
+      "context": "Asana read connection or source observation: asana.reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.load_workspaces": {
+      "context": "Asana read connection or source observation: asana.load_workspaces",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.load_projects": {
+      "context": "Asana read connection or source observation: asana.load_projects",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.workspace": {
+      "context": "Asana read connection or source observation: asana.workspace",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.organization": {
+      "context": "Asana read connection or source observation: asana.organization",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.team": {
+      "context": "Asana read connection or source observation: asana.team",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.project": {
+      "context": "Asana read connection or source observation: asana.project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.scope": {
+      "context": "Asana read connection or source observation: asana.scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.scope_help": {
+      "context": "Asana read connection or source observation: asana.scope_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.source_name": {
+      "context": "Asana read connection or source observation: asana.source_name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.select": {
+      "context": "Asana read connection or source observation: asana.select",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.sources": {
+      "context": "Asana read connection or source observation: asana.sources",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.disconnect": {
+      "context": "Asana read connection or source observation: asana.disconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.revoke": {
+      "context": "Asana read connection or source observation: asana.revoke",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.status.authorized": {
+      "context": "Asana read connection or source observation: asana.status.authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.status.revoked": {
+      "context": "Asana read connection or source observation: asana.status.revoked",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.status.not_authorized": {
+      "context": "Asana read connection or source observation: asana.status.not_authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.read": {
+      "context": "Asana read connection or source observation: asana.read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.reset": {
+      "context": "Asana read connection or source observation: asana.reset",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.saved": {
+      "context": "Asana read connection or source observation: asana.saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.error": {
+      "context": "Asana read connection or source observation: asana.error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.continuation": {
+      "context": "Asana read connection or source observation: asana.continuation",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.remote_unknown": {
+      "context": "Asana read connection or source observation: asana.remote_unknown",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "asana.empty": {
+      "context": "Asana read connection or source observation: asana.empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_assignees": {
+      "context": "Asana read connection or source observation: objects.connector_assignees",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_comments": {
+      "context": "Asana read connection or source observation: objects.connector_comments",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_parent": {
+      "context": "Asana read connection or source observation: objects.connector_parent",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_containers": {
+      "context": "Asana read connection or source observation: objects.connector_containers",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_links": {
+      "context": "Asana read connection or source observation: objects.connector_links",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_responses": {
+      "context": "Asana read connection or source observation: objects.connector_responses",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "objects.connector_recurrence": {
+      "context": "Asana read connection or source observation: objects.connector_recurrence",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.completed": {
+      "context": "Asana Source completion/cooldown status",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "asana.rate_limited": {
+      "context": "Asana Source completion/cooldown status",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.account_scope": {
+      "context": "Tududi connection or acquired task: account_scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.completed": {
+      "context": "Tududi connection or acquired task: completed",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.configuration": {
+      "context": "Tududi connection or acquired task: configuration",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.configuration_help": {
+      "context": "Tududi connection or acquired task: configuration_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.confirm": {
+      "context": "Tududi connection or acquired task: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.connect": {
+      "context": "Tududi connection or acquired task: connect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.continuation": {
+      "context": "Tududi connection or acquired task: continuation",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.disconnect": {
+      "context": "Tududi connection or acquired task: disconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.empty": {
+      "context": "Tududi connection or acquired task: empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.error": {
+      "context": "Tududi connection or acquired task: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.lead": {
+      "context": "Tududi connection or acquired task: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.load_projects": {
+      "context": "Tududi connection or acquired task: load_projects",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.network": {
+      "context": "Tududi connection or acquired task: network",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.offline": {
+      "context": "Tududi connection or acquired task: offline",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.project": {
+      "context": "Tududi connection or acquired task: project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.rate_limited": {
+      "context": "Tududi connection or acquired task: rate_limited",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.read": {
+      "context": "Tududi connection or acquired task: read",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.reconnect": {
+      "context": "Tududi connection or acquired task: reconnect",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.reset": {
+      "context": "Tududi connection or acquired task: reset",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.revoke_help": {
+      "context": "Tududi connection or acquired task: revoke_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.saved": {
+      "context": "Tududi connection or acquired task: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.security": {
+      "context": "Tududi connection or acquired task: security",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.select": {
+      "context": "Tududi connection or acquired task: select",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.source_name": {
+      "context": "Tududi connection or acquired task: source_name",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.source_state": {
+      "context": "Tududi connection or acquired task: source_state",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.sources": {
+      "context": "Tududi connection or acquired task: sources",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.starts": {
+      "context": "Tududi connection or acquired task: starts",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.archived": {
+      "context": "Tududi connection or acquired task: status.archived",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.authorized": {
+      "context": "Tududi connection or acquired task: status.authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.cancelled": {
+      "context": "Tududi connection or acquired task: status.cancelled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.done": {
+      "context": "Tududi connection or acquired task: status.done",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.in_progress": {
+      "context": "Tududi connection or acquired task: status.in_progress",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.not_authorized": {
+      "context": "Tududi connection or acquired task: status.not_authorized",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.not_started": {
+      "context": "Tududi connection or acquired task: status.not_started",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.planned": {
+      "context": "Tududi connection or acquired task: status.planned",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.revoked": {
+      "context": "Tududi connection or acquired task: status.revoked",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.status.waiting": {
+      "context": "Tududi connection or acquired task: status.waiting",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.task_link": {
+      "context": "Tududi connection or acquired task: task_link",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "tududi.version_help": {
+      "context": "Tududi connection or acquired task: version_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "tududi.unsupported": {
+      "context": "Unsupported Tududi public contract",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.title": {
+      "context": "Guarded remote task diff and outcome: title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.back": {
+      "context": "Guarded remote task diff and outcome: back",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.lead": {
+      "context": "Guarded remote task diff and outcome: lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unavailable": {
+      "context": "Guarded remote task diff and outcome: unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unavailable_help": {
+      "context": "Guarded remote task diff and outcome: unavailable_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.consent": {
+      "context": "Guarded remote task diff and outcome: consent",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.confirm": {
+      "context": "Guarded remote task diff and outcome: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.prepare": {
+      "context": "Guarded remote task diff and outcome: prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.diff": {
+      "context": "Guarded remote task diff and outcome: diff",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.expires": {
+      "context": "Guarded remote task diff and outcome: expires",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.field": {
+      "context": "Guarded remote task diff and outcome: field",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.before": {
+      "context": "Guarded remote task diff and outcome: before",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.after": {
+      "context": "Guarded remote task diff and outcome: after",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.completed": {
+      "context": "Guarded remote task diff and outcome: completed",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.due": {
+      "context": "Guarded remote task diff and outcome: due",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.yes": {
+      "context": "Guarded remote task diff and outcome: yes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.no": {
+      "context": "Guarded remote task diff and outcome: no",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.enabled": {
+      "context": "Guarded remote task diff and outcome: enabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.disabled": {
+      "context": "Guarded remote task diff and outcome: disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.unchanged": {
+      "context": "Guarded remote task diff and outcome: unchanged",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.none": {
+      "context": "Guarded remote task diff and outcome: none",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.date": {
+      "context": "Guarded remote task diff and outcome: date",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.instant": {
+      "context": "Guarded remote task diff and outcome: instant",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.day": {
+      "context": "Guarded remote task diff and outcome: day",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.clock": {
+      "context": "Guarded remote task diff and outcome: clock",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.zone": {
+      "context": "Guarded remote task diff and outcome: zone",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.confirm_button": {
+      "context": "Guarded remote task diff and outcome: confirm_button",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.discard_button": {
+      "context": "Guarded remote task diff and outcome: discard_button",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.reconcile": {
+      "context": "Guarded remote task diff and outcome: reconcile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.no_retry": {
+      "context": "Guarded remote task diff and outcome: no_retry",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "task_write.readback": {
+      "context": "Guarded remote task diff and outcome: readback",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.saved": {
+      "context": "Guarded remote task diff and outcome: saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.error": {
+      "context": "Guarded remote task diff and outcome: error",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.APPLIED": {
+      "context": "Guarded remote task diff and outcome: APPLIED",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.CONFLICT": {
+      "context": "Guarded remote task diff and outcome: CONFLICT",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.NOT_APPLIED": {
+      "context": "Guarded remote task diff and outcome: NOT_APPLIED",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "task_write.UNKNOWN": {
+      "context": "Guarded remote task diff and outcome: UNKNOWN",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.title": {
+      "context": "One-way mirror control: mirror.title",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.lead": {
+      "context": "One-way mirror control: mirror.lead",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.unavailable": {
+      "context": "One-way mirror control: mirror.unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.identities": {
+      "context": "One-way mirror control: mirror.identities",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.destinations": {
+      "context": "One-way mirror control: mirror.destinations",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.empty": {
+      "context": "One-way mirror control: mirror.empty",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.revision": {
+      "context": "One-way mirror control: mirror.revision",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope": {
+      "context": "One-way mirror control: mirror.scope",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.disabled": {
+      "context": "One-way mirror control: mirror.disabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.manual": {
+      "context": "One-way mirror control: mirror.manual",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scheduled": {
+      "context": "One-way mirror control: mirror.scheduled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.confirm": {
+      "context": "One-way mirror control: mirror.confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.prepare": {
+      "context": "One-way mirror control: mirror.prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.disable": {
+      "context": "One-way mirror control: mirror.disable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.preview": {
+      "context": "One-way mirror control: mirror.preview",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.local_only": {
+      "context": "One-way mirror control: mirror.local_only",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.files": {
+      "context": "One-way mirror control: mirror.files",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.bytes": {
+      "context": "One-way mirror control: mirror.bytes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.findings": {
+      "context": "One-way mirror control: mirror.findings",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.includes": {
+      "context": "One-way mirror control: mirror.includes",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.discard": {
+      "context": "One-way mirror control: mirror.discard",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.prepared": {
+      "context": "One-way mirror control: mirror.prepared",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.boundaries": {
+      "context": "One-way mirror control: mirror.boundaries",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.saved": {
+      "context": "One-way mirror control: mirror.saved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_instance": {
+      "context": "One-way mirror control: mirror.scope_instance",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_area": {
+      "context": "One-way mirror control: mirror.scope_area",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.scope_project": {
+      "context": "One-way mirror control: mirror.scope_project",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "scheduler.kind.mirror.prepare": {
+      "context": "One-way mirror control: scheduler.kind.mirror.prepare",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.access_enabled": {
+      "context": "Explicit per-device mirror access: access_enabled",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.access_github": {
+      "context": "Explicit per-device mirror access: access_github",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.access_rsync": {
+      "context": "Explicit per-device mirror access: access_rsync",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.save_access": {
+      "context": "Explicit per-device mirror access: save_access",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.limit": {
+      "context": "Mirror preparation refusal: mirror.limit",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.representation_required": {
+      "context": "Mirror preparation refusal: mirror.representation_required",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

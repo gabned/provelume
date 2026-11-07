@@ -21,6 +21,8 @@ VERSIONS = {
     "provelume": "0.14.0",
     "fastapi": "0.141.1",
     "jinja2": "3.1.6",
+    "icalendar": "7.3.0",
+    "python-dateutil": "4.0.0",
     "pypdf": "6.16.2",
     "pyyaml": "6.0.3",
     "tzdata": "2026.3",
