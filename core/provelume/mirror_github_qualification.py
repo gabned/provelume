@@ -237,6 +237,7 @@ def qualify_github_mirror(root):
         "api": "SYNTHETIC_RESPONSES",
         "git_transport": "NATIVE_FILE",
         "credential_protocol": "SYNTHETIC_PIPE",
+        "native_vault_helper": qualify_native_vault_helper(root / "Native Vault Trial"),
         "http_worker_refusal": "PASS",
         "interruption_restore_readonly_recovery": "PASS",
         "resends": 0,
@@ -244,4 +245,87 @@ def qualify_github_mirror(root):
         "network_used": False,
         "real_github": "NOT_RUN",
         "manuals": "DEFERRED_BY_MAINTAINER / NOT_RUN",
+    }
+
+
+def qualify_native_vault_helper(root):
+    """Actual DPAPI -> native Git -> actual owned source/frozen helper on Windows.
+
+    All slots and values are newly synthetic, under an isolated LOCALAPPDATA.
+    The raw credential reply stays in the private qualification pipe/memory and
+    is compared without being included in any report. No remote is contacted.
+    """
+    import os
+    import sys
+    from unittest.mock import patch
+
+    from .mirror_github_helper import configure_session
+
+    if os.name != "nt":
+        return {"result": "NOT_RUN", "reason": "NATIVE_WINDOWS_ONLY"}
+    root = Path(root).absolute()
+    require(not root.exists(), "target_not_fresh")
+    root.mkdir()
+    host = root / "Synthetic Host"
+    with patch.dict(os.environ, {"LOCALAPPDATA": str(host)}):
+        instance = ProvelumeInstance.initialise(root / "Synthetic Instance")
+        mirrors = Mirrors(instance.store)
+        mirrors.set_access(
+            enabled=True, github=True, rsync=False, expected_revision=0, confirmed=True
+        )
+        engine = GitHubMirrors(
+            instance.store,
+            mirrors=mirrors,
+            credentials=GitHubCredentials(mirrors, http=SyntheticApi()),
+        )
+        connection = engine.connect(
+            name="Synthetic native vault",
+            target=target(),
+            token="synthetic-native-vault-only",
+            mode="user",
+            confirmed=True,
+            probe_confirmed=True,
+        )
+        identity = connection["identity"]
+        destination = mirrors.configure(
+            identity_id=identity["id"],
+            name="Synthetic credential pipe",
+            target=target(),
+            scope={"kind": "instance", "id": instance.store.read_config()["instance"]["id"]},
+            include_rules={"originals": [], "attachments": [], "ai_receipts": []},
+            mode="manual",
+            confirmed=True,
+        )
+        reference = mirrors._grant(identity)["credential"]["reference"]
+        credential = engine.credentials.read(reference)
+        with git_work() as session:
+            version = session.probe()
+            configure_session(
+                session,
+                store=instance.store,
+                destination_id=destination["id"],
+                reference=reference,
+                binding={"credential_epoch": credential["epoch"]},
+            )
+            response = session.run(
+                ["credential", "fill"],
+                input_bytes=(
+                    b"protocol=https\nhost=github.com\npath=synthetic/qualification.git\n\n"
+                ),
+            )[1]
+            fields = dict(line.split(b"=", 1) for line in response.splitlines() if line)
+            require(
+                fields.get(b"username") == b"x-access-token"
+                and fields.get(b"password") == b"synthetic-native-vault-only",
+                "qualification",
+            )
+        engine.disconnect(identity["id"], expected_revision=1, confirmed=True)
+    return {
+        "result": "PASS",
+        "backend": "NATIVE_CURRENT_USER_DPAPI",
+        "git_version": version,
+        "owned_helper": "ACTUAL_FROZEN" if getattr(sys, "frozen", False) else "ACTUAL_SOURCE",
+        "credential_reply_logged": False,
+        "synthetic_only": True,
+        "network_used": False,
     }

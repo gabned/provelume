@@ -358,6 +358,11 @@ def qualify(executable, kit, root, output, build_report, installer):
                                       optional_git_path=git_dependency_path)
         assert gitlab_mirror_trial["result"] == "PASS" and not gitlab_mirror_trial["network_used"]
         assert gitlab_mirror_trial["real_gitlab"] == "NOT_RUN"
+        assert gitlab_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        assert gitlab_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
+        assert github_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        assert github_mirror_trial["native_vault_helper"]["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        assert github_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
