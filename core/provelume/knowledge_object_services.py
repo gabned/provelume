@@ -169,6 +169,15 @@ class KnowledgeObjectServices:
                         and record_digest(head) == ref["sha256"],
                     }
                 )
+        elif value["origin"]["kind"] == "connector":
+            from .productivity_contract import ProductivityError
+            from .productivity_objects import connector_object_snapshot
+            from .review_effects import ReviewError
+
+            try:
+                result["provider_snapshot"] = connector_object_snapshot(self.store, value)
+            except (ProductivityError, ReviewError):
+                raise KnowledgeObjectError("integrity") from None
         return result
 
     def get(self, identity, *, relation=False):
@@ -312,6 +321,7 @@ class KnowledgeObjectServices:
         with InstanceLifecycleManager(self.store)._hold(purpose="manual-object-update"):
             previous = self._head(identity, relation)
             require(previous is not None, "not_found")
+            require(relation or previous["origin"]["kind"] != "connector", "denied")
             require(record_digest(previous) == expected_sha256, "conflict")
             _history, history_bytes = self._history(previous, relation)
             if not relation and previous["kind"] in {"project", "collection"}:

@@ -38,7 +38,8 @@ def test_google_queue_and_execution_initialize_once_and_reuse_adapter(tmp_path, 
     created = []
 
     class DefaultAdapter:
-        def __init__(self):
+        def __init__(self, *, vault):
+            self.vault = vault
             self.calls = 0
             created.append(self)
 
@@ -99,7 +100,8 @@ def test_concurrent_first_access_publishes_one_complete_adapter(tmp_path, monkey
     constructed = []
 
     class DefaultAdapter:
-        def __init__(self):
+        def __init__(self, *, vault):
+            self.vault = vault
             constructed.append(self)
             constructing.set()
             assert release.wait(10)
@@ -127,7 +129,7 @@ def test_failed_construction_is_retried_without_publishing_partial_state(tmp_pat
     calls = []
     provider = SyntheticGoogleAdapter({})
 
-    def construct():
+    def construct(*, vault):
         calls.append(None)
         if len(calls) == 1:
             raise OSError("synthetic certificate-store failure")
@@ -144,7 +146,7 @@ def test_failed_construction_is_retried_without_publishing_partial_state(tmp_pat
 def test_adapter_assignment_before_and_after_first_use_remains_supported(tmp_path, monkeypatch):
     calls = []
 
-    def construct():
+    def construct(*, vault):
         calls.append(None)
         return SyntheticGoogleAdapter({})
 

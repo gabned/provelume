@@ -17,6 +17,7 @@ from .google_contract import (
     GOOGLE_CAPABILITY_SCOPES,
     GOOGLE_CONFORMANCE_PROFILE,
     GOOGLE_DEFINITION_ID,
+    GOOGLE_LEGACY_DEFINITION_ID,
     GOOGLE_SOURCE_STATES,
     GoogleContractError,
     capability_fingerprint,
@@ -72,7 +73,8 @@ class GoogleSourceManager:
         return value
 
     def _write_json(self, path: Path, value: Mapping[str, Any]) -> None:
-        self.store._atomic_json(path, dict(value))
+        with self.connectors.policy_commit_guard(purpose="google-source-state"):
+            self.store._atomic_json(path, dict(value))
 
     def ensure_definition(self) -> dict[str, Any]:
         return self.connectors.register_definition(google_definition_manifest())
@@ -140,7 +142,8 @@ class GoogleSourceManager:
             )
         record = self._read_json(path)
         connector = self.connectors.get_instance(instance_id)
-        if connector is None or connector.get("definition_id") != GOOGLE_DEFINITION_ID:
+        if connector is None or connector.get("definition_id") not in {
+                GOOGLE_DEFINITION_ID, GOOGLE_LEGACY_DEFINITION_ID}:
             raise GoogleContractError(
                 "google_payload_invalid", "Google connector binding is invalid"
             )
@@ -148,11 +151,32 @@ class GoogleSourceManager:
             raise GoogleContractError(
                 "google_payload_invalid", "Google connector state identity is invalid"
             )
+        # Pure compatibility projection: an old identity gets no new grant and
+        # no record rewrite merely because a page lists the Calendar option.
+        if "calendar" not in record["capabilities"]:
+            record = {**record, "capabilities": {**record["capabilities"],
+                      "calendar": self._capability_seed("calendar")}}
         return record
+
+    def prepare_calendar(self, connector_instance_id, *, confirmed):
+        """Explicit additive definition transition; stable identity and Sources."""
+        if confirmed is not True:
+            raise GoogleContractError("google_authorization_required",
+                                      "Explicit consent is required")
+        definition = self.ensure_definition()
+        self.connectors.upgrade_definition(connector_instance_id, definition["id"],
+                                           confirmed=True)
 
     def _write_instance_record(self, record: Mapping[str, Any]) -> None:
         instance_id = require_identifier(record.get("connector_instance_id"), "instance")
         self._write_json(self.instances / f"{instance_id}.json", record)
+
+    def compare_write_instance(self, record, *, expected):
+        instance_id = require_identifier(record.get("connector_instance_id"), "instance")
+        with self.connectors.policy_commit_guard(purpose="google-authorization-commit"):
+            if self._instance_record(instance_id) != expected:
+                raise GoogleContractError("google_input_changed", "Google authorization changed")
+            self.store._atomic_json(self.instances / f"{instance_id}.json", dict(record))
 
     def instance_view(self, connector_instance_id: str, *, local: bool = False) -> dict[str, Any]:
         record = self._instance_record(connector_instance_id)
@@ -545,6 +569,15 @@ class GoogleSourceManager:
             "updated_at": now,
         }
         self._write_source_record(updated)
+        if record["capability"] == "calendar" and state == "enabled":
+            from .productivity_connectors import ProductivityConnectors
+
+            manager = ProductivityConnectors(self.store)
+            policy = manager.policy(source_id)
+            if policy is None or policy["mode"] == "disabled":
+                manager.consent(source_id, capabilities=["calendar_read"],
+                    mode="scheduled" if record["schedule"]["mode"] == "interval" else "manual",
+                    expected_revision=policy["revision"] if policy else 0, confirmed=True)
         return self.source_view(source_id, local=True)
 
     def configure_schedule(
@@ -578,6 +611,15 @@ class GoogleSourceManager:
             "updated_at": utc_now(),
         }
         self._write_source_record(updated)
+        if record["capability"] == "calendar":
+            from .productivity_connectors import ProductivityConnectors
+
+            manager = ProductivityConnectors(self.store)
+            policy = manager.policy(source_id)
+            target = "scheduled" if mode == "interval" else "manual"
+            if policy is not None and policy["mode"] not in {"disabled", target}:
+                manager.consent(source_id, capabilities=["calendar_read"], mode=target,
+                                expected_revision=policy["revision"], confirmed=True)
         return self.source_view(source_id, local=True)
 
     def update_cursor(
@@ -597,8 +639,10 @@ class GoogleSourceManager:
             }
         )
 
-    def reset_cursor(self, source_id: str) -> dict[str, Any]:
+    def reset_cursor(self, source_id: str, *, invalidated=False) -> dict[str, Any]:
         record = self.source_record(source_id)
+        if invalidated and record["cursor"].get("reset_origin") == "invalidated":
+            return self.source_view(source_id, local=True)
         now = utc_now()
         cursor = {
             "revision": int(record["cursor"]["revision"]) + 1,
@@ -609,6 +653,7 @@ class GoogleSourceManager:
             "last_attempt_at": now,
             "last_success_at": record["cursor"].get("last_success_at"),
             "last_status": "reset",
+            "reset_origin": "invalidated" if invalidated else "explicit",
         }
         self.update_cursor(
             source_id,
