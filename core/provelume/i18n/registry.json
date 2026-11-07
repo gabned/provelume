@@ -1313,7 +1313,8 @@
         "scheduler.kind.google.intake",
         "scheduler.kind.transcript.intake",
         "scheduler.kind.processing.execute",
-        "scheduler.error.processing_denied"
+        "scheduler.error.processing_denied",
+        "scheduler.kind.productivity.intake"
       ],
       "namespace": ""
     },
@@ -17165,6 +17166,12 @@
     },
     "icalendar.duplicates_help": {
       "context": "iCalendar Source control: duplicates_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "scheduler.kind.productivity.intake": {
+      "context": "Scheduler productivity source acquisition kind",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false

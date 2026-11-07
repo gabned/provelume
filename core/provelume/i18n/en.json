@@ -2576,5 +2576,6 @@
   "icalendar.error": "The action did not complete. Check the feed, permission and connection, then review Operations.",
   "icalendar.empty": "No iCalendar feeds configured.",
   "icalendar.duplicates": "Events in multiple feeds",
-  "icalendar.duplicates_help": "Matching UID and occurrence remain separate because their Sources differ. Original evidence is retained."
+  "icalendar.duplicates_help": "Matching UID and occurrence remain separate because their Sources differ. Original evidence is retained.",
+  "scheduler.kind.productivity.intake": "Calendar and task acquisition"
 }

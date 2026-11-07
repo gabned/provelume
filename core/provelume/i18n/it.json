@@ -2576,5 +2576,6 @@
   "icalendar.error": "L’azione non è stata completata. Controlla calendario, consenso e connessione, poi consulta Operazioni.",
   "icalendar.empty": "Nessun calendario iCalendar configurato.",
   "icalendar.duplicates": "Eventi in più calendari",
-  "icalendar.duplicates_help": "UID e ricorrenza coincidenti restano separati perché provengono da Sources diverse. Le evidenze originali sono conservate."
+  "icalendar.duplicates_help": "UID e ricorrenza coincidenti restano separati perché provengono da Sources diverse. Le evidenze originali sono conservate.",
+  "scheduler.kind.productivity.intake": "Acquisizione calendari e attività"
 }

@@ -2576,5 +2576,6 @@
   "icalendar.error": "Acțiunea nu s-a finalizat. Verifică sursa, permisiunea și conexiunea, apoi consultă operațiunile.",
   "icalendar.empty": "Niciun calendar iCalendar configurat.",
   "icalendar.duplicates": "Evenimente în mai multe calendare",
-  "icalendar.duplicates_help": "UID-urile și aparițiile identice rămân separate deoarece sursele diferă. Dovezile originale sunt păstrate."
+  "icalendar.duplicates_help": "UID-urile și aparițiile identice rămân separate deoarece sursele diferă. Dovezile originale sunt păstrate.",
+  "scheduler.kind.productivity.intake": "Preluare calendare și sarcini"
 }
