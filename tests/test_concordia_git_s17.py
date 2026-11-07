@@ -133,7 +133,9 @@ def test_real_private_bare_target_initialization_and_first_readonly_preview(tmp_
 def test_native_git_version_bare_objects_and_bounded_input(tmp_path):
     make_private(tmp_path)
     session = GitSession(tmp_path)
-    assert session.probe() in {"2.43.0", "2.52.0", "2.56.0", "2.56.0.windows.4"}
+    observed = session.run(["--version"])[1].decode("ascii").strip()
+    print(json.dumps({"optional_git_runtime": observed, "binary": session.binary}))
+    assert session.probe() in {"2.51.1", "2.52.0", "2.56.0", "2.56.0.windows.4"}
     session.initialize_work()
     _code, oid = session.run(
         ["hash-object", "-w", "--stdin", "--no-filters"],
@@ -369,7 +371,13 @@ def test_batch_verification_rejects_changed_payload_and_oversized_object(tmp_pat
 
 
 @pytest.mark.parametrize(
-    "observed", [b"git version 2.99.0\n", b"git version 2.56.1\n", b"git version unknown\n"]
+    "observed",
+    [
+        b"git version 2.43.0\n",
+        b"git version 2.99.0\n",
+        b"git version 2.56.1\n",
+        b"git version unknown\n",
+    ],
 )
 def test_unqualified_git_versions_remain_rejected_before_operations(
     tmp_path, monkeypatch, observed
