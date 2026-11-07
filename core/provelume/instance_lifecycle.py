@@ -49,6 +49,17 @@ class _LocalLifecycleOwner:
         self.active = True
 
 
+@contextmanager
+def lifecycle_guard(store, *, purpose):
+    """Join only this thread's live kernel ownership; never a diagnostic file."""
+    key = (os.getpid(), get_ident(), str(store.paths.root.absolute()))
+    if any(owner.active and owner.identity == key for owner in _LOCAL_OWNERS.get()):
+        yield
+    else:
+        with InstanceLifecycleManager(store)._hold(purpose=purpose):
+            yield
+
+
 def lifecycle_writer(purpose):
     """Join only this thread's actual kernel ownership, otherwise acquire it.
 
@@ -58,10 +69,7 @@ def lifecycle_writer(purpose):
     def decorate(function):
         @wraps(function)
         def guarded(store, *args, **kwargs):
-            key = (os.getpid(), get_ident(), str(store.paths.root.absolute()))
-            if any(owner.active and owner.identity == key for owner in _LOCAL_OWNERS.get()):
-                return function(store, *args, **kwargs)
-            with InstanceLifecycleManager(store)._hold(purpose=purpose):
+            with lifecycle_guard(store, purpose=purpose):
                 return function(store, *args, **kwargs)
         return guarded
     return decorate

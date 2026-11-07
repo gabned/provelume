@@ -28,6 +28,10 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 csrf_token=csrf,
                 editable=_loopback_request(request),
                 notice=request.query_params.get("notice"),
+                git_plan=None,
+                git_status=instance.git_mirrors().status(),
+                profiles={row["id"]: row["profile"] for row in engine.view()["identities"]},
+                receipt=None,
             )
             plan_id = request.query_params.get("plan")
             if plan_id:
@@ -36,6 +40,14 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                     plan={**plan, "plan_sha256": fingerprint(plan)},
                     manifest=engine.snapshots.verify(plan["generation"]),
                 )
+                git_plan = engine._load("git/plans/" + plan_id + ".json")
+                if git_plan is not None:
+                    _plan, git_plan = instance.git_mirrors().git_plan(plan_id)
+                    values.update(
+                        git_plan=git_plan,
+                        git_plan_sha256=fingerprint(git_plan),
+                        receipt=engine._load("receipts/" + plan_id + ".json"),
+                    )
             return templates.TemplateResponse(
                 request=request,
                 name="mirrors.html",
@@ -53,9 +65,40 @@ def attach_mirror_routes(app, instance, templates, context_factory):
             "prepare": {"destination_id", "revision"},
             "disable": {"destination_id", "revision"},
             "discard": {"plan_id", "plan_sha256"},
+            "git-prepare": {"destination_id", "revision"},
+            "git-initialize": {"destination_id", "destination_sha256"},
+            "git-publish": {"plan_id", "plan_sha256", "git_plan_sha256"},
+            "git-reconcile": {"plan_id"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
+        if selected.startswith("git-"):
+            git = instance.git_mirrors()
+            if selected == "git-initialize":
+                git.initialize_local(
+                    fields["destination_id"],
+                    expected_destination_sha256=fields["destination_sha256"],
+                    confirmed=True,
+                )
+                return {"notice": "saved"}
+            if selected == "git-prepare":
+                plan = git.prepare(
+                    fields["destination_id"],
+                    expected_revision=int(fields["revision"]),
+                    confirmed=True,
+                )
+                return {"plan": plan["id"]}
+            if selected == "git-publish":
+                outcome = git.publish(
+                    fields["plan_id"],
+                    expected_plan_sha256=fields["plan_sha256"],
+                    expected_git_plan_sha256=fields["git_plan_sha256"],
+                    confirmed=True,
+                )
+            else:
+                outcome = git.reconcile(fields["plan_id"], confirmed=True)
+            complete = outcome.get("receipt", {}).get("schema") == "provelume-mirror-receipt/v1"
+            return {"plan": fields["plan_id"], "notice": "saved" if complete else "unavailable"}
         if selected == "access":
             require(all(fields[key] in {"yes", "no"} for key in ("enabled", "github", "rsync")))
             engine.set_access(
@@ -117,6 +160,13 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 )
             )
             result = {"notice": notice}
+            if fields.get("plan_id"):
+                try:
+                    instance.mirrors().plan(fields["plan_id"])
+                except (ValueError, KeyError, OSError, TypeError):
+                    pass
+                else:
+                    result["plan"] = fields["plan_id"]
         query = urlencode({"lang": context_factory(request, instance)["lang"], **result})
         return RedirectResponse(
             "/mirrors?" + query, status_code=303, headers={"Cache-Control": "no-store"}

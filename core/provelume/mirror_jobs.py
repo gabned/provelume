@@ -1,9 +1,9 @@
-"""Existing scheduler bridge: prepare complete local generations, never publish."""
+"""Existing scheduler bridge; only independently implemented profiles may publish."""
 
 import time
 from datetime import UTC, datetime, timedelta
 
-from .mirror_contract import MAX_SECONDS, require
+from .mirror_contract import MAX_SECONDS, MirrorError, fingerprint, require
 from .mirrors import Mirrors
 from .scheduler import SchedulerStore
 from .scheduler_model import retry_payload, schedule_payload
@@ -62,33 +62,77 @@ class MirrorJobs:
                 continue
             previous = self.mirrors._load("scheduled/" + row["id"] + ".json")
             if previous is not None and previous["policy_revision"] == row["revision"]:
+                require(
+                    previous["publication"] != "MANUAL_INTERVENTION_REQUIRED", "outcome_unknown"
+                )
                 due = datetime.fromisoformat(previous["prepared_at"]) + timedelta(
                     seconds=row["interval_seconds"]
                 )
                 if now < due:
                     skipped += 1
                     continue
-            # A local-only observation is explicitly UNKNOWN, never an invented remote check.
-            result = self.mirrors.preview(
-                row["id"],
-                {
-                    "destination_sha256": row["destination_sha256"],
-                    "visibility": "unknown",
-                    "writable": False,
-                    "inventory": [],
-                    "revision": "NOT_OBSERVED",
-                },
-                expected_revision=row["revision"],
-                scheduled=True,
-                _deadline=deadline,
-            )
+            if profile == "git":
+                from .mirror_git import GitMirrors
+
+                transport = GitMirrors(self.store, mirrors=self.mirrors)
+                # Explicit scheduled mode supplies current scope consent. An
+                # unresolved external claim refuses admission before any process.
+                result = None
+                try:
+                    result = transport.prepare(
+                        row["id"],
+                        expected_revision=row["revision"],
+                        confirmed=True,
+                        scheduled=True,
+                        _deadline=deadline,
+                    )
+                    published = transport.publish(
+                        result["id"],
+                        expected_plan_sha256=result["plan_sha256"],
+                        expected_git_plan_sha256=result["git_plan_sha256"],
+                        confirmed=True,
+                        _deadline=deadline,
+                    )
+                    require(
+                        published["receipt"]["schema"] == "provelume-mirror-receipt/v1", "conflict"
+                    )
+                except (MirrorError, OSError, ValueError):
+                    self.mirrors._pause_scheduled(
+                        row["id"], expected_policy_sha256=fingerprint(row)
+                    )
+                    self.mirrors._save(
+                        "scheduled/" + row["id"] + ".json",
+                        {
+                            "policy_revision": row["revision"],
+                            "prepared_at": now.isoformat(),
+                            "plan_id": result["id"] if result else None,
+                            "publication": "MANUAL_INTERVENTION_REQUIRED",
+                        },
+                    )
+                    raise
+                publication = "COMPLETED_GIT_LOCAL"
+            else:
+                result = self.mirrors.preview(
+                    row["id"],
+                    {
+                        "destination_sha256": row["destination_sha256"],
+                        "visibility": "unknown",
+                        "writable": False,
+                        "inventory": [],
+                        "revision": "NOT_OBSERVED",
+                    },
+                    expected_revision=row["revision"],
+                    scheduled=True,
+                    _deadline=deadline,
+                )
+                publication = "TRANSPORT_NOT_QUALIFIED"
             self.mirrors._save(
                 "scheduled/" + row["id"] + ".json",
                 {
                     "policy_revision": row["revision"],
                     "prepared_at": now.isoformat(),
                     "plan_id": result["id"],
-                    "publication": "TRANSPORT_NOT_QUALIFIED",
+                    "publication": publication,
                 },
             )
             processed += 1

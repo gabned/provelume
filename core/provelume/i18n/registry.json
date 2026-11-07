@@ -18048,7 +18048,7 @@
       "sensitive_review_required": false
     },
     "scheduler.kind.mirror.prepare": {
-      "context": "One-way mirror control: scheduler.kind.mirror.prepare",
+      "context": "Existing scheduler: prepare mirrors and publish only supported consented profiles",
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
@@ -18088,6 +18088,120 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": false
+    },
+    "mirror.git_initialize_help": {
+      "context": "Explicit private local Git mirror: git_initialize_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.git_initialize": {
+      "context": "Explicit private local Git mirror: git_initialize",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_local": {
+      "context": "Explicit private local Git mirror: git_local",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_branch": {
+      "context": "Explicit private local Git mirror: git_branch",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_path": {
+      "context": "Explicit private local Git mirror: git_path",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_identity": {
+      "context": "Explicit private local Git mirror: git_identity",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_expected_ref": {
+      "context": "Explicit private local Git mirror: git_expected_ref",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_recovery_help": {
+      "context": "Explicit private local Git mirror: git_recovery_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_receipt": {
+      "context": "Explicit private local Git mirror: git_receipt",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_publish_confirm": {
+      "context": "Explicit private local Git mirror: git_publish_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.git_publish": {
+      "context": "Explicit private local Git mirror: git_publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_reconcile": {
+      "context": "Explicit private local Git mirror: git_reconcile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_prepared": {
+      "context": "Git mirror observed operation state: prepared",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_dispatched": {
+      "context": "Git mirror observed operation state: dispatched",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_unknown": {
+      "context": "Git mirror observed operation state: unknown",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_completed": {
+      "context": "Git mirror observed operation state: completed",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_not_applied": {
+      "context": "Git mirror observed operation state: not_applied",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_state_discarded": {
+      "context": "Git mirror observed operation state: discarded",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "mirror.git_scheduled_paused": {
+      "context": "Git scheduled publication requires explicit review before resuming",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

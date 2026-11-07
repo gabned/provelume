@@ -7,6 +7,7 @@ import ctypes
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import replace
@@ -146,7 +147,7 @@ def qualify(executable, kit, root, output, build_report, installer):
     environment = dict(os.environ, LOCALAPPDATA=str(root / "Host"), PATH="")
     counter = 0
 
-    def command(*arguments, expected=0):
+    def command(*arguments, expected=0, optional_git_path=None):
         nonlocal counter
         counter += 1
         result = root / f"command-{counter:03}.json"
@@ -158,7 +159,8 @@ def qualify(executable, kit, root, output, build_report, installer):
                 "--ocr-command",
                 *map(str, arguments),
             ],
-            env=environment,
+            env=(environment if optional_git_path is None
+                 else {**environment, "PATH": optional_git_path}),
             timeout=180,
             check=False,
         )
@@ -332,6 +334,21 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert not mirror_trial["transport_process_used"]
         assert mirror_trial["publication"] == "TRANSPORT_NOT_QUALIFIED"
         assert mirror_trial["same_root_restore_no_replay"] == "PASS"
+        # Git is an explicit optional native dependency. All existing installed
+        # qualifications retain empty PATH; this separate case admits only Git's
+        # installation directories and the Windows system directory, never Python.
+        git_binary = shutil.which("git")
+        assert git_binary and Path(git_binary).is_absolute()
+        git_root = Path(git_binary).parent.parent
+        git_dependency_path = os.pathsep.join(map(str, [
+            Path(git_binary).parent, git_root / "usr/bin", git_root / "mingw64/bin",
+            Path(os.environ["SYSTEMROOT"]) / "System32",
+        ]))
+        git_mirror_trial = command("git-mirror-qualify", root / "Synthetic native Git",
+                                   optional_git_path=git_dependency_path)
+        assert git_mirror_trial["result"] == "PASS" and not git_mirror_trial["network_used"]
+        assert git_mirror_trial["transport_process_used"]
+        assert git_mirror_trial["same_root_restore_readonly_reconciliation"] == "PASS"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -359,8 +376,10 @@ def qualify(executable, kit, root, output, build_report, installer):
             "s14_tududi_trial": tududi_trial,
             "s15_task_writeback_trial": writeback_trial,
             "s16_mirror_trial": mirror_trial,
+            "s17_git_mirror_trial": git_mirror_trial,
+            "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
-            "path": "EMPTY_FOR_INSTALLED_COMMANDS",
+            "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",
             "external_python_required": False,
             "network": "Outbound Windows Firewall block rules for exact three executables",
             "firewall_profiles_before": profiles,

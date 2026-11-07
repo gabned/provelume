@@ -72,5 +72,6 @@
 }
 .maintenance-view { min-width: 0; overflow-wrap: anywhere; }
 .mirror-file { overflow-wrap: anywhere; }
+#mirror-git-plan, #mirror-git-receipt { overflow-wrap: anywhere; }
 .maintenance-view .settings-form { min-width: 0; }
 .maintenance-view button { min-width: 0; max-width: 100%; }

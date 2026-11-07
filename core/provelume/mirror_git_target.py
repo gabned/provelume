@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .maintenance_local_files import directory_binding, open_local_directory, pinned_parent
 from .migration_permissions import private_directory
-from .mirror_contract import MAX_MANIFEST_BYTES, fingerprint, parse, require
+from .mirror_contract import MAX_MANIFEST_BYTES, MAX_RECORDS, fingerprint, parse, require
 from .mirror_git_runtime import MAX_OBJECT_BYTES, MAX_OBJECT_FILES
 
 MARKER = "provelume-mirror-target.json"
@@ -110,6 +110,15 @@ def exclude_instance_tree(repository, store):
     )
     control = root.parent / ("." + root.name + ".provelume")
     require(not selected.is_relative_to(control), "unsafe_git_target")
+    sources = store.read_config().get("sources") or {}
+    require(type(sources) is dict and len(sources) <= MAX_RECORDS, "limit")
+    for source_id in sources:
+        observed = store.source_path(source_id)
+        if observed is not None:
+            require(
+                not selected.is_relative_to(observed) and not observed.is_relative_to(selected),
+                "unsafe_git_target",
+            )
     # Initial admission requires an absent root. Subsequent admission additionally
     # requires the exact known Git marker and closed bare-tree shape below.
     for parent in (selected, *selected.parents):

@@ -28,6 +28,7 @@
   {% for destination in mirrors.destinations %}
   <article class="panel stack">
     <h3>{{ destination.name }}</h3>
+    {% if mirrors.scheduled[destination.id] and mirrors.scheduled[destination.id].publication == 'MANUAL_INTERVENTION_REQUIRED' %}<p role="status">{{ t('mirror.git_scheduled_paused') }}</p>{% endif %}
     <p>{{ t('mirror.' + destination.mode) }} · {{ t('mirror.scope') }}: {{ t('mirror.scope_' + destination.scope.kind) }} · {{ t('mirror.revision') }} {{ destination.revision }}</p>
     {% if editable and destination.mode != 'disabled' %}
     <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
@@ -35,16 +36,58 @@
       <input type="hidden" name="destination_id" value="{{ destination.id }}">
       <input type="hidden" name="revision" value="{{ destination.revision }}">
       <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
-      <button name="action" value="prepare">{{ t('mirror.prepare') }}</button>
+      <button name="action" value="{{ 'git-prepare' if profiles[destination.identity_id] == 'git' else 'prepare' }}">{{ t('mirror.prepare') }}</button>
       <button name="action" value="disable">{{ t('mirror.disable') }}</button>
     </form>
+    {% if profiles[destination.identity_id] == 'git' %}
+    <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="git-initialize">
+      <input type="hidden" name="destination_id" value="{{ destination.id }}">
+      <input type="hidden" name="destination_sha256" value="{{ destination.destination_sha256 }}">
+      <p>{{ t('mirror.git_initialize_help') }}</p>
+      <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
+      <button>{{ t('mirror.git_initialize') }}</button>
+    </form>
+    {% endif %}
     {% endif %}
   </article>
   {% endfor %}
   {% if plan %}
   <section class="panel stack" id="mirror-preview">
     <h2>{{ t('mirror.preview') }}</h2>
-    <p>{{ t('mirror.local_only') }}</p>
+    <p>{{ t('mirror.git_local') if git_plan else t('mirror.local_only') }}</p>
+    {% if git_plan %}
+    <p role="status" id="mirror-git-state">{{ t('mirror.git_state_' + plan.state) }}</p>
+    <dl id="mirror-git-plan">
+      <dt>{{ t('mirror.git_branch') }}</dt><dd>{{ git_plan.branch }}</dd>
+      <dt>{{ t('mirror.git_path') }}</dt><dd>{{ git_plan.path }}</dd>
+      <dt>{{ t('mirror.git_identity') }}</dt><dd>{{ git_plan.commit_identity.name }} &lt;{{ git_plan.commit_identity.email }}&gt;</dd>
+      <dt>{{ t('mirror.git_expected_ref') }}</dt><dd><code>{{ git_plan.head or '∅' }}</code></dd>
+    </dl>
+    <p>{{ t('mirror.git_recovery_help') }}</p>
+    {% if receipt %}<p id="mirror-git-receipt">{{ t('mirror.git_receipt') }} · {{ receipt.completed_at }}{% if receipt.transport_proof %} · <code>{{ receipt.transport_proof.commit_sha }}</code>{% endif %}</p>{% endif %}
+    {% if editable and plan.state == 'prepared' %}
+    <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="git-publish">
+      <input type="hidden" name="plan_id" value="{{ plan.id }}">
+      <input type="hidden" name="plan_sha256" value="{{ plan.plan_sha256 }}">
+      <input type="hidden" name="git_plan_sha256" value="{{ git_plan_sha256 }}">
+      <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.git_publish_confirm') }}</label>
+      <button>{{ t('mirror.git_publish') }}</button>
+    </form>
+    {% endif %}
+    {% if editable and plan.state in ['prepared', 'dispatched', 'unknown', 'completed', 'not_applied'] %}
+    <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="git-reconcile">
+      <input type="hidden" name="plan_id" value="{{ plan.id }}">
+      <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
+      <button>{{ t('mirror.git_reconcile') }}</button>
+    </form>
+    {% endif %}
+    {% endif %}
     <p>{{ t('mirror.files') }}: {{ manifest.inventory|length }} · {{ t('mirror.bytes') }}: {{ manifest.total_bytes }}</p>
     <p>{{ t('mirror.findings') }}: {{ manifest.findings|length }}</p>
     <p>{{ t('mirror.includes') }}</p>

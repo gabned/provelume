@@ -13,7 +13,7 @@ from contextlib import suppress
 from pathlib import Path
 from uuid import uuid4
 
-from .mirror_contract import MAX_FILE_BYTES, MirrorError, require
+from .mirror_contract import MAX_FILE_BYTES, MAX_MANIFEST_BYTES, MirrorError, require, sha
 from .ocr_process import _terminate_process_tree
 
 MAX_OPERATION_SECONDS = 120
@@ -140,6 +140,8 @@ class GitSession:
             "protocol.file.allow=always",
             "-c",
             "gc.auto=0",
+            "-c",
+            "core.longpaths=true",
             "--git-dir=" + str(git_directory or self.repository),
             *arguments,
         ]
@@ -236,3 +238,59 @@ class GitSession:
         size = self.run(["cat-file", "-s", oid])[1].strip()
         require(size.isdigit() and int(size) <= maximum, "limit")
         return self.run(["cat-file", "blob", oid], payload_limit=max(1, maximum))[1]
+
+    def verify_blobs(self, rows):
+        """Check size before reading, then SHA-256, with bounded batch processes."""
+        selected = {}
+        for row in rows:
+            oid = row["oid"]
+            require(type(oid) is str and re.fullmatch(r"[0-9a-f]{40}", oid), "git_object_format")
+            require(
+                type(row["size_bytes"]) is int and 0 <= row["size_bytes"] <= MAX_FILE_BYTES, "limit"
+            )
+            expected = (row["size_bytes"], row["sha256"])
+            require(oid not in selected or selected[oid] == expected, "git_incomplete")
+            selected[oid] = expected
+        if not selected:
+            return
+        request = "".join(oid + "\n" for oid in selected).encode("ascii")
+        output = self.run(
+            ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
+            input_bytes=request,
+            payload_limit=MAX_MANIFEST_BYTES,
+        )[1].splitlines()
+        require(len(output) == len(selected), "git_incomplete")
+        for header, (oid, (size, _digest)) in zip(output, selected.items(), strict=True):
+            require(header == (oid + " blob " + str(size)).encode("ascii"), "git_incomplete")
+
+        def verify_batch(batch):
+            response = self.run(
+                ["cat-file", "--batch"],
+                input_bytes="".join(oid + "\n" for oid in batch).encode("ascii"),
+                payload_limit=sum(selected[oid][0] + 128 for oid in batch),
+            )[1]
+            offset = 0
+            for oid in batch:
+                size, digest = selected[oid]
+                end = response.find(b"\n", offset, offset + 129)
+                require(
+                    end >= offset and response[offset:end] == (oid + " blob " + str(size)).encode(),
+                    "git_incomplete",
+                )
+                start, offset = end + 1, end + 1 + size
+                require(
+                    response[offset : offset + 1] == b"\n"
+                    and sha(response[start:offset]) == digest,
+                    "git_incomplete",
+                )
+                offset += 1
+            require(offset == len(response), "git_incomplete")
+
+        batch, bound = [], 0
+        for oid, (size, _digest) in selected.items():
+            if batch and bound + size + 128 > MAX_FILE_BYTES:
+                verify_batch(batch)
+                batch, bound = [], 0
+            batch.append(oid)
+            bound += size + 128
+        verify_batch(batch)

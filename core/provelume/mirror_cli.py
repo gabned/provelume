@@ -22,24 +22,35 @@ def add_mirror_commands(commands):
         "forget-plan",
         "drop-generation",
         "schedule",
+        "git-status",
+        "git-initialize",
+        "git-prepare",
+        "git-publish",
+        "git-reconcile",
     ):
         command = commands.add_parser("mirror-" + name)
         command.add_argument("instance", type=Path)
         if name in {"identity", "configure", "access"}:
             command.add_argument("configuration_file", type=Path)
-        if name in {"prepare", "disable"}:
+        if name in {"prepare", "disable", "git-prepare"}:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
         if name == "revoke":
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name in {"discard", "forget-plan"}:
+        if name == "git-initialize":
+            command.add_argument("destination_id")
+            command.add_argument("--expected-destination-sha256", required=True)
+        if name in {"discard", "forget-plan", "git-publish", "git-reconcile"}:
             command.add_argument("plan_id")
         if name == "discard":
             command.add_argument("--expected-plan-sha256", required=True)
+        if name == "git-publish":
+            command.add_argument("--expected-plan-sha256", required=True)
+            command.add_argument("--expected-git-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
-        if name != "status":
+        if name not in {"status", "git-status"}:
             command.add_argument("--confirm", action="store_true")
 
 
@@ -50,9 +61,35 @@ def handle_mirror_command(options):
         instance = ProvelumeInstance(options.instance)
         engine = instance.mirrors()
         selected = options.command.removeprefix("mirror-")
-        if selected != "status":
+        if selected not in {"status", "git-status"}:
             require(options.confirm is True, "consent_required")
-        if selected in {"identity", "configure", "access"}:
+        if selected.startswith("git-"):
+            git = instance.git_mirrors()
+            operation = selected.removeprefix("git-")
+            if operation == "status":
+                result = git.status()
+            elif operation == "initialize":
+                result = git.initialize_local(
+                    options.destination_id,
+                    expected_destination_sha256=options.expected_destination_sha256,
+                    confirmed=True,
+                )
+            elif operation == "prepare":
+                result = git.prepare(
+                    options.destination_id,
+                    expected_revision=options.expected_revision,
+                    confirmed=True,
+                )
+            elif operation == "publish":
+                result = git.publish(
+                    options.plan_id,
+                    expected_plan_sha256=options.expected_plan_sha256,
+                    expected_git_plan_sha256=options.expected_git_plan_sha256,
+                    confirmed=True,
+                )
+            else:
+                result = git.reconcile(options.plan_id, confirmed=True)
+        elif selected in {"identity", "configure", "access"}:
             external = _local_path(options.configuration_file, instance.root)
             require(external.stat().st_size <= 16384, "limit")
             with external.open("rb") as stream:
@@ -108,6 +145,26 @@ def handle_mirror_command(options):
             "in_use",
             "outcome_unknown",
             "integrity",
+            "git_unavailable",
+            "git_version_unsupported",
+            "git_version_changed",
+            "git_profile_not_qualified",
+            "git_local_credentials",
+            "git_containment",
+            "git_target_exists",
+            "git_target_privacy",
+            "unsafe_git_target",
+            "unsafe_git_config",
+            "unsafe_git_hook",
+            "unknown_git_target",
+            "git_storage_limit",
+            "git_output_limit",
+            "git_incomplete",
+            "git_active_unknown",
+            "git_command_failed",
+            "destination_changed",
+            "source_changed",
+            "expired",
         }
         print(
             json.dumps(
