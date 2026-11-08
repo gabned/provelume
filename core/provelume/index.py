@@ -174,9 +174,15 @@ def _ensure_extracted(
         return None
     data = store.original_bytes(original["id"])
     try:
+        from .productivity_projection import productivity_extraction
+
+        document = store.read_canonical("documents", version["document_id"])
+        projection = (
+            productivity_extraction(store, document, version, data) if document else None
+        )
         web_locator = urlsplit(locator).scheme in {"http", "https"}
         extractor = None if web_locator else extractor_for(Path(locator))
-        result = (
+        result = projection or (
             extract_web_readable_text(str(version.get("media_type", "")), data)
             if web_locator
             else extractor.extract(data)
