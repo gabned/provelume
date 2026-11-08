@@ -167,6 +167,9 @@ if sys.argv[2]=='yes':
         target=gitea_contract_target(),scope={'kind':'area','id':mirror_area['id']},
         include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
     fixture['mirror_gitea_plan_id']=gt.prepare(gt_target['id'],expected_revision=1,confirmed=True)['id']
+    from provelume.mirror_rsync_browser_fixture import seed_browser_plan
+    fixture['mirror_rsync_plan_id']=seed_browser_plan(instance,mirrors,
+        scope={'kind':'area','id':mirror_area['id']})['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -423,6 +426,16 @@ def main():
                                     assert page.evaluate('document.documentElement.scrollWidth <= '
                                                          'document.documentElement.clientWidth')
                                     cell['mirror_gitea_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_rsync_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-rsync-plan').is_visible()
+                                    assert page.locator(
+                                        'form input[value="rsync-publish"]').count()==1
+                                    assert 'mirror.rsync_help' not in page.content()
+                                    assert page.evaluate('document.documentElement.scrollWidth <= '
+                                                         'document.documentElement.clientWidth')
+                                    cell['mirror_rsync_preview']='AUTOMATIC_SYNTHETIC_WIRE_PREVIEW_ONLY'
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

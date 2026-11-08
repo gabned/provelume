@@ -202,6 +202,46 @@ def test_complete_generation_noop_and_historical_receipt_do_not_repeat_transfer(
     assert mirrors.snapshots.source_fingerprint() == before
 
 
+@pytest.mark.parametrize("revoked", [False, True])
+def test_stale_or_revoked_grant_refuses_before_any_native_transport(tmp_path, monkeypatch, revoked):
+    _instance, mirrors, engine, row, _target, counters = fixture(tmp_path, monkeypatch)
+    plan = prepare(engine, row)
+    if revoked:
+        engine.disconnect(row["identity_id"], expected_revision=1, confirmed=True)
+    else:
+        _row, _authority, target, _reference = engine.context(row["id"])
+        mirrors.configure(
+            identity_id=row["identity_id"],
+            name="Explicit changed destination grant",
+            target=target,
+            scope=row["scope"],
+            include_rules=row["include_rules"],
+            destination_id=row["id"],
+            expected_revision=1,
+            mode="manual",
+            confirmed=True,
+        )
+    observed = dict(counters)
+    with pytest.raises(MirrorError):
+        publish(engine, plan)
+    assert counters == observed
+
+
+def test_replaced_remote_root_with_copied_ownership_marker_is_refused(tmp_path, monkeypatch):
+    import shutil
+
+    _instance, _mirrors, engine, row, target, counters = fixture(tmp_path, monkeypatch)
+    plan = prepare(engine, row)
+    publish(engine, plan)
+    previous = (target / "active.json").read_bytes()
+    target.rename(tmp_path / "Original destination")
+    shutil.copytree(tmp_path / "Original destination", target)
+    with pytest.raises(MirrorError):
+        prepare(engine, row)
+    assert (tmp_path / "Original destination" / "active.json").read_bytes() == previous
+    assert counters["transfers"] == 1
+
+
 @pytest.mark.parametrize("after_activation", [False, True])
 def test_actual_root_restore_and_unknown_activation_only_allow_readonly_recovery(
     tmp_path, monkeypatch, after_activation

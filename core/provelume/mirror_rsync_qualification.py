@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import os
 import re
+import secrets
 import socket
 import subprocess
 import tarfile
@@ -19,7 +21,10 @@ from .google_credentials import GoogleCredentialVault
 from .migration_permissions import make_private
 from .mirror_contract import MirrorError, fingerprint, raw, require
 from .mirror_rsync import RsyncMirrors
-from .mirror_ssh_runtime import SSH_VERSION, NativeSession
+from .mirror_rsync_transport import native_work
+from .mirror_ssh_agent import public_blob
+from .mirror_ssh_crypto import public_key
+from .mirror_ssh_runtime import SSH_VERSION, NativeSession, ssh_call
 from .mirrors import Mirrors
 from .service import ProvelumeInstance
 
@@ -255,14 +260,67 @@ def fixture(root, *, image, expected_source_commit, identity, instance, mirrors,
             docker("network", "rm", name, check=False)
 
 
+def require_failure(call, codes=None):
+    try:
+        call()
+    except MirrorError as error:
+        require(codes is None or error.code in codes, "rsync_qualification")
+        return error.code
+    require(False, "rsync_qualification")
+
+
+class CaseEvidence(list):
+    def __init__(self, root):
+        super().__init__()
+        self.path = root / "case-results-original.jsonl"
+
+    def append(self, value):
+        with self.path.open("ab") as stream:
+            stream.write(raw(value) + b"\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        super().append(value)
+
+    def extend(self, values):
+        for value in values:
+            self.append(value)
+
+
+def authentication_refusals(engine, target):
+    reference = engine.mirrors._grant(engine.mirrors.state()["identities"][0])["credential"][
+        "reference"
+    ]
+    credential = engine.credentials.read(reference)
+    seed = base64.b64decode(credential["seed"], validate=True)
+    wrong_host = dict(
+        target, host_key=base64.b64encode(public_blob(public_key(secrets.token_bytes(32)))).decode()
+    )
+    request = engine.request(target, "inspect")
+    from .mirror_rsync_protocol import frame
+
+    with native_work() as session:
+        host_error = require_failure(
+            lambda: ssh_call(session, wrong_host, seed, frame(request)), {"ssh_host_key"}
+        )
+    with native_work() as session:
+        credential_error = require_failure(
+            lambda: ssh_call(session, target, secrets.token_bytes(32), frame(request)),
+            {"ssh_credentials"},
+        )
+    return [
+        {"case": "actual-native-wrong-host-key", "result": "PASS", "error": host_error},
+        {"case": "actual-native-unauthorized-key", "result": "PASS", "error": credential_error},
+    ]
+
+
 def qualify_rsync_mirror(root, *, image, expected_source_commit):
     root = Path(root).absolute()
     require(not root.exists() and not root.is_symlink(), "target_not_fresh")
     root.mkdir(parents=True)
     make_private(root)
     fixture_preflight(root, image=image, expected_source_commit=expected_source_commit)
-    cases, fixtures = [], []
-    for fault in (None, "before", "after"):
+    cases, fixtures = CaseEvidence(root), []
+    for fault in (None, "before", "after", "disconnect", "disk-full", "replaced-root"):
         selected = root / (fault or "Complete generation")
         selected.mkdir()
         source = selected / "Inputs"
@@ -318,6 +376,20 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
             require(not noop["transport_proof"]["activation_written"], "rsync_qualification")
             require(mirrors.snapshots.source_fingerprint() == canonical, "rsync_qualification")
             if fault is None:
+                cases.extend(authentication_refusals(engine, target))
+                pending = prepare()
+                engine.disconnect(identity["identity"]["id"], expected_revision=1, confirmed=True)
+                with patch.object(
+                    NativeSession, "run", side_effect=AssertionError("revoked process")
+                ):
+                    require_failure(lambda pending=pending: publish(pending))
+                cases.append(
+                    {
+                        "case": "revoked-grant-before-native-process",
+                        "result": "PASS",
+                        "native_process_calls": 0,
+                    }
+                )
                 cases.append(
                     {
                         "case": "complete-generation-and-noop",
@@ -327,13 +399,120 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                     }
                 )
                 continue
-            (source / "two.md").write_text(
-                "# Synthetic second generation for declared activation interruption\n"
-            )
+            if fault == "disconnect":
+                (source / "partial.md").write_text(
+                    "# Synthetic finite partial transfer\n" + secrets.token_hex(1024 * 1024)
+                )
+            else:
+                (source / "two.md").write_text(
+                    "# Synthetic second generation for declared interruption\n"
+                )
             instance.ingest_run(source)
             canonical = mirrors.snapshots.source_fingerprint()
             plan = prepare()
             backup = instance.backup(destination=selected / "Before interrupted publication")
+            if fault == "disconnect":
+                remote_python(
+                    container,
+                    "import sys\nfrom pathlib import Path\n"
+                    "Path('/fixture/transfer-fault.json').write_bytes(sys.stdin.buffer.read())",
+                    incoming=raw({"operation_id": plan["id"], "consumed": False}),
+                )
+                require_failure(lambda plan=plan: publish(plan))
+                observed = json.loads(
+                    remote_python(
+                        container,
+                        "from pathlib import Path\n"
+                        "print(Path('/fixture/transfer-fault.json').read_text())",
+                    )
+                )
+                require(
+                    observed.get("consumed") is True
+                    and observed.get("observed_partial_bytes", 0) >= 65536,
+                    "rsync_qualification",
+                )
+                require(
+                    instance.restore(backup["archive"])["status"] == "restored",
+                    "rsync_qualification",
+                )
+                recovered = engine.reconcile(plan["id"], confirmed=True)
+                require(
+                    recovered["outcome"] == "UNKNOWN" and recovered["explicit_resume_available"],
+                    "rsync_qualification",
+                )
+                receipt = engine.resume(
+                    plan["id"], expected_rsync_plan_sha256=plan["rsync_plan_sha256"], confirmed=True
+                )["receipt"]
+                require(
+                    receipt["transport_proof"]["activation_written"]
+                    and publish(plan)["historical"],
+                    "rsync_qualification",
+                )
+                cases.append(
+                    {
+                        "case": "actual-native-partial-disconnect-explicit-resume-root-restore",
+                        "result": "PASS",
+                        "partial_bytes_observed": observed["observed_partial_bytes"],
+                        "receiver_stop": "DURABLY_CONFIRMED",
+                        "activation_attempts": 1,
+                        "automatic_resume": False,
+                        "canonical_unchanged": mirrors.snapshots.source_fingerprint() == canonical,
+                    }
+                )
+                continue
+            if fault in {"disk-full", "replaced-root"}:
+                if fault == "disk-full":
+                    evidence = json.loads(
+                        remote_python(
+                            container,
+                            "import json,os,errno\nwritten=0\n"
+                            "with open('/fixture/physical-fill.bin','xb',buffering=0) as stream:\n"
+                            " try:\n  while True: written+=stream.write(b'F'*4096)\n"
+                            " except OSError as error:\n  assert error.errno==errno.ENOSPC\n"
+                            "state=os.statvfs('/fixture')\n"
+                            "print(json.dumps({'errno':errno.ENOSPC,'filled_bytes':written,"
+                            "'available_bytes':state.f_bavail*state.f_frsize}))",
+                        )
+                    )
+                    require(
+                        evidence["errno"] == 28 and evidence["available_bytes"] == 0,
+                        "rsync_qualification",
+                    )
+                else:
+                    remote_python(
+                        container,
+                        "import shutil,os\n"
+                        "shutil.copytree('/fixture/payload','/fixture/replacement')\n"
+                        "os.rename('/fixture/payload','/fixture/original-payload')\n"
+                        "os.rename('/fixture/replacement','/fixture/payload')",
+                    )
+                    evidence = {"replacement": "ACTUAL_COPIED_MARKER_DIFFERENT_PHYSICAL_ROOT"}
+                error = require_failure(lambda plan=plan: publish(plan))
+                active = remote_python(
+                    container,
+                    "from pathlib import Path\nprint(Path('/fixture/"
+                    + ("original-payload" if fault == "replaced-root" else "payload")
+                    + "/active.json').read_text())",
+                )
+                require(
+                    json.loads(active)["generation"] == first["generation"], "rsync_qualification"
+                )
+                if fault == "disk-full":
+                    remote_python(
+                        container,
+                        "from pathlib import Path\nPath('/fixture/physical-fill.bin').unlink()",
+                    )
+                cases.append(
+                    {
+                        "case": "actual-native-" + fault,
+                        "result": "PASS",
+                        "evidence": evidence,
+                        "error": error,
+                        "previous_generation_preserved": True,
+                        "retry": False,
+                    }
+                )
+                continue
             marker = {"phase": fault, "operation_id": plan["id"], "consumed": False}
             remote_python(
                 container,
@@ -395,7 +574,7 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
     report = {
         "schema": "concordia-rsync-native-qualification/v1",
         "result": "PASS",
-        "qualification_scope": "PREPARATION_NATIVE_GENERATION_NOOP_ACTIVATION_RESTORE",
+        "qualification_scope": "NATIVE_LINUX_TRANSPORT_RECOVERY_SECURITY_PREPARATION",
         "s22_acceptance": "NOT_ACCEPTED",
         "declared_expected_source_commit": expected_source_commit,
         "fixtures": fixtures,
