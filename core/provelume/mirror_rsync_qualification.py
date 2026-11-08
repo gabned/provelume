@@ -360,7 +360,7 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
             )
 
             def prepare(engine=engine, row=row):
-                return engine.prepare(row["id"], expected_revision=1, confirmed=True)
+                return engine.prepare(row["id"], expected_revision=row["revision"], confirmed=True)
 
             def publish(plan, engine=engine):
                 return engine.publish(
@@ -404,7 +404,7 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                     "# Synthetic finite partial transfer\n"
                     + "".join(
                         "Synthetic public fixture row " + secrets.token_hex(16) + "\n"
-                        for _ in range(2048)
+                        for _ in range(4096)
                     )
                 )
             else:
@@ -412,6 +412,28 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                     "# Synthetic second generation for declared interruption\n"
                 )
             instance.ingest_run(source)
+            if fault == "disconnect":
+                document = next(
+                    item for item in instance.list_documents() if item["title"] == "partial.md"
+                )
+                version = instance.store.read_canonical("versions", document["current_version_id"])
+                row.update(
+                    mirrors.configure(
+                        identity_id=identity["identity"]["id"],
+                        name=row["name"],
+                        target=target,
+                        scope=row["scope"],
+                        include_rules={
+                            "originals": [version["original_id"]],
+                            "attachments": [],
+                            "ai_receipts": [],
+                        },
+                        destination_id=row["id"],
+                        expected_revision=row["revision"],
+                        mode="manual",
+                        confirmed=True,
+                    )
+                )
             canonical = mirrors.snapshots.source_fingerprint()
             plan = prepare()
             backup = instance.backup(destination=selected / "Before interrupted publication")
@@ -430,9 +452,11 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                         "print(Path('/fixture/transfer-fault.json').read_text())",
                     )
                 )
+                manifest = mirrors.snapshots.verify(plan["generation"])
+                complete_bytes = manifest["total_bytes"] + len(raw(manifest))
                 require(
                     observed.get("consumed") is True
-                    and observed.get("observed_partial_bytes", 0) >= 65536,
+                    and 65536 <= observed.get("observed_partial_bytes", 0) < complete_bytes,
                     "rsync_qualification",
                 )
                 require(
@@ -457,6 +481,8 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                         "case": "actual-native-partial-disconnect-explicit-resume-root-restore",
                         "result": "PASS",
                         "partial_bytes_observed": observed["observed_partial_bytes"],
+                        "expected_complete_bytes": complete_bytes,
+                        "incomplete_payload_proved": True,
                         "receiver_stop": "DURABLY_CONFIRMED",
                         "activation_attempts": 1,
                         "automatic_resume": False,
