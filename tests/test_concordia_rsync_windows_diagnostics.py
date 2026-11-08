@@ -81,3 +81,34 @@ def test_windows_cleanup_waits_for_all_descendants_before_releasing_job(monkeypa
     process.resources.callback(lambda: released.append(kernel.observations))
     process.close()
     assert released == [3] and process.handle is process.job is None
+
+
+@pytest.mark.parametrize("code,expires,windows", [(32, False, True), (5, False, True),
+                                                 (32, True, True), (32, False, False)])
+def test_temporary_cleanup_confirms_removal_within_original_budget(
+    monkeypatch, code, expires, windows
+):
+    from provelume import mirror_ssh_runtime as native
+
+    error = PermissionError(13, "synthetic")
+    error.winerror = code
+
+    class Temporary:
+        calls = 0
+
+        def unlink(self, *, missing_ok):
+            assert missing_ok
+            self.calls += 1
+            if self.calls < 3:
+                raise error
+
+    path, waits = Temporary(), []
+    monkeypatch.setattr(native.time, "monotonic", lambda: 1)
+    monkeypatch.setattr(native.time, "sleep", waits.append)
+    if code == 32 and not expires and windows:
+        native._unlink_temporary(path, deadline=2, windows=windows)
+        assert path.calls == 3 and waits == [0.01, 0.01]
+    else:
+        with pytest.raises(PermissionError) as caught:
+            native._unlink_temporary(path, deadline=0 if expires else 2, windows=windows)
+        assert caught.value is error and path.calls == 1 and waits == []

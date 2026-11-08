@@ -30,6 +30,23 @@ MAX_DIAGNOSTIC_BYTES = 64 * 1024
 SUBSYSTEM = "provelume-mirror-v1"
 
 
+def _unlink_temporary(path, *, deadline, windows):
+    while True:
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError as error:
+            # Windows may still report a sharing violation while terminated
+            # native descendants release inherited file objects. Confirm actual
+            # removal within the same total cleanup budget; never hide a residue.
+            if not windows or getattr(error, "winerror", None) != 32:
+                raise
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            time.sleep(min(0.01, remaining))
+
+
 def configuration(value):
     require(
         type(value) is dict
@@ -200,16 +217,17 @@ class NativeSession:
         except OSError:
             raise MirrorError("rsync_component_unavailable") from None
         finally:
+            cleanup_stop = time.monotonic() + 2
             if process is not None:
                 if os.name == "nt":
-                    process.close()
+                    process.close(deadline=cleanup_stop)
                 else:
                     if process.poll() is None:
                         _terminate_process_tree(process)
                     with suppress(ProcessLookupError):
                         os.killpg(process.pid, signal.SIGKILL)
             for item in (source, stdout, stderr):
-                item.unlink(missing_ok=True)
+                _unlink_temporary(item, deadline=cleanup_stop, windows=os.name == "nt")
 
     def component(self, name, *, binary=None):
         binary = str(binary) if binary is not None else shutil.which(name)
