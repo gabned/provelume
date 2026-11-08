@@ -57,3 +57,29 @@ disk-full, replaced paths, revoked/stale grants and actual Root-restore replay
 protection. CLI, local CSRF UI/both shells/seven UNVERIFIED catalogues and scheduler
 must use the same backend. Full native/browser/installer/offline/CI/review and
 actual-main gates remain; no release or live destination is authorized here.
+
+## Initial implementation evidence and remaining gates
+
+The initial implementation contains the closed Ed25519 signer, private native
+socket/Windows named-pipe worker, creation-time process containment and fixed SSH
+argument builder. RFC8032, wrong-host/session/user/service/flags, one-signature,
+expiry, malformed-frame and actual owned-worker IPC checks are automatic source
+evidence. Native Windows/frozen, actual rsync transport, remote helper, activation,
+explicit resume, CLI/UI/scheduler and complete platform qualification remain
+unaccepted until their own exact-candidate evidence exists.
+
+The official 3.5.2 source archive is 1,977,884 bytes, SHA-256
+`a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8`;
+the 273-byte detached signature has SHA-256
+`2979e876bd8b75c1fe36da470a7ec6c50672c2e3787a0bdc48ebf52e99e07044`.
+The signature verifies with signing subkey
+`8EDF88F4731A1E8B45D67FBE6909546B2C52EC2D`, bound to upstream's published
+primary fingerprint `C0E1054505704F757D925AB26A64E8AA2EFBCF5D` (Zen Dodd).
+The public key was read from keys.openpgp.org through the connected reader;
+GitHub release bytes were acquired separately and checked before extraction or
+execution. A second Samba-host archive copy was unavailable (proxy403 and direct
+DNS failure); no second-copy proof is claimed. A local Linux build uses the
+generated configure script with md2man/xxhash/zstd/lz4/OpenSSL-checksum/IDN disabled;
+it reports protocol33. It is an ignored qualification input, not yet a shipped
+application component or Windows proof. Rsync's GPLv3-or-later terms, complete
+source offer and component inventory are required before distribution.

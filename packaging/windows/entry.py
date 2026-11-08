@@ -18,6 +18,8 @@ elif sys.argv[1:2] == ["--internal-gitea-http-worker"]:
     from provelume.mirror_gitea_http import main
 elif sys.argv[1:2] == ["--internal-gitea-git-credential"]:
     from provelume.mirror_gitea_helper import main
+elif sys.argv[1:2] == ["--internal-rsync-agent-worker"]:
+    from provelume.mirror_ssh_agent_worker import main
 else:
     from provelume.desktop import main
 
