@@ -7,6 +7,7 @@ import ctypes
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import replace
@@ -139,14 +140,14 @@ def _fault(worker, temporary, kind):
                 process.wait(5)
 
 
-def qualify(executable, kit, root, output, build_report, installer):
+def qualify(executable, kit, root, output, build_report, installer, gitea_server, rsync_directory):
     if sys.platform != "win32":
         raise ValueError("Native disposable Windows runner required")
     root.mkdir()
     environment = dict(os.environ, LOCALAPPDATA=str(root / "Host"), PATH="")
     counter = 0
 
-    def command(*arguments, expected=0):
+    def command(*arguments, expected=0, optional_git_path=None):
         nonlocal counter
         counter += 1
         result = root / f"command-{counter:03}.json"
@@ -158,7 +159,8 @@ def qualify(executable, kit, root, output, build_report, installer):
                 "--ocr-command",
                 *map(str, arguments),
             ],
-            env=environment,
+            env=(environment if optional_git_path is None
+                 else {**environment, "PATH": optional_git_path}),
             timeout=180,
             check=False,
         )
@@ -310,10 +312,88 @@ def qualify(executable, kit, root, output, build_report, installer):
         faults = [_fault(current / WORKER, temporary, kind) for kind in ("cancel", "timeout")]
         assert _snapshot(instance) == before
         assert not list(instance.ocr.temporary_root.iterdir())
-        setup_trials = [command("setup-qualify", root / ("Setup " + mode),
-                                "--retention", mode, "--kit", kit,
-                                "--expected-sha256", identity["sha256"])
-                        for mode in ("keep", "transit")]
+        personal_trials = [command("personal-qualify", root / ("Personal " + mode),
+                                   "--retention", mode, "--ocr-ready", "--kit", kit,
+                                   "--expected-sha256", identity["sha256"])
+                           for mode in ("keep", "transit")]
+        assert all(result["result"] == "PASS" and result["ocr"] == "AUTOMATIC_PASS"
+                   and result["backup_restore"] == "PASS" for result in personal_trials)
+        setup_trials = [result["setup"] for result in personal_trials]
+        calendar_trial = command("icalendar-qualify", root / "Synthetic Calendars")
+        assert calendar_trial["result"] == "PASS" and not calendar_trial["network_used"]
+        asana_trial = command("asana-qualify", root / "Synthetic Asana")
+        assert asana_trial["result"] == "PASS" and not asana_trial["network_used"]
+        tududi_trial = command("tududi-qualify", root / "Synthetic Tududi")
+        assert tududi_trial["result"] == "PASS" and not tududi_trial["network_used"]
+        writeback_trial = command("task-writeback-qualify", root / "Synthetic Task Writes")
+        assert writeback_trial["result"] == "PASS" and not writeback_trial["network_used"]
+        assert writeback_trial["release_gate"] == "DEFERRED_BY_MAINTAINER"
+        assert writeback_trial["release_scope"] == "ASANA_TUDUDI_READ_ONLY_0_15_0"
+        mirror_trial = command("mirror-qualify", root / "Synthetic Mirrors")
+        assert mirror_trial["result"] == "PASS" and not mirror_trial["network_used"]
+        assert not mirror_trial["transport_process_used"]
+        assert mirror_trial["publication"] == "TRANSPORT_NOT_QUALIFIED"
+        assert mirror_trial["same_root_restore_no_replay"] == "PASS"
+        # Git is an explicit optional native dependency. All existing installed
+        # qualifications retain empty PATH; this separate case admits only Git's
+        # installation directories and the Windows system directory, never Python.
+        folder_trial = command("folder-mirror-qualify", root / "Synthetic native folder")
+        assert folder_trial["result"] == "PASS" and not folder_trial["network_used"]
+        assert not folder_trial["process_used"]
+        assert folder_trial["native_vault_qualification"] == "PASS"
+        assert folder_trial["external_ledger_backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        rsync_agent = command("rsync-credential-qualify", root / "Synthetic native SSH agent")
+        assert rsync_agent["result"] == "PASS"
+        assert rsync_agent["mode"] == "NATIVE_VAULT_AND_OWNED_AGENT_IPC_ONLY"
+        assert rsync_agent["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        assert rsync_agent["native_ssh_authentication"] == "NOT_RUN"
+        assert rsync_agent["native_rsync_transport"] == "NOT_RUN"
+        rsync_components = command("rsync-windows-components-qualify",
+                                   root / "Synthetic native Windows rsync",
+                                   "--fixture-directory", rsync_directory)
+        assert rsync_components["result"] == "PASS"
+        assert rsync_components["native_local_copy"] == "PASS"
+        assert rsync_components["native_ssh_authentication"] == "NOT_RUN"
+        assert rsync_components["native_rsync_over_ssh"] == "NOT_RUN"
+        git_binary = shutil.which("git")
+        assert git_binary and Path(git_binary).is_absolute()
+        git_root = Path(git_binary).parent.parent
+        git_dependency_path = os.pathsep.join(map(str, [
+            Path(git_binary).parent, git_root / "usr/bin", git_root / "mingw64/bin",
+            Path(os.environ["SYSTEMROOT"]) / "System32",
+        ]))
+        git_mirror_trial = command("git-mirror-qualify", root / "Synthetic native Git",
+                                   optional_git_path=git_dependency_path)
+        assert git_mirror_trial["result"] == "PASS" and not git_mirror_trial["network_used"]
+        assert git_mirror_trial["transport_process_used"]
+        assert git_mirror_trial["same_root_restore_readonly_reconciliation"] == "PASS"
+        github_mirror_trial = command("github-mirror-qualify", root / "Synthetic GitHub",
+                                      optional_git_path=git_dependency_path)
+        assert github_mirror_trial["result"] == "PASS" and not github_mirror_trial["network_used"]
+        assert github_mirror_trial["real_github"] == "NOT_RUN"
+        assert github_mirror_trial["interruption_restore_readonly_recovery"] == "PASS"
+        gitlab_mirror_trial = command("gitlab-mirror-qualify", root / "Synthetic GitLab",
+                                      optional_git_path=git_dependency_path)
+        assert gitlab_mirror_trial["result"] == "PASS" and not gitlab_mirror_trial["network_used"]
+        assert gitlab_mirror_trial["real_gitlab"] == "NOT_RUN"
+        assert gitlab_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        assert gitlab_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
+        gitea_mirror_trial = command("gitea-mirror-qualify", root / "Synthetic Gitea",
+                                     optional_git_path=git_dependency_path)
+        assert gitea_mirror_trial["result"] == "PASS" and not gitea_mirror_trial["network_used"]
+        assert gitea_mirror_trial["real_gitea"] == "NOT_RUN"
+        assert gitea_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        gitea_server_trial = command(
+            "gitea-server-qualify", root / "Synthetic actual Gitea TLS",
+            "--binary", gitea_server, optional_git_path=git_dependency_path)
+        assert gitea_server_trial["result"] == "PASS"
+        assert gitea_server_trial["mode"] == "FULL_NATIVE"
+        assert gitea_server_trial["native_mirror_publication"] == "PASS"
+        assert not gitea_server_trial["driver_external_network_used"]
+        assert not gitea_server_trial["real_accounts"]
+        assert github_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        assert github_mirror_trial["native_vault_helper"]["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        assert github_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
         instance.configure_ocr(replace(instance.ocr.configured_settings(), mode="disabled"))
@@ -335,8 +415,23 @@ def qualify(executable, kit, root, output, build_report, installer):
             "missing_components": negatives,
             "faults": faults,
             "s07_setup_trials": setup_trials,
+            "s09_personal_trials": personal_trials,
+            "s12_icalendar_trial": calendar_trial,
+            "s13_asana_trial": asana_trial,
+            "s14_tududi_trial": tududi_trial,
+            "s15_task_writeback_trial": writeback_trial,
+            "s16_mirror_trial": mirror_trial,
+            "s17_git_mirror_trial": git_mirror_trial,
+            "s18_github_mirror_trial": github_mirror_trial,
+            "s19_gitlab_mirror_trial": gitlab_mirror_trial,
+            "s20_gitea_mirror_trial": gitea_mirror_trial,
+            "s20_actual_gitea_tls_trial": gitea_server_trial,
+            "s21_native_folder_trial": folder_trial,
+            "s22_native_agent_trial": rsync_agent,
+            "s22_native_components_trial": rsync_components,
+            "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
-            "path": "EMPTY_FOR_INSTALLED_COMMANDS",
+            "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",
             "external_python_required": False,
             "network": "Outbound Windows Firewall block rules for exact three executables",
             "firewall_profiles_before": profiles,
@@ -392,7 +487,9 @@ def qualify(executable, kit, root, output, build_report, installer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("executable", "kit", "root", "output", "build-report", "installer"):
+    for name in ("executable", "kit", "root", "output", "build-report", "installer",
+                 "gitea-server", "rsync-directory"):
         parser.add_argument("--" + name, required=True, type=Path)
     args = parser.parse_args()
-    qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer)
+    qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer,
+            args.gitea_server, args.rsync_directory)
