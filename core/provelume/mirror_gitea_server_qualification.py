@@ -469,6 +469,8 @@ def qualify_gitea_server(root, server_binary, *, api_only=False):
             "raw_credential_output": "EXCLUDED",
             "whole_host_network": "NOT_INSTRUMENTED",
         }
+        if hasattr(error, "containment_evidence"):
+            evidence["native_process"] = error.containment_evidence
         raise GiteaQualificationFailure(code, evidence) from None
     finally:
         COMMAND_SECRETS.reset(secret_token)
