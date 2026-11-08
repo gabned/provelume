@@ -11,7 +11,7 @@ from .build_info import current_build_info
 from .maintenance_local_files import open_local_file
 from .migration_permissions import make_private
 from .mirror_contract import MirrorError, require
-from .mirror_rsync_windows import admit, inputs, native_path
+from .mirror_rsync_windows import admit, inputs
 from .mirror_ssh_runtime import NativeSession
 
 
@@ -22,8 +22,8 @@ class WindowsComponentsFailure(MirrorError):
 def local_copy_diagnostics(code, stdout, stderr, *, root, directory):
     """Only the pinned, unauthenticated synthetic local-copy command uses this."""
     text = stderr[:4096].decode("utf-8", errors="replace")
-    for path in sorted((str(root), str(directory), native_path(root), native_path(directory)),
-                       key=len, reverse=True):
+    for path in sorted((str(root), str(directory), str(root).replace("\\", "/"),
+                        str(directory).replace("\\", "/")), key=len, reverse=True):
         text = text.replace(path, "[fixture]")
     # MSYS2 can normalize, escape or quote paths differently from argv.
     text = re.sub(r"[A-Za-z]:[\\/][^\r\n]*", "[native-path]", text)
@@ -101,8 +101,8 @@ def qualify_components(root, *, fixture_directory):
                 "--no-group",
                 "--no-perms",
                 "--timeout=15",
-                native_path(source) + "/",
-                native_path(destination) + "/",
+                "./Input with space/",
+                "./Output with space/",
             ], check=False,
         )
         if code != 0:

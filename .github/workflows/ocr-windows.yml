@@ -54,6 +54,8 @@ jobs:
       - name: Qualify the source native rsync primitive before expensive package preparation
         shell: pwsh
         run: |
+          $ssh = "$env:WINDIR/System32/OpenSSH/ssh.exe"
+          if (Test-Path $ssh) { & $ssh -V }
           python -c "import sys; from pathlib import Path; from provelume.ocr_desktop import run_ocr_command; sys.exit(run_ocr_command(['rsync-windows-components-qualify', sys.argv[1], '--fixture-directory', sys.argv[2]], Path(sys.argv[3])))" "$env:RUNNER_TEMP/Source native Windows rsync" "$env:RUNNER_TEMP/rsync-fixture" "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
           Get-Content "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
           if ($LASTEXITCODE -ne 0) { throw "Source native rsync primitive failed; frozen qualification remains unperformed." }
