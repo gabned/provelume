@@ -23,9 +23,15 @@ def library():
 
             loaded = ctypes.WinDLL("kernel32", use_last_error=True).GetModuleHandleW
             loaded.argtypes, loaded.restype = [w.LPCWSTR], w.HMODULE
-            handle = loaded("libcrypto-3.dll") or loaded("libcrypto-3-x64.dll")
+            name = "libcrypto-3.dll"
+            handle = loaded(name)
+            if not handle:
+                name = "libcrypto-3-x64.dll"
+                handle = loaded(name)
             require(handle, "ssh_crypto_unavailable")
-            result = ctypes.CDLL(None, handle=handle)
+            # Windows ctypes inspects the name even when an existing handle is
+            # supplied. This names that same loaded module; it never loads one.
+            result = ctypes.CDLL(name, handle=handle)
         else:
             result = ctypes.CDLL("libcrypto.so.3", mode=os.RTLD_NOLOAD | os.RTLD_NOW)
         pointer, size = ctypes.c_void_p, ctypes.c_size_t
