@@ -78,6 +78,11 @@ jobs:
         run: |
           $wheel = Get-ChildItem "$env:RUNNER_TEMP/ocr-candidate/dist/*.whl" | Select-Object -First 1
           ./scripts/build_windows_ocr_kit.ps1 -CandidateWheel $wheel.FullName -OutputDirectory "$env:RUNNER_TEMP/ocr-output" -Commit $env:QUALIFIED_SHA
+      - name: Acquire the pinned disposable Gitea TLS server fixture
+        shell: pwsh
+        run: |
+          python scripts/acquire_concordia_gitea_fixture.py --output "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" > "$env:RUNNER_TEMP/ocr-output/gitea-input.json"
+          if ($LASTEXITCODE -ne 0) { throw "Gitea fixture acquisition failed." }
       - name: Install that exact package, exercise offline kit and remove disposable installation
         shell: pwsh
         run: |
@@ -87,7 +92,7 @@ jobs:
           if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) { throw "Disposable installation failed." }
           try {
             $kit = Get-ChildItem "$env:RUNNER_TEMP/ocr-output/provelume-*-ocr-windows-x64.zip" | Select-Object -First 1
-            python scripts/qualify_windows_ocr_installed.py --executable "$target/Provelume.exe" --installer $setup.FullName --kit $kit.FullName --build-report "$env:RUNNER_TEMP/ocr-output/ocr-kit-build.json" --root "$env:RUNNER_TEMP/Concordia OCR Qualification" --output "$env:RUNNER_TEMP/ocr-output/windows-installed-ocr.json"
+            python scripts/qualify_windows_ocr_installed.py --executable "$target/Provelume.exe" --installer $setup.FullName --kit $kit.FullName --build-report "$env:RUNNER_TEMP/ocr-output/ocr-kit-build.json" --gitea-server "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" --root "$env:RUNNER_TEMP/Concordia OCR Qualification" --output "$env:RUNNER_TEMP/ocr-output/windows-installed-ocr.json"
             if ($LASTEXITCODE -ne 0) { throw "Installed offline OCR qualification failed." }
           } finally {
             $uninstall = Start-Process -FilePath "$target/unins000.exe" -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru

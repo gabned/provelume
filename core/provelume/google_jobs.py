@@ -99,7 +99,10 @@ class GoogleJobManager:
         # Publish only a completed adapter; failed construction remains retryable.
         with self._adapter_lock:
             if self._adapter is None:
-                self._adapter = GoogleApiAdapter()
+                from .google_credentials import GoogleCredentialVault
+
+                self._adapter = GoogleApiAdapter(vault=GoogleCredentialVault(
+                    forbidden_root=self.store.paths.root))
             return self._adapter
 
     @adapter.setter
@@ -342,7 +345,10 @@ class GoogleJobManager:
             "build_commit": current_build_info().get("commit"),
             "limits": dict(request["limits"]),
             "execution_adapter": (
-                "google_rest" if type(self.adapter) is GoogleApiAdapter else "synthetic"
+                ("google_calendar_rest" if getattr(self, "calendar_api", None) is None
+                 else "synthetic")
+                if request["capability"] == "calendar" else (
+                    "google_rest" if type(self.adapter) is GoogleApiAdapter else "synthetic")
             ),
             "real_google_qualified": False,
         }
@@ -597,6 +603,10 @@ class GoogleJobManager:
             )
         job_id = str(job["id"])
         request = self._request_for_job(job)
+        if request["capability"] == "calendar":
+            from .google_calendar import execute_calendar_job
+
+            return execute_calendar_job(self, job, request, checkpoint=checkpoint)
         limits = GoogleLimits.from_mapping(request["limits"])
         instance, capability, source = self.sources.effective_execution_context(
             str(request["source_id"])
