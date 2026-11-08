@@ -244,17 +244,28 @@ def test_local_csrf_ui_uses_gitea_backend_and_passive_get_has_no_transport(tmp_p
     assert client.post("/mirrors", data={"action": "gitea-prepare"}).status_code == 403
     result = client.post(
         "/mirrors?lang=it",
-        data={"csrf_token": csrf, "action": "gitea-prepare", "destination_id": row["id"],
-              "revision": "1", "confirm": "yes"},
+        data={
+            "csrf_token": csrf,
+            "action": "gitea-prepare",
+            "destination_id": row["id"],
+            "revision": "1",
+            "confirm": "yes",
+        },
     )
     assert result.status_code == 200 and 'id="mirror-gitea-transfer"' in result.text
     plan, git_plan = engine.git_plan(mirrors.plans()[0]["id"])
     result = client.post(
         "/mirrors?lang=it",
-        data={"csrf_token": csrf, "action": "gitea-publish", "plan_id": plan["id"],
-              "plan_sha256": fingerprint(plan), "git_plan_sha256": fingerprint(git_plan),
-              "transfer_sha256": git_plan["transfer_sha256"], "public_confirm": "no",
-              "confirm": "yes"},
+        data={
+            "csrf_token": csrf,
+            "action": "gitea-publish",
+            "plan_id": plan["id"],
+            "plan_sha256": fingerprint(plan),
+            "git_plan_sha256": fingerprint(git_plan),
+            "transfer_sha256": git_plan["transfer_sha256"],
+            "public_confirm": "no",
+            "confirm": "yes",
+        },
     )
     assert result.status_code == 200 and 'id="mirror-git-receipt"' in result.text
     count, reads = len(api.calls), mirrors.vault.reads
@@ -264,3 +275,51 @@ def test_local_csrf_ui_uses_gitea_backend_and_passive_get_has_no_transport(tmp_p
                 client.get("/mirrors?lang=" + language + "&plan=" + plan["id"]).status_code == 200
             )
     assert len(api.calls) == count and mirrors.vault.reads == reads
+
+
+@pytest.mark.parametrize(
+    "times,accepted",
+    [([0, 0, 0], True), ([0, 29.9, 29.99], True), ([0, 0, 30.001], False), ([0, 30], False)],
+)
+def test_actual_server_admission_refuses_late_success_without_raising_limits(
+    monkeypatch, times, accepted
+):
+    from types import SimpleNamespace
+
+    from provelume import mirror_gitea_server_qualification as driver
+
+    observed, clock = [], iter(times)
+    monkeypatch.setattr(driver.time, "monotonic", lambda: next(clock))
+
+    def response(*args, **kwargs):
+        observed.append(kwargs["timeout"])
+        assert 0 < kwargs["timeout"] <= 5
+        return {"version": "28.3.0"}
+
+    monkeypatch.setattr(driver, "control", response)
+    server = SimpleNamespace(closed=False, process=SimpleNamespace(poll=lambda: None))
+    if accepted:
+        driver.await_server_version(server, "https://127.0.0.1:30443", "")
+        assert len(observed) == 1
+    else:
+        with pytest.raises(MirrorError, match="gitea_fixture_readiness"):
+            driver.await_server_version(server, "https://127.0.0.1:30443", "")
+
+
+def test_unsupported_actual_server_version_is_refused_without_readiness_retry(monkeypatch):
+    from types import SimpleNamespace
+
+    from provelume import mirror_gitea_server_qualification as driver
+
+    calls = []
+    monkeypatch.setattr(driver.time, "monotonic", lambda: 0)
+
+    def response(*args, **kwargs):
+        calls.append(True)
+        return {"version": "28.3.1"}
+
+    monkeypatch.setattr(driver, "control", response)
+    server = SimpleNamespace(closed=False, process=SimpleNamespace(poll=lambda: None))
+    with pytest.raises(MirrorError, match="gitea_profile_not_qualified"):
+        driver.await_server_version(server, "https://127.0.0.1:30443", "")
+    assert len(calls) == 1

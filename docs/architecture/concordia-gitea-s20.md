@@ -95,3 +95,13 @@ requirements remain read:user + write:repository (or all), and product workers
 cannot create repositories. Candidate-native/browser/CI results and current-head
 review remain PR-local. S20 acceptance, real destinations and human observations
 are separate gates; human checks remain DEFERRED_BY_MAINTAINER / NOT_RUN.
+
+Admission now bounds each readiness request by the remaining original 30-second
+window and rejects even a successful response after its deadline. An unsupported
+server version is an immediate refusal, rather than a readiness retry. Controlled
+clock boundary cases exercise early/near-limit/late responses and expiry before
+request. No limit was increased and prior actual-server outcomes remain intact.
+The shared mirror UI also wraps the full public CA fingerprint. S21's additional
+browser fixture exposed that unbroken code at 320 CSS px in Cura; the original
+FAIL/DOM evidence (555 px document width from a 501 px code element) is preserved.
+This correction changes rendering, not trust bytes or verification semantics.
