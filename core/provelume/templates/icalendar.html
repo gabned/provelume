@@ -1,0 +1,36 @@
+{% extends base_layout %}
+{% block title %}{{ t('icalendar.title') }} · Provelume{% endblock %}
+{% block content %}
+<header class="page-header"><h1>{{ t('icalendar.title') }}</h1><p>{{ t('icalendar.lead') }}</p></header>
+{% if notice in ['saved', 'error'] %}<p role="status">{{ t('icalendar.' ~ notice) }}</p>{% endif %}
+{% macro hidden(action, source=None) %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="{{ action }}">
+{% if source %}<input type="hidden" name="source_id" value="{{ source.id }}"><input type="hidden" name="revision" value="{{ source.policy.revision if source.policy else 0 }}">{% endif %}
+{% endmacro %}
+{% macro connection_fields() %}
+<label>{{ t('icalendar.kind') }} <select name="kind"><option value="local">{{ t('icalendar.local') }}</option><option value="https">HTTPS</option></select></label>
+<label>{{ t('icalendar.location') }} <input name="location" type="text" maxlength="8192" autocomplete="off" required></label>
+<label>{{ t('icalendar.authorization') }} <input name="authorization" type="password" maxlength="4096" autocomplete="off"></label>
+<label>{{ t('icalendar.time_zone') }} <input name="time_zone" maxlength="100" placeholder="Europe/Rome"></label>
+<p>{{ t('icalendar.device') }}</p>
+{% endmacro %}
+{% if editable %}<section class="panel"><h2>{{ t('icalendar.add') }}</h2>
+<form method="post" action="/icalendar?lang={{ lang }}">{{ hidden('add') }}
+<label>{{ t('icalendar.name') }} <input name="name" maxlength="120" required></label>
+{{ connection_fields() }}<label><input name="confirm" value="yes" type="checkbox" required> {{ t('icalendar.confirm') }}</label><button>{{ t('icalendar.add') }}</button>
+</form></section>{% endif %}
+{% for feed in feeds %}<section class="panel"><h2>{{ feed.name }}</h2>
+<p>{{ t('icalendar.mode.' ~ (feed.policy.mode if feed.policy else 'disabled')) }}</p>
+{% if editable %}
+<form method="post" action="/icalendar?lang={{ lang }}">{{ hidden('read', feed) }}
+<label><input name="confirm" value="yes" type="checkbox" required> {{ t('icalendar.confirm') }}</label><button>{{ t('icalendar.read') }}</button></form>
+<details><summary>{{ t('icalendar.policy') }}</summary><form method="post" action="/icalendar?lang={{ lang }}">{{ hidden('consent', feed) }}
+<label>{{ t('icalendar.policy') }} <select name="mode">{% for mode in ['disabled', 'manual', 'scheduled'] %}<option value="{{ mode }}"{% if feed.policy and feed.policy.mode == mode %} selected{% endif %}>{{ t('icalendar.mode.' ~ mode) }}</option>{% endfor %}</select></label>
+<label>{{ t('icalendar.interval') }} <input type="number" name="interval" min="60" value="3600"></label>
+<label><input name="confirm" value="yes" type="checkbox" required> {{ t('icalendar.confirm') }}</label><button>{{ t('icalendar.save') }}</button></form></details>
+<details><summary>{{ t('icalendar.reconnect') }}</summary><form method="post" action="/icalendar?lang={{ lang }}">{{ hidden('reconnect', feed) }}
+{{ connection_fields() }}<label><input name="confirm" value="yes" type="checkbox" required> {{ t('icalendar.confirm') }}</label><button>{{ t('icalendar.save') }}</button></form></details>
+{% endif %}</section>{% else %}<p>{{ t('icalendar.empty') }}</p>{% endfor %}
+<section class="panel"><h2>{{ t('icalendar.duplicates') }}</h2><p>{{ t('icalendar.duplicates_help') }}</p>
+{% for group in duplicates %}<ul>{% for member in group.members %}<li><a href="/documents/{{ member.document_id }}?lang={{ lang }}">{{ member.source_id }} · {{ group.uid }}</a></li>{% endfor %}</ul>{% endfor %}</section>
+{% endblock %}

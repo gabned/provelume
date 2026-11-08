@@ -1,6 +1,78 @@
 # S01 CPU diagnostic comparison
 
-Owner: PR #424, `concordia-s01-readiness`. The original binding remains
+## S07 governed Capture caller-span follow-up
+
+The [new ordinary-CI finding](https://github.com/gabned/provelume/pull/439#issuecomment-6670228157)
+is run `42109002130`, attempt 1, Linux job `127531293383`, exact head
+`a713f0141799fea60b7caa1a0e62826f3b373bf9`. Its original Linux ZIP is
+128193 bytes, SHA-256 `be7f3b54678ba52c0abdaaf789ea6f14b2cfe51229bbb3a4159bd5874a54ec4b`.
+All 621 members and the unchanged evaluator/network replay were checked. Only
+`s06_governed` fails: governed Capture samples 1/5 take 0.441381141/0.560081222 s
+against their own 0.364834536 s limit. Submit accounts for 0.317100805 s in sample 1;
+process accounts for 0.523012562 s in sample 5. These inclusive durations do not
+demonstrate a cause. The original main finding remains independently CURRENT.
+
+The earlier five-probe directly timed prefix never reaches governed jobs. The
+new explicit `concordia_caller_spans=true` option requires observer-study mode
+and an admitted exact fetched-main SHA, and is incompatible with pool-prefix
+mode. It runs **one complete original sequence, one arm, one attempt**. Existing
+boundary accounting gains direct same-caller `_prepare`, `_publish_entries` and
+`_shutdown_pool` spans around each Capture transaction, including governed probes.
+The hypothesis is that a newly exceeded governed interval can distinguish pool
+shutdown/coordination time from synchronous prepare/publication time. Thread CPU,
+scheduler/I/O and durability boundaries remain observable; unmatched time stays
+unexplained, and overlapping intervals cannot be added as a causal decomposition.
+
+The application is exact main `19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`, whose
+Core and measurement/evaluation source bytes match the new failed run. No sampler,
+placement change, product correction, model/input/gate change or ABBA replay is
+introduced. The inherited harmless environment selectors are retained without
+operator credentials. The existing 1200 s execution and 60 s observation limits
+remain; acquisition/identity/counter/application/network/non-timing-conjunct errors
+stop collection. All 25 probes must have complete caller-bound method spans and
+original accounting. Missing spans stop the experiment. There is no next arm or
+automatic retry. No exceedance means NON_REPRODUCTION. Instrumented observations
+remain DIAGNOSTIC_ONLY and cannot establish product qualification, close either
+finding or accept main. Normal `measure` remains byte-identical to main.
+
+## Common observation bundle contrast (6 November 2026)
+
+The [predeclared hypothesis](https://github.com/gabned/provelume/pull/439#issuecomment-6679055237)
+addresses a factor shared by every previous rich arm: pool-task wrapping and
+boundary accounting can alter the schedule and the idle-derived budget. The
+ordinary current Capture limit was 0.400895138 s; the previous rich observation's
+limit was 0.510410192 s on a different host. This difference does not establish
+an observer effect or a CPU cause. The original and later ordinary FAILs remain
+CURRENT; neither previous comparison is repeated.
+
+The explicit `concordia_clock_bundle=true` input requires observer-study mode and
+an admitted exact fetched-main SHA, and excludes prefix/standalone caller-span
+options. One existing hosted job runs one fixed A/B block:
+
+1. **Caller clocks only:** direct wall/process/thread clocks around submit/process
+   and the same three transaction methods. No pool-task wrapper, diagnostic `/proc` reads,
+   durability wrapper or sampler. Absent kernel counters are marked NOT_COLLECTED.
+2. **Rich common bundle:** existing boundary/pool/durability accounting and direct
+   method spans. All existing counter-completeness checks remain mandatory.
+
+Both arms use exact main1711, fresh equal-depth processes/stores, identical original
+cases, locked inputs, admission/placement, evaluators and thresholds. Both use the
+qualifying workflow's original network-only `strace -ff -tt` options, without the
+optional syscall-time flag. This holds the tracer constant inside this new pair.
+Every arm needs 25 probes, 50 operations, 150 same-caller method spans, retained
+concurrency/non-timing conjuncts, original complete network observation and native
+exits. Light collection cannot masquerade as rich counters or qualify the product.
+
+The unchanged 1200 s per-arm, 60 s observation and 85 min job bounds apply.
+Acquisition/source/application/network/collection/non-timing errors stop subsequent
+arms. A target timing FAIL survives and permits only the already declared B arm.
+There is no reverse order, third arm or automatic retry. Both reports remain
+DIAGNOSTIC_ONLY with their original PASS/FAIL gates. One pair cannot rule out
+time/cache/host drift, separate each observer component or prove historical cause.
+No reproduced relevant failure means NON_REPRODUCTION. No source correction,
+finding resolution, main acceptance, S08 or release follows without its own gates.
+
+Historical S01 owner: PR #424, `concordia-s01-readiness`. The original binding remains
 `1ba49ad7a9bbaa1639126c078bc59dfecf0dcafc8db38b78ce84a588558ee0a6`.
 This experiment does not qualify an application candidate or close a finding.
 
@@ -635,3 +707,216 @@ The test producer now uses that publication sequence; its 5-second readiness and
 assertion are unchanged. This is a test-control correction, not a PRODUCT change
 or Windows qualification; the original failed job and aggregate refusal remain
 evidence, and the corrected head requires new complete native/remote checks.
+
+## S07 main observer control (5 November 2026)
+
+The current main CPU finding belongs to [#438](https://github.com/gabned/provelume/pull/438),
+source `19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`, run41928461608/attempt1,
+Linux job126918981396. Capture0.467447869s exceeded its own idle-derived
+0.409724258s limit. Original artifact13370559401/evaluator FAIL remain preserved;
+cause is NOT_DEMONSTRATED. The completed source comparison41978421375 retained
+100 probes and four instrumented PASS reports on EPYC9V45, with no reproduced
+exceedance. All100 submit windows lacked two wholly interior sampler snapshots.
+Those diagnostic results do not accept main or transfer the preceding PR PASS.
+
+The separate current-main boundary/extended/extended/boundary control was declared
+in [6653221987](https://github.com/gabned/provelume/pull/438#issuecomment-6653221987)
+and its common pool accounting in
+[6653336825](https://github.com/gabned/provelume/pull/438#issuecomment-6653336825).
+The already attached Intel8573C host passed native hardware, positive scheduler
+and actual strace admission. Its first arm stopped at the unchanged1200s bound,
+after42 corpus cases. All six observed Capture probes met their own1s limit;
+the partial original evaluator reports cold-load/first-output FAIL and other
+incomplete dimensions NOT_RUN. The other three arms never started; tracee and
+native-worker exit were independently observed. Partial originals remain private.
+No equivalent local replay, raised timeout or source correction follows.
+
+The `concordia-s07-cpu-recovery` PR-local owner makes that same predeclared
+observer control executable on existing CI capacity, where the full sequence
+already completed within the original bounds. The existing observer-study input
+gains an optional full `concordia_observer_source` SHA. Before model acquisition,
+the driver checks a clean checkout and equality to freshly fetched `origin/main`,
+native hardware, positive scheduler counters, actual strace and focused controls.
+Unspecified source retains the historical S06/S08 observer experiment unchanged.
+The normal push/PR `measure` job, evaluator, model/configuration, dependencies,
+payload and all numeric qualification limits remain unchanged.
+
+For the explicitly selected main, four fresh equal-depth stores run A/B/B/A once:
+network-only boundary observation; extended sampler plus fsync/fdatasync tracing;
+the same extended bundle; then boundary again. Both modes share the existing
+pool-task wrapper, retaining queue/task CPU, scheduler/I/O counters, actual masks
+and wrapper costs without assigning affinity or subtracting observer time.
+Per-source hashes, actual host and every original result remain recorded.
+Every report stays DIAGNOSTIC_ONLY/qualification_eligible=false. Stop subsequent
+arms on the existing20min arm/85min job limits, application/collection/network
+failure, incomplete required counters or any non-timing failure. The existing
+disposable timing projection classifies only that stop condition; it cannot
+replace an original FAIL. A single bundle contrast does not isolate each observer
+component or prove historical causality. No reproduced relevant failure leaves
+the finding CURRENT/NOT_DEMONSTRATED. Any demonstrated PRODUCT correction needs
+its normal qualification, merge and actual-main acceptance before S08. Manual
+methods remain DEFERRED_BY_MAINTAINER/NOT_RUN until completed/released0.15.
+
+## Direct pool timing on the original S07 prefix (5 November 2026)
+
+The original scored failure remains run41928461608/attempt1/job126918981396,
+Capture0.467447869s against its own0.409724258s limit. The completed source and
+observer comparisons are non-reproductions; no later PASS accepts that main.
+
+The optional post-score cProfile data cannot establish caller-only attribution.
+The distinct profiled busy901 includes other-thread functions and reports
+posix.fsync own235.55ms above cumulative180.92ms. One synchronized marker control
+on CPython3.12.14 confirms that a parent's Profile.runcall includes a function
+executed only by its child TID. The profiler implementation uses global monitoring
+callbacks and one shared context. These observations do not measure the original
+failed interval. Its scored timing precedes the optional profile, so this diagnostic
+limitation does not explain or clear the original CPU failure.
+
+The new hypothesis is narrower: extra Capture time is spent inside the actual
+caller-bound transaction-pool shutdown, rather than preparation/publication or
+other serial work. Direct monotonic/thread/process CPU envelopes around `_prepare`,
+`_publish_entries` and `_shutdown_pool` distinguish those intervals without a
+cross-thread profile stack. Both existing operation boundaries and pool-task
+counters survive. All original durability calls, payloads and timers remain;
+observer time is retained, never subtracted. Nested intervals must not be added.
+
+One local prefix control stopped during its first native self-test at the original
+60-second request limit, before any concurrent Capture probe. Its three idle
+probes and partial original FAIL survive. Native exit was observed. Its trace also
+contains successful AF_UNIX socket creation with failed nscd connections in the
+parent bootstrap; the original network rule does not accept these calls. No local
+retry or higher deadline follows. This is neither a CPU reproduction nor a main
+acceptance result.
+
+The supported CI observer study gains `concordia_pool_prefix=true`, requiring its
+existing explicit observer-study flag and full fetched-main source SHA. Admission
+and focused controls precede acquisition. The qualifying `measure` job is byte-
+identical. This mode executes exactly one source/prefix: three idle probes;
+run0 self-test/busy0 and all20 original warm corpus cases; run1 self-test/busy1;
+then stop before its first warm case. The unchanged qualifier finalizes its partial
+report and closes native resources. The process remains bounded at1200seconds,
+with canonical request and observation limits unchanged; no extra arm or retry.
+
+The measurement child receives only inherited path/home/locale/temp selectors,
+with user site disabled; credentials and proxy headers are excluded. It keeps the
+original native containment and all-thread network-only strace through exit.
+The original full-phase network evaluator necessarily stays NOT_RUN because the
+prefix omits later phases. Collection additionally requires five complete probe
+records, exact caller-bound method spans, observed native exits, retained Original
+and search results, concurrent workers, twenty original warm cases and no unexpected
+raw network calls. Collection success remains DIAGNOSTIC_ONLY with the original
+partial evaluator verdict and every gate intact. It is never product qualification.
+
+This one CI execution addresses the local host's failure to reach the target
+interval; it cannot reconstruct historical scheduler or I/O observations. A
+non-reproduction leaves the finding CURRENT/NOT_DEMONSTRATED. Any genuine correction
+still needs its appropriate owner, normal qualification and actual-main acceptance
+before S08. Version0.14.0/development, Protocol pin and deferred human methods remain.
+
+## Capture path-guard factor (6 November 2026)
+
+Owner remains #439 / `concordia-s07-cpu-recovery`, with its original BIND.
+Main is `1711f037b1467d84eb5e145466dad6a6171643fc`; immutable baseline A is
+`d5b2cc9f06c14be8c51a082d309dbde0358552e8`. The four original CPU findings
+remain CURRENT / NOT_DEMONSTRATED. All completed diagnostic stops remain binding.
+
+The new hypothesis concerns repeated Capture path validation under the mandatory
+network observer. A fixed local synthetic tracer control demonstrated that the
+ordinary network output filter still incurs unrelated filesystem syscall stops:
+10,000 stat calls took 354.420/358.792 ms and 20,002 voluntary switches per A arm,
+against 11.638/12.073 ms and zero voluntary switches with seccomp-BPF selection.
+This is a component observation, not attribution of the original failed samples.
+The control's all-thread socket cases also showed two missing denied calls under
+BPF. Therefore BPF adoption is REFUSED; the ordinary observer remains unchanged.
+The original statement of 34 inventory files in the PR comment was a count error;
+the actual retained inventory has 42 files. Raw report SHA-256 is
+`2550cf30fb049ca0d5b2e8c27aa64d14729c18c7f6dfbe14b5741562796f0a1e`.
+
+The separate proposed PRODUCT factor changes only `CaptureJournal._safe`:
+for absolute paths on supported Linux hosts, call the existing `kernel_no_links`
+helper once instead of walking every ancestor in Python. Every call freshly
+validates the complete existing prefix with NO_SYMLINKS/NO_MAGICLINKS. Unsafe
+kernel results fail closed; null bytes are rejected before the C interface.
+Unsupported kernels/hosts, Windows and relative paths retain the original walk.
+No path observation is cached. Existing pinned reads, identity/byte revalidation,
+atomic transaction publication, durability, budgets, formats and pools remain.
+The new tests cover real aliases, replacement between calls, fallback, invalid
+paths and descriptor cleanup. The redundant-walk regression fails on A, observing
+eight metadata checks for one synthetic missing path, before the correction.
+
+Before any native-inference comparison, run one fixed local component study:
+separate syscall counts from timing, then A/B/B/A with six unchanged original
+AI-Off Capture/preserve/extract/search probes per arm. Use fresh equal-depth
+Instances, the same interpreter and ordinary network-only strace throughout;
+no artificial delays, extra load, cache flush or threshold changes. Bind B to
+the complete immutable candidate and prove the single PRODUCT factor plus its
+tests/documentation before execution. Retain every result and stop on application,
+integrity or collection errors. No repeated block follows a weak or negative result.
+
+Component improvement alone cannot qualify the application or close a finding.
+A relevant failing native reproducer, controlled correction and the unchanged
+candidate's complete native/CI/original-artifact/review/preflight gates remain
+required. Manual methods are DEFERRED_BY_MAINTAINER / NOT_RUN until the completed
+official release on the maintainer's Windows 11 Pro 25H2 PC. No intermediate
+installation, S07/S08 acceptance, S09 start, final identity or publication follows.
+
+### Component result and one native comparison
+
+The declared local block completed once on CPython 3.12.14. Both separate count
+probes made 38 `_safe` calls: A performed 412 Python lstat calls, B performed zero.
+All 24 timed preservation/search observations and all six network observations
+passed. A/B/B/A Capture medians were 186.611/160.279/169.043/183.422 ms; maxima
+were 196.886/189.538/184.188/193.947 ms. Original report SHA-256 is
+`d652dd560b6da50f7d09df33d26d18c082ca8da685c3beea7b4431bdfc25a8ce`.
+The immutable B is `d7368ccfcc869afd677e8d881c943b34b2e69de1`, sole child of A.
+This establishes a component mechanism/effect, not a failing native reproducer.
+
+The one new native source-factor block uses `compare_capture_path_guard.py`.
+Dispatch the existing workflow once with `concordia_observer_study=true`, exact
+`concordia_observer_source=1711f037b1467d84eb5e145466dad6a6171643fc`, and
+`concordia_capture_guard=true`; all other diagnostic flags remain false.
+The ordinary qualifying measure is byte-identical, and no previous study runs.
+Admission proves both immutable source trees, the exact single PRODUCT factor,
+unchanged qualification/dependency inputs, actual hardware, positive scheduler
+control and real all-thread tracing before model acquisition. A changed main,
+source, host or locked input stops execution. One admission is consumed once.
+
+Run exactly A/B/B/A, full original sequences, fresh equal-depth processes/stores,
+inherited placement, identical original network-only strace and original per-arm
+idle-derived gates. No pool/accounting/profiler hooks, BPF, added load or adjusted
+limits. Keep original reports before/after the original external network observer,
+every tracee exit, log and failed gate. The existing disposable timing projection
+checks only non-timing stop conditions; it never replaces qualification evidence.
+The 1200-second arm, 60-second observation and 85-minute total bounds remain.
+Source/input/host drift, application/network/collection/non-timing failures stop
+subsequent arms. No extra/reverse/retry block follows any result. A non-reproduction
+leaves the findings CURRENT; a later green alone cannot establish correction.
+
+The first native dispatch, run 42289279809 / attempt 1 / job 128138149298,
+stopped in admission before model acquisition or any arm. The reused cloud-only
+environment helper assumed `/sys/fs/cgroup/cpu.max` exists at the mount root;
+this hosted runner lacks that optional root file. Ruff and all 27 focused controls
+passed before the failure. Artifact 13539111230 retains the original refusal,
+SHA-256 `7f14cd52d3a89f6bc35c69c7b18bcfa6c681c979997a6052bd53b8687f35f634`.
+The new driver now uses the adopted native resource admission and its actual
+visible cgroup membership/ancestors. Absent root limit files remain explicitly
+NOT_PRESENT; unmounted ancestors remain NOT_OBSERVED. Missing applicable limits
+still fail in the unchanged native validator. This corrects pre-execution host
+observation without changing the source factor, limits or planned experiment.
+The unexecuted block requires one new exact-head admission; the failed run is
+preserved. The superseded local full suite was interrupted, not passed.
+
+Native Windows CI on head 358a194 retained one new fixture failure in run
+42290029381 / job 128141198672, followed by the correctly blocked aggregator
+128145962305. The fixture encoded its Windows drive path as a Linux mountinfo
+mountpoint; the unchanged parser rejects that non-Posix-absolute input. The same
+rejection is independently reproduced by passing a synthetic drive path to the
+original parser. Artifact 13539912375 preserves the failed shard, SHA-256
+`ac97504586c9cdf797dcee9ee65408425f3fb8d09f56ff5485d7594f849fd178`.
+The correction retains a physical Linux mountinfo case under its actual platform
+condition and adds a portable provided-root case with the same assertions. It
+changes no PRODUCT byte, native admission rule or existing Windows check. The
+one already executing source-factor block remains bound to its frozen driver
+358a194 and immutable A/B; it is not redispatched for this test-only correction.
+The newer qualification head requires its own complete checks; no earlier PASS
+is transferred. All manual observations retain their deferred status.

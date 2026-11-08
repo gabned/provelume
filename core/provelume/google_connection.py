@@ -47,7 +47,9 @@ class GoogleConnectionManager:
             capability: InstalledAppAuthorizationManager(
                 store,
                 self.sources.connectors,
-                authority=GoogleCapabilityAuthority(self.sources, capability),
+                authority=GoogleCapabilityAuthority(
+                    self.sources, capability, vault_provider=lambda: self.vault
+                ),
             )
             for capability in GOOGLE_CAPABILITIES
         }
@@ -170,6 +172,8 @@ class GoogleConnectionManager:
                 for value in self._sessions.values()
             ):
                 raise GoogleConnectionError("google_connection_busy")
+            if selected == "calendar":
+                self.sources.prepare_calendar(instance_id, confirmed=True)
             expected_binding = record.get("account_binding_sha256")
             if not expected_binding and self.sources.list_sources(
                 connector_instance_id=instance_id
@@ -277,13 +281,12 @@ class GoogleConnectionManager:
         # Enrollment is idempotent and leaves acquisition disabled until explicit Start.
         source = self.sources.create_source(
             instance_id,
-            name="Gmail" if selected == "gmail" else "Google Drive",
+            name={"gmail": "Gmail", "drive": "Google Drive",
+                  "calendar": "Google Calendar"}[selected],
             capability=selected,
-            selection_kind="mailbox" if selected == "gmail" else "folder",
-            selectors=["me"] if selected == "gmail" else ["root"],
-        )
-        self.vault.write(
-            self._link_slot(instance_id, selected), {"kind": "system_keyring", "name": adapter.slot}
+            selection_kind={"gmail": "mailbox", "drive": "folder",
+                            "calendar": "calendar"}[selected],
+            selectors=[{"gmail": "me", "drive": "root", "calendar": "primary"}[selected]],
         )
         if previous:
             self.vault.delete(previous["name"])
@@ -309,12 +312,13 @@ class GoogleConnectionManager:
         selected = normalise_capability(capability)
         self._network(instance_id)
         record = self.sources._instance_record(instance_id)
-        item = self.sources.capability_record(instance_id, selected)
-        if not item["credential_reference"]["name"].startswith("google_grant_"):
+        self.sources.capability_record(instance_id, selected)
+        reference = self._owned_reference(instance_id, selected)
+        if reference is None or not reference["name"].startswith("google_grant_"):
             raise GoogleConnectionError("google_legacy_connection")
         try:
             token = resolve_google_credential(
-                item["credential_reference"], vault=self.vault, transport=self.transport
+                reference, vault=self.vault, transport=self.transport
             )
             binding = account_binding(self.transport, selected, token, instance_id)
             if not hmac.compare_digest(binding, record.get("account_binding_sha256", "")):
@@ -396,7 +400,8 @@ class GoogleConnectionManager:
         connections = []
         for value in self.sources.list_instances():
             capabilities = []
-            for name, item in value["capabilities"].items():
+            for name in GOOGLE_CAPABILITIES:
+                item = value["capabilities"][name]
                 state = {
                     "authorized": "connected",
                     "not_authorized": "disconnected",

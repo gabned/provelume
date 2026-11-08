@@ -12,14 +12,16 @@ from .connector_model import normalise_secret_reference
 
 GOOGLE_CONTRACT_SCHEMA_VERSION = 1
 GOOGLE_ADAPTER_ID = "provelume.google"
-GOOGLE_ADAPTER_VERSION = "1.0.0"
+GOOGLE_ADAPTER_VERSION = "1.1.0"
 GOOGLE_ADAPTER_PROTOCOL_VERSION = 1
 GOOGLE_CONFORMANCE_PROFILE = "provelume.google.readonly.v1"
-GOOGLE_DEFINITION_KEY = "google-readonly"
+GOOGLE_LEGACY_DEFINITION_ID = "connector_definition_google-readonly"
+GOOGLE_DEFINITION_KEY = "google-readonly-concordia"
 GOOGLE_DEFINITION_ID = f"connector_definition_{GOOGLE_DEFINITION_KEY}"
 
-GOOGLE_CAPABILITIES = ("drive", "gmail")
+GOOGLE_CAPABILITIES = ("drive", "gmail", "calendar")
 GOOGLE_CAPABILITY_SCOPES = {
+    "calendar": ("https://www.googleapis.com/auth/calendar.readonly",),
     "gmail": ("https://www.googleapis.com/auth/gmail.readonly",),
     "drive": ("https://www.googleapis.com/auth/drive.readonly",),
 }
@@ -30,6 +32,7 @@ GOOGLE_ALLOWED_ORIGINS = (
     "https://www.googleapis.com",
 )
 GOOGLE_SELECTION_KINDS = {
+    "calendar": ("calendar",),
     "gmail": ("label", "mailbox"),
     "drive": ("file", "folder"),
 }
@@ -186,6 +189,8 @@ def normalise_selectors(
             "google_payload_invalid", "Google Source selector count is invalid"
         )
     selected = tuple(sorted({_text(item, "Google Source selector") for item in selectors}))
+    if selected_capability == "calendar" and len(selected) != 1:
+        raise GoogleContractError("google_payload_invalid", "Each calendar requires its own Source")
     if selected_capability == "gmail" and selection_kind == "mailbox" and selected != ("me",):
         raise GoogleContractError(
             "google_payload_invalid",
@@ -251,7 +256,7 @@ class GoogleLimits:
 
 @dataclass(frozen=True, slots=True)
 class GoogleItem:
-    capability: Literal["gmail", "drive"]
+    capability: Literal["gmail", "drive", "calendar"]
     provider_item_id: str
     provider_revision_id: str
     payload: bytes = field(repr=False)
@@ -359,7 +364,7 @@ class GoogleSkippedItem:
 
 @dataclass(frozen=True, slots=True)
 class GooglePage:
-    capability: Literal["gmail", "drive"]
+    capability: Literal["gmail", "drive", "calendar"]
     items: tuple[GoogleItem, ...]
     next_cursor: str | None = field(default=None, repr=False)
     skipped_items: tuple[GoogleSkippedItem, ...] = ()
@@ -410,6 +415,7 @@ def google_definition_manifest() -> dict[str, Any]:
         "conformance_profile": "provelume.connector.v1",
         "adapter_protocol_version": 1,
         "capabilities": [
+            "calendar_read",
             "drive_read",
             "gmail_read",
             "google_native_export",
@@ -419,8 +425,9 @@ def google_definition_manifest() -> dict[str, Any]:
             "source_selection",
         ],
         "authorization_modes": ["none"],
-        "source_kinds": ["drive", "gmail"],
+        "source_kinds": ["calendar", "drive", "gmail"],
         "data_categories": [
+            "calendar.event",
             "drive.file",
             "drive.metadata",
             "email.attachment",
