@@ -19,6 +19,21 @@ class WindowsComponentsFailure(MirrorError):
     """Closed diagnostics for synthetic native qualification, without path/secret text."""
 
 
+def local_copy_diagnostics(code, stdout, stderr, *, root, directory):
+    """Only the pinned, unauthenticated synthetic local-copy command uses this."""
+    text = stderr[:4096].decode("utf-8", errors="replace")
+    for path in sorted((str(root), str(directory), native_path(root), native_path(directory)),
+                       key=len, reverse=True):
+        text = text.replace(path, "[fixture]")
+    # MSYS2 can normalize, escape or quote paths differently from argv.
+    text = re.sub(r"[A-Za-z]:[\\/][^\r\n]*", "[native-path]", text)
+    text = re.sub(r"/(?:[a-z]|cygdrive/[a-z])/[^\r\n]*", "[native-path]", text)
+    return {"exit_code": code, "stdout_bytes": len(stdout), "stderr_bytes": len(stderr),
+            "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
+            "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
+            "synthetic_stderr_redacted": text}
+
+
 @contextmanager
 def qualification_phase(phase):
     try:
@@ -44,6 +59,8 @@ def qualification_phase(phase):
             failure.evidence["native_error"] = exc.winerror
         if hasattr(exc, "containment_evidence"):
             failure.evidence["containment"] = exc.containment_evidence
+        if hasattr(exc, "local_copy_evidence"):
+            failure.evidence["synthetic_local_copy"] = exc.local_copy_evidence
         raise failure from None
 
 
@@ -72,7 +89,7 @@ def qualify_components(root, *, fixture_directory):
     for name, data in expected.items():
         (source / name).write_bytes(data)
     with qualification_phase("native_local_copy"):
-        session.run(
+        code, stdout, stderr = session.run(
             [
                 str(binary),
                 "--recursive",
@@ -86,8 +103,13 @@ def qualify_components(root, *, fixture_directory):
                 "--timeout=15",
                 native_path(source) + "/",
                 native_path(destination) + "/",
-            ]
+            ], check=False,
         )
+        if code != 0:
+            failure = MirrorError("ssh_command_failed")
+            failure.local_copy_evidence = local_copy_diagnostics(
+                code, stdout, stderr, root=root, directory=directory)
+            raise failure
     require(
         {
             path.relative_to(destination).as_posix()

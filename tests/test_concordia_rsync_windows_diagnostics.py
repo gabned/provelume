@@ -7,8 +7,27 @@ import pytest
 from provelume.mirror_contract import MirrorError
 from provelume.mirror_rsync_windows_qualification import (
     WindowsComponentsFailure,
+    local_copy_diagnostics,
     qualification_phase,
 )
+
+
+def test_synthetic_native_exit_retains_code_and_hashes_with_fixture_paths_removed(tmp_path):
+    from pathlib import Path
+
+    root, directory = Path("C:/synthetic-root"), Path("D:/synthetic-tools")
+    stderr = (b"rsync: receiver failed: C:/synthetic-root/output\n"
+              b"rsync: fork: Resource temporarily unavailable (11)\n"
+              b"rsync error: error in IPC code (code 14)\n")
+    detail = local_copy_diagnostics(14, b"", stderr, root=root, directory=directory)
+    assert detail["exit_code"] == 14 and detail["stderr_bytes"] == len(stderr)
+    assert "Resource temporarily unavailable" in detail["synthetic_stderr_redacted"]
+    assert "synthetic-root" not in json.dumps(detail)
+    original = MirrorError("ssh_command_failed")
+    original.local_copy_evidence = detail
+    with pytest.raises(WindowsComponentsFailure) as caught, qualification_phase("native_local_copy"):
+        raise original
+    assert caught.value.evidence["synthetic_local_copy"] == detail
 
 
 @pytest.mark.parametrize("kind", [OSError, ValueError, KeyError, TypeError])
