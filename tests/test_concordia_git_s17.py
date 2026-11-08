@@ -675,7 +675,8 @@ def test_native_deadline_terminates_owned_git_process_and_descendant(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows creation-time Job containment")
-def test_native_windows_job_kills_descendant_after_parent_exit(tmp_path):
+@pytest.mark.parametrize("shared_log", [False, True])
+def test_native_windows_job_kills_descendant_after_parent_exit(tmp_path, shared_log):
     import ctypes as c
 
     from provelume.ai_windows_api import B, D, H, libraries
@@ -702,7 +703,7 @@ def test_native_windows_job_kills_descendant_after_parent_exit(tmp_path):
             environment=child_environment(tmp_path),
             incoming=incoming,
             output=output,
-            errors=errors,
+            errors=output if shared_log else errors,
         )
         child = None
         try:
