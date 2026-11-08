@@ -105,7 +105,7 @@
       {% if git_plan.provider_binding %}
       <p>{{ t('mirror.' + hosted_profile + '_transfer') }}</p>
       <p class="object-text">{{ git_plan.provider_binding.repository.clone_url }}</p>
-      {% if hosted_profile == 'gitea' %}<p>{{ git_plan.provider_binding.repository.trust_mode }} · <code>{{ git_plan.provider_binding.repository.trust_sha256 }}</code></p>{% endif %}
+      {% if hosted_profile == 'gitea' %}<p class="object-text">{{ git_plan.provider_binding.repository.trust_mode }} · <code>{{ git_plan.provider_binding.repository.trust_sha256 }}</code></p>{% endif %}
       <p>{{ git_plan.provider_binding.repository.repository }} · {{ git_plan.provider_binding.repository.repository_id }} · {{ git_plan.provider_binding.repository.visibility }}</p>
       <pre id="mirror-{{ hosted_profile }}-transfer" class="object-text">{{ git_plan.transfer|tojson(indent=2) }}</pre>
       <input type="hidden" name="transfer_sha256" value="{{ git_plan.transfer_sha256 }}">

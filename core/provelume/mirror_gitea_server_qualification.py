@@ -158,9 +158,10 @@ class Server:
             self.resources.close()
 
 
-def control(origin, ca, route, *, token=None, body=None):
+def control(origin, ca, route, *, token=None, body=None, timeout=5):
     """Synthetic fixture control plane only; product workers never gain these POSTs."""
     require(route in {"/version", "/user/repos"}, "gitea_fixture_route")
+    require(type(timeout) in {int, float} and 0 < timeout <= 5, "gitea_fixture_readiness")
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     if token:
         headers["Authorization"] = "token " + token
@@ -171,12 +172,34 @@ def control(origin, ca, route, *, token=None, body=None):
         method="GET" if body is None else "POST",
     )
     with build_opener(_NoRedirect(), ProxyHandler({}), HTTPSHandler(context=tls_context(ca))).open(
-        request, timeout=5
+        request, timeout=timeout
     ) as response:
         require(response.status == (200 if body is None else 201), "gitea_fixture_response")
         data = response.read(2 * 1024 * 1024 + 1)
         require(len(data) <= 2 * 1024 * 1024, "limit")
         return json.loads(data)
+
+
+def await_server_version(server, origin, ca):
+    """A late successful response cannot pass the unchanged 30-second admission."""
+    deadline = time.monotonic() + 30
+    while True:
+        remaining = deadline - time.monotonic()
+        require(remaining > 0, "gitea_fixture_readiness")
+        require(not server.closed and server.process.poll() is None, "gitea_fixture_startup")
+        try:
+            version = control(origin, ca, "/version", timeout=min(5, remaining))
+        except (OSError, json.JSONDecodeError):
+            remaining = deadline - time.monotonic()
+            require(remaining > 0, "gitea_fixture_readiness")
+            time.sleep(min(0.05, remaining))
+            continue
+        require(time.monotonic() <= deadline, "gitea_fixture_readiness")
+        require(
+            type(version) is dict and version.get("version") == VERSION,
+            "gitea_profile_not_qualified",
+        )
+        return
 
 
 @contextmanager
@@ -340,16 +363,7 @@ ROOT_PATH = {paths["work"]}/log
     bootstrap = token("synthetic-fixture-bootstrap", "write:user,write:repository")
     server = Server(common + ["web"], work=root, environment=environment)
     try:
-        deadline = time.monotonic() + 30
-        while True:
-            require(not server.closed and server.process.poll() is None, "gitea_fixture_startup")
-            try:
-                version = control(origin, ca, "/version")
-                require(version.get("version") == VERSION, "gitea_profile_not_qualified")
-                break
-            except (OSError, ValueError):
-                require(time.monotonic() < deadline, "gitea_fixture_readiness")
-                time.sleep(0.05)
+        await_server_version(server, origin, ca)
         repositories = []
         for private in (True, False):
             name = "concordia-private" if private else "concordia-public"
@@ -426,13 +440,19 @@ def qualify_gitea_server(root, server_binary, *, api_only=False):
         tls_refusals = []
         for name, origin, ca in (
             ("untrusted_ca", server["origin"], ""),
-            ("wrong_hostname", server["origin"].replace("127.0.0.1", "localhost"),
-             server["ca_pem"]),
+            (
+                "wrong_hostname",
+                server["origin"].replace("127.0.0.1", "localhost"),
+                server["ca_pem"],
+            ),
         ):
             try:
                 GiteaHttp().request(
-                    "/version", token="synthetic-negative-only", endpoint=origin,
-                    ca_pem=ca, deadline=time.monotonic() + 20,
+                    "/version",
+                    token="synthetic-negative-only",
+                    endpoint=origin,
+                    ca_pem=ca,
+                    deadline=time.monotonic() + 20,
                 )
             except MirrorError as error:
                 require(error.code == "gitea_transport", "gitea_fixture_tls_refusal")
