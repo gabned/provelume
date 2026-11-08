@@ -22,7 +22,7 @@
 <form method="post" action="/google/connect?lang={{ lang }}">
 {{ hidden('connect') }}
 <label>{{ gt('name') }} <input name="name" maxlength="120" value="Google" required></label>
-<label>{{ gt('service') }} <select name="capability"><option value="gmail">{{ gt('gmail') }}</option><option value="drive">{{ gt('drive') }}</option></select></label>
+<label>{{ gt('service') }} <select name="capability"><option value="gmail">{{ gt('gmail') }}</option><option value="drive">{{ gt('drive') }}</option><option value="calendar">{{ gt('calendar') }}</option></select></label>
 <label><input type="checkbox" name="consent" value="yes" required> {{ gt('consent') }}</label>
 <button type="submit">{{ gt('connect') }}</button></form></section>
 {% endif %}

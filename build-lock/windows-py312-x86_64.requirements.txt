@@ -414,3 +414,10 @@ uvicorn==0.52.4 \
 setuptools==84.1.0 \
     --hash=sha256:5231689c6ac8156cd155cfb98c3fd6fb252c3e7e9bd3d78b64d3c55f132624c9
     # via pyinstaller
+
+icalendar==7.3.0 \
+    --hash=sha256:8355acfe17be81b368f0b1e3740817cea9b56ea889931f8f1a87c62f2d28db0b
+    # via Concordia S12 pure-wheel addition
+python-dateutil==4.0.0 \
+    --hash=sha256:a5e246f79eb80475e691bf93862cead98decd8a498cf53ba0516fcdc0f50dc1c
+    # via Concordia S12 pure-wheel addition
