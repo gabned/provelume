@@ -1,7 +1,7 @@
 # Concordia S20 — independently qualified Gitea 28.3.0 API v1
 
 This homogeneous PRODUCT workstream consumes unaccepted S19
-`a89c00175c998dfbd0a24b4049f95dac83b351dd` under #383/6706150974's ordered
+`bad1fa797ef1aca27fef700955c620feff2e1709` under #383/6706150974's ordered
 development/automatic-test authority. It inherits no predecessor acceptance,
 account/destination authority or GitHub/GitLab qualification. Actual verified main
 is 9c6d89c035e009e342d2c6d5c9ed3081fbcb77e8. Protocol1.5.2/pin02317e0/97 bytes,
@@ -119,3 +119,24 @@ an explicit fixed OpenSSL configuration instead of a host-dependent default.
 This removes an ambient prerequisite; it is not a causal attribution for the
 older Windows failure. Native Windows qualification on the changed candidate is
 still mandatory, with the same budgets and no retry of the completed old run.
+### Bounded migration preparation diagnostics
+
+The installed Windows run42438087553 on S21/52205da now preserves a specific
+S20 preparation refusal: schema_migrate exit1, stderr120bytes,
+SHA256fd137eb7be47a96c8f593afc54117eaa287e9c42dd6d5139d8930b54b3d53286.
+Version, TLS and secret-generation admission succeeded first. Its cause remains
+UNKNOWN; this is not an inference or accepted publication trial. A new diagnostic
+retains at most512 filtered characters per output for noncredential command
+failures, removing issued secrets, password arguments and opaque strings before
+truncation. Sensitive command output remains excluded. No limits or provider
+capability checks change; originals and their hashes remain distinct.
+
+The changed-head Windows job128611351521 on `cce2511` records the specific
+refusal `loadSSHFrom: Failed to get home directory: cannot get home directory`
+during schema_migrate. Official [Go os.UserHomeDir](https://pkg.go.dev/os#UserHomeDir)
+uses USERPROFILE on Windows. The fixture supplied its fresh HOME but omitted
+USERPROFILE from the closed child environment. The correction gives Windows
+that same fresh private fixture home; it never restores the actual user's
+profile. Native Windows qualification of this correction stays required. The
+older generic-command failure's cause remains UNKNOWN; no causal attribution is
+transferred to it from the newer, better-instrumented failure.
