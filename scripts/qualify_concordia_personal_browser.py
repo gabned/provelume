@@ -139,6 +139,20 @@ if sys.argv[2]=='yes':
         target=gitlab_contract_target(),scope={'kind':'area','id':mirror_area['id']},
         include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
     fixture['mirror_gitlab_plan_id']=gl.prepare(gl_target['id'],expected_revision=1,confirmed=True)['id']
+    from provelume.mirror_gitea_credentials import GiteaCredentials
+    from provelume.mirror_gitea_qualification import (SyntheticApi as GiteaApi,
+        SyntheticNativeGitea, target as gitea_contract_target)
+    gt=SyntheticNativeGitea(instance.store,mirrors=mirrors,
+        credentials=GiteaCredentials(mirrors,vault=mirrors.vault,http=GiteaApi()))
+    gt_identity=gt.connect(name='Synthetic Gitea browser',target=gitea_contract_target(),
+        token='synthetic-gitea-browser',mode='current-token',confirmed=True)['identity']
+    gt.synthetic_remote=root/'Synthetic Gitea hosted file Git.git'
+    with git_work() as session:
+        session.run(['init','--bare','--object-format=sha1',str(gt.synthetic_remote)])
+    gt_target=mirrors.configure(identity_id=gt_identity['id'],name='Synthetic Gitea destination',
+        target=gitea_contract_target(),scope={'kind':'area','id':mirror_area['id']},
+        include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
+    fixture['mirror_gitea_plan_id']=gt.prepare(gt_target['id'],expected_revision=1,confirmed=True)['id']
 print(json.dumps(fixture))
 """
 SERVE = """
@@ -374,6 +388,19 @@ def main():
                                     assert page.evaluate('document.documentElement.scrollWidth <= '
                                                          'document.documentElement.clientWidth')
                                     cell['mirror_gitlab_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_gitea_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-gitea-transfer').is_visible()
+                                    transfer=page.locator('#mirror-gitea-transfer').inner_text()
+                                    assert 'namespace.json' in transfer
+                                    assert 'remote_mutation' in transfer
+                                    assert 'https://127.0.0.1:30443' in page.locator(
+                                        'main').inner_text()
+                                    assert 'synthetic-gitea-browser' not in page.content()
+                                    assert page.evaluate('document.documentElement.scrollWidth <= '
+                                                         'document.documentElement.clientWidth')
+                                    cell['mirror_gitea_preview']='AUTOMATIC_SYNTHETIC_NATIVE_FILE_PASS'
                                 image = work / f"{mode}-{language}-{width}.png"
                                 page.screenshot(path=str(image), full_page=True)
                                 cell.update(result="PASS", screenshot=image.name,

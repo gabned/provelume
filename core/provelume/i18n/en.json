@@ -2760,5 +2760,11 @@
   "mirror.gitlab_confirm": "I confirm this exact transfer to the configured GitLab repository.",
   "mirror.gitlab_transfer": "Complete transfer: payload, control files and commit identity. Access checks read token scopes and project role.",
   "mirror.gitlab_probe_notice": "Preparing this preview rechecks the token scopes and project permissions without changing remote content.",
-  "mirror.gitlab_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
+  "mirror.gitlab_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer.",
+  "mirror.gitea_profile": "Gitea: repository identity, visibility and complete transfer are bound to this preview.",
+  "mirror.gitea_publish": "Publish Gitea generation",
+  "mirror.gitea_confirm": "I confirm this exact transfer to the configured Gitea repository.",
+  "mirror.gitea_transfer": "Complete transfer: payload, control files and commit identity. Access checks read token scopes and repository role.",
+  "mirror.gitea_probe_notice": "Preparing this preview rechecks the token scopes and repository permissions without changing remote content.",
+  "mirror.gitea_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
 }

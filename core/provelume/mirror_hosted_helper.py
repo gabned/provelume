@@ -13,7 +13,7 @@ from .storage import InstanceStore
 
 
 def configure_session(session, *, store, destination_id, binding, reference, provider):
-    require(provider in {"github", "gitlab"})
+    require(provider in {"github", "gitlab", "gitea"})
     session.environment.update(credential_environment())
     command = [sys.executable]
     if getattr(sys, "frozen", False):
@@ -43,10 +43,18 @@ def configure_session(session, *, store, destination_id, binding, reference, pro
     session.environment["GIT_ALLOW_PROTOCOL"] = "https"
 
 
-def credential_response(payload, *, target, credential, host, configuration):
+def credential_response(
+    payload, *, target, credential, host, configuration, provider, username="x-access-token"
+):
     require(
         type(payload) is bytes and len(payload) <= 16384,
-        host.split(".", 1)[0] + "_credential_query",
+        provider + "_credential_query",
+    )
+    require(
+        type(username) is str
+        and 0 < len(username) <= 100
+        and all(32 < ord(char) < 127 for char in username),
+        "authorization_required",
     )
     fields = {}
     for line in payload.decode("utf-8").splitlines():
@@ -57,19 +65,19 @@ def credential_response(payload, *, target, credential, host, configuration):
             separator
             and key
             in {"protocol", "host", "path", "username", "capability[]", "wwwauth[]", "state[]"},
-            host.split(".", 1)[0] + "_credential_query",
+            provider + "_credential_query",
         )
         if key.endswith("[]"):
             continue
-        require(key not in fields, host.split(".", 1)[0] + "_credential_query")
+        require(key not in fields, provider + "_credential_query")
         fields[key] = value
     configuration(target)
     require(
         fields.get("protocol") == "https"
         and fields.get("host") == host
         and fields.get("path") == target["repository"] + ".git"
-        and fields.get("username", "x-access-token") == "x-access-token",
-        host.split(".", 1)[0] + "_credential_query",
+        and fields.get("username", username) == username,
+        provider + "_credential_query",
     )
     token = credential["token"]
     require(
@@ -78,7 +86,7 @@ def credential_response(payload, *, target, credential, host, configuration):
         and all(32 < ord(char) < 127 for char in token),
         "authorization_required",
     )
-    return ("username=x-access-token\npassword=" + token + "\n\n").encode("ascii")
+    return ("username=" + username + "\npassword=" + token + "\n\n").encode("ascii")
 
 
 def main(*, provider):
@@ -92,6 +100,11 @@ def main(*, provider):
         from .mirror_gitlab_credentials import GitLabCredentials as Credentials
 
         host = "gitlab.com"
+    elif provider == "gitea":
+        from .mirror_gitea_contract import configuration
+        from .mirror_gitea_credentials import GiteaCredentials as Credentials
+
+        host = None
     else:
         return 2
     try:
@@ -118,14 +131,23 @@ def main(*, provider):
         grant = mirrors._grant(identity)
         require(grant["credential"] == {"reference": reference}, "authorization_required")
         target = grant["destinations"][destination_id]["target"]
+        if provider == "gitea":
+            from .mirror_gitea_contract import endpoint
+
+            host = endpoint(target["endpoint"]).netloc
         credential = Credentials(mirrors).read(reference)
         require(credential["epoch"] == epoch, provider + "_credential_changed")
+        username = "x-access-token"
+        if provider == "gitea":
+            username = credential["identity"]["principal"]["login"]
         response = credential_response(
             sys.stdin.buffer.read(16385),
             target=target,
             credential=credential,
             host=host,
             configuration=configuration,
+            provider=provider,
+            username=username,
         )
         sys.stdout.buffer.write(response)
         return 0

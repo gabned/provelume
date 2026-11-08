@@ -42,3 +42,56 @@ cases. Those disposable local fixtures use no real account or personal path and
 must be separately labeled. No production/self-hosted user destination is touched
 without its specific authorization. CLI/both local shells/seven catalogues,
 scheduler and actual frozen/installed execution must use the same backend.
+## Implemented candidate and evidence boundaries
+
+The candidate implements its own Gitea 28.3.0/API-v1/current-token observation:
+server version, authenticated user, the current token's actual scopes and owner,
+and the exact repository ID/name/visibility/clone URL/push role. Repository role
+alone never proves that a read-only token can write. The configured HTTPS origin
+has no path prefix; this initial profile admits DNS names and IPv4, not IPv6
+literals. It uses system trust or one explicit public PEM CA, verified both by
+the owned HTTPS API worker and native Git. The helper answers only the exact
+origin/repository and uses Gitea's observed username. Tokens remain in the native
+OS vault and a dedicated credential pipe, outside canonical/portable data.
+
+Shared Git mechanics retain the S17 limits, expected-old-ref fast-forward update,
+complete generation/namespace/active-pointer commit, complete public transfer
+preview, external one-attempt claim and read-only recovery after a real Root
+restore. The Gitea permission check performs only GETs. It does not inherit a
+GitHub synthetic blob mutation or a GitLab API permission claim. Private scheduled
+dispatch uses its own backend; public transfer always needs fresh explicit
+review. Six CLI commands, the local CSRF-protected UI in both shells, seven
+UNVERIFIED catalogues and frozen helper/worker/operator entries are wired.
+
+`gitea-mirror-qualify` uses independent synthetic API responses plus native file
+Git, and on Windows the actual current-user DPAPI/helper pipe. It explicitly
+reports real-server qualification as NOT_RUN. `gitea-server-qualify --binary ...`
+is a separate actual-server driver with fresh synthetic accounts, a private
+SQLite database, native Gitea, a new loopback TLS CA and native OS credentials.
+API_ONLY is selected before admission and never counts as publication. FULL_NATIVE
+requires a successful vault and owned-helper admission before starting Gitea;
+it exercises private/public HTTPS publication, no-op, unchanged canonical data,
+scope isolation and interruption/Root-restore/read-only recovery without resend.
+It also rejects an untrusted CA and a wrong hostname. It records its 300-second
+server lifetime and 4-MiB output bounds; no whole-host network observation is
+inferred from the driver's closed loopback endpoint policy.
+
+The server fixture is independently downloaded by an explicit development script
+and matched to fixed upstream asset byte counts and SHA-256 before execution.
+Version 28.3.0 is tied to upstream commit
+`4f5a3e13e5f3aca85d830e3a9024c893b0bbf1e1`. The upstream tag signature is
+NOT_VERIFIED; checksum agreement is not a signature claim. The Windows installed
+workflow obtains the Windows fixture before the disposable install, then demands
+actual frozen/native-DPAPI/server qualification. It never installs on the
+maintainer's PC and does not ship the Gitea server as an application component.
+
+Preparatory Linux evidence already demonstrates native Git 2.51.1, an actual
+fresh encrypted Secret Service collection, private/public native HTTPS publication
+and interruption recovery. Original pre-admission failures are retained: the
+fixture initially inherited an unwritable Git global config; its repository
+bootstrap also needed write:user in addition to write:repository. The corrected
+control-plane bootstrap uses a separate synthetic token. Product permission
+requirements remain read:user + write:repository (or all), and product workers
+cannot create repositories. Candidate-native/browser/CI results and current-head
+review remain PR-local. S20 acceptance, real destinations and human observations
+are separate gates; human checks remain DEFERRED_BY_MAINTAINER / NOT_RUN.

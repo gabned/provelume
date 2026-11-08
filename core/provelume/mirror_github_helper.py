@@ -30,6 +30,7 @@ def credential_response(payload, *, target, credential):
         credential=credential,
         host="github.com",
         configuration=configuration,
+        provider="github",
     )
 
 

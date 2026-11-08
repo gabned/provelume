@@ -52,6 +52,12 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     github_mirror.add_argument("instance", type=Path)
     gitlab_mirror = commands.add_parser("gitlab-mirror-qualify")
     gitlab_mirror.add_argument("instance", type=Path)
+    gitea_mirror = commands.add_parser("gitea-mirror-qualify")
+    gitea_mirror.add_argument("instance", type=Path)
+    gitea_server = commands.add_parser("gitea-server-qualify")
+    gitea_server.add_argument("instance", type=Path)
+    gitea_server.add_argument("--binary", type=Path, required=True)
+    gitea_server.add_argument("--api-only", action="store_true")
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -64,7 +70,17 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "gitlab-mirror-qualify":
+                if options.command == "gitea-server-qualify":
+                    from .mirror_gitea_server_qualification import qualify_gitea_server
+
+                    result = qualify_gitea_server(
+                        options.instance, options.binary, api_only=options.api_only
+                    )
+                elif options.command == "gitea-mirror-qualify":
+                    from .mirror_gitea_qualification import qualify_gitea_mirror
+
+                    result = qualify_gitea_mirror(options.instance)
+                elif options.command == "gitlab-mirror-qualify":
                     from .mirror_gitlab_qualification import qualify_gitlab_mirror
 
                     result = qualify_gitlab_mirror(options.instance)

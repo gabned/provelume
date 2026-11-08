@@ -2760,5 +2760,11 @@
   "mirror.gitlab_confirm": "Confirm acest transfer exact către depozitul GitLab configurat.",
   "mirror.gitlab_transfer": "Transfer complet: conținut, fișiere de control și autorul commitului. Verificarea citește domeniile tokenului și rolul în proiect.",
   "mirror.gitlab_probe_notice": "Această previzualizare verifică din nou domeniile tokenului și permisiunile proiectului fără a modifica conținutul la distanță.",
-  "mirror.gitlab_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
+  "mirror.gitlab_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact.",
+  "mirror.gitea_profile": "Gitea: identitatea depozitului, vizibilitatea și transferul complet sunt legate de această previzualizare.",
+  "mirror.gitea_publish": "Publică generația Gitea",
+  "mirror.gitea_confirm": "Confirm acest transfer exact către depozitul Gitea configurat.",
+  "mirror.gitea_transfer": "Transfer complet: conținut, fișiere de control și autorul commitului. Verificarea citește domeniile tokenului și rolul în depozit.",
+  "mirror.gitea_probe_notice": "Această previzualizare verifică din nou domeniile tokenului și permisiunile depozitului fără a modifica conținutul la distanță.",
+  "mirror.gitea_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
 }

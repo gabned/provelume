@@ -86,6 +86,7 @@ def request_direct(value):
 
 
 class GitHubHttp:
+    provider = "github"
     profile = "github-http/2022-11-28"
     worker_module = "provelume.mirror_github_http"
     worker_flag = "--internal-github-http-worker"
@@ -93,6 +94,9 @@ class GitHubHttp:
 
     def request(self, route, *, token, probe=False, deadline=None):
         payload = {"route": route, "token": token, "probe": probe}
+        return self.perform(payload, deadline=deadline, expected_status=201 if probe else 200)
+
+    def perform(self, payload, *, deadline, expected_status):
         self.admit(payload)  # Refuse before starting any process/network.
         environment = {
             key: value
@@ -144,21 +148,21 @@ class GitHubHttp:
                     and target.is_file()
                     and not target.is_symlink()
                     and target.stat().st_size <= MAX_BODY,
-                    "github_transport",
+                    self.provider + "_transport",
                 )
                 response = parse(target.read_bytes())
             except (OSError, ValueError, subprocess.SubprocessError):
-                raise MirrorError("github_transport") from None
-        require(response.get("profile") == self.profile, "github_transport")
+                raise MirrorError(self.provider + "_transport") from None
+        require(response.get("profile") == self.profile, self.provider + "_transport")
         require(
-            response.get("status") == (201 if probe else 200),
+            response.get("status") == expected_status,
             "authorization_required"
             if response.get("status") in {401, 403, 404}
             else "rate_limited"
             if response.get("status") == 429
-            else "github_transport",
+            else self.provider + "_transport",
         )
-        require(type(response.get("body")) is dict, "github_response")
+        require(type(response.get("body")) is dict, self.provider + "_response")
         return response["body"]
 
 

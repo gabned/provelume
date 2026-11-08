@@ -77,6 +77,7 @@ def request_direct(value):
 
 
 class GitLabHttp(GitHubHttp):
+    provider = "gitlab"
     # Only the bounded, pipe-based process mechanism is reused. Admission,
     # origin, header, routes and capability interpretation remain independent.
     profile = "gitlab-http/v4"

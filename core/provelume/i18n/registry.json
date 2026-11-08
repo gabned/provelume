@@ -18274,6 +18274,42 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.gitea_profile": {
+      "context": "Independent Gitea exact-version mirror explicit operation: profile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitea_publish": {
+      "context": "Independent Gitea exact-version mirror explicit operation: publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitea_confirm": {
+      "context": "Independent Gitea exact-version mirror explicit operation: confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitea_transfer": {
+      "context": "Independent Gitea exact-version mirror explicit operation: transfer",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitea_probe_notice": {
+      "context": "Independent Gitea exact-version mirror explicit operation: probe_notice",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.gitea_public_confirm": {
+      "context": "Independent Gitea exact-version mirror explicit operation: public_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

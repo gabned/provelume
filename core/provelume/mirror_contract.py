@@ -26,7 +26,7 @@ _SECRET = re.compile(
     rb"(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})|"
     rb"glpat-[A-Za-z0-9_-]{20,}|"
     rb"\bAKIA[A-Z0-9]{16}\b|"
-    rb"(?i:(?:password|access_token|refresh_token|client_secret|api_key)"
+    rb"(?i:(?:password|\btoken\b|access_token|refresh_token|client_secret|api_key)"
     rb"[\"' \t]*[:=][\"' \t]*[^\s\"',}]{8,})"
 )
 _SENSITIVE = re.compile(
@@ -194,3 +194,32 @@ def destination_observation(value):
     require(type(value["revision"]) is str and 0 < len(value["revision"]) <= 2048)
     inventory(value["inventory"])
     return value
+
+
+PROVIDER_DIAGNOSTICS = frozenset(
+    provider + "_" + suffix
+    for provider in ("github", "gitlab", "gitea")
+    for suffix in (
+        "endpoint",
+        "certificate",
+        "target",
+        "profile_not_qualified",
+        "token_profile",
+        "write_unproven",
+        "identity",
+        "identity_changed",
+        "repository_changed",
+        "visibility_changed",
+        "read_only",
+        "namespace",
+        "credential_query",
+        "credential_changed",
+        "access_changed",
+        "transfer_changed",
+        "preexisting_repository_required",
+        "version_unknown",
+        "response",
+        "transport",
+        "access_unproven",
+    )
+)

@@ -13,6 +13,8 @@ from uuid import uuid4
 class GoogleCredentialError(ValueError):
     """Closed diagnostic; backend exceptions and secret material never escape."""
 
+    code = "secure_store_unavailable"
+
 
 _SLOT = re.compile(r"google_[a-z0-9_]{1,160}\Z")
 MAX_SECRET_BYTES = 16 * 1024

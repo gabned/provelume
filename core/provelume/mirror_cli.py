@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .icalendar_feeds import _local_path
-from .mirror_contract import parse, require
+from .mirror_contract import PROVIDER_DIAGNOSTICS, parse, require
 from .mirror_jobs import MirrorJobs, local_preview
 from .service import ProvelumeInstance
 
@@ -39,15 +39,35 @@ def add_mirror_commands(commands):
         "gitlab-prepare",
         "gitlab-publish",
         "gitlab-reconcile",
+        "gitea-status",
+        "gitea-connect",
+        "gitea-disconnect",
+        "gitea-prepare",
+        "gitea-publish",
+        "gitea-reconcile",
     ):
         command = commands.add_parser("mirror-" + name)
         command.add_argument("instance", type=Path)
-        if name in {"identity", "configure", "access", "github-connect", "gitlab-connect"}:
+        if name in {
+            "identity",
+            "configure",
+            "access",
+            "github-connect",
+            "gitlab-connect",
+            "gitea-connect",
+        }:
             command.add_argument("configuration_file", type=Path)
-        if name in {"prepare", "disable", "git-prepare", "github-prepare", "gitlab-prepare"}:
+        if name in {
+            "prepare",
+            "disable",
+            "git-prepare",
+            "github-prepare",
+            "gitlab-prepare",
+            "gitea-prepare",
+        }:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name in {"revoke", "github-disconnect", "gitlab-disconnect"}:
+        if name in {"revoke", "github-disconnect", "gitlab-disconnect", "gitea-disconnect"}:
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
         if name == "git-initialize":
@@ -62,21 +82,23 @@ def add_mirror_commands(commands):
             "github-reconcile",
             "gitlab-publish",
             "gitlab-reconcile",
+            "gitea-publish",
+            "gitea-reconcile",
         }:
             command.add_argument("plan_id")
         if name == "discard":
             command.add_argument("--expected-plan-sha256", required=True)
-        if name in {"git-publish", "github-publish", "gitlab-publish"}:
+        if name in {"git-publish", "github-publish", "gitlab-publish", "gitea-publish"}:
             command.add_argument("--expected-plan-sha256", required=True)
             command.add_argument("--expected-git-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
-        if name in {"github-publish", "gitlab-publish"}:
+        if name in {"github-publish", "gitlab-publish", "gitea-publish"}:
             command.add_argument("--expected-transfer-sha256")
         if name == "github-connect":
             command.add_argument("--probe-confirm", action="store_true")
             command.add_argument("--public-probe-confirm", action="store_true")
-        if name not in {"status", "git-status", "github-status", "gitlab-status"}:
+        if name not in {"status", "git-status", "github-status", "gitlab-status", "gitea-status"}:
             command.add_argument("--confirm", action="store_true")
 
 
@@ -87,12 +109,22 @@ def handle_mirror_command(options):
         instance = ProvelumeInstance(options.instance)
         engine = instance.mirrors()
         selected = options.command.removeprefix("mirror-")
-        if selected not in {"status", "git-status", "github-status", "gitlab-status"}:
+        if selected not in {
+            "status",
+            "git-status",
+            "github-status",
+            "gitlab-status",
+            "gitea-status",
+        }:
             require(options.confirm is True, "consent_required")
-        if selected.startswith(("git-", "github-", "gitlab-")):
-            hosted = selected.startswith(("github-", "gitlab-"))
-            git = (instance.gitlab_mirrors() if selected.startswith("gitlab-") else
-                   instance.github_mirrors() if hosted else instance.git_mirrors())
+        if selected.startswith(("git-", "github-", "gitlab-", "gitea-")):
+            hosted = selected.startswith(("github-", "gitlab-", "gitea-"))
+            git = {
+                "git": instance.git_mirrors,
+                "github": instance.github_mirrors,
+                "gitlab": instance.gitlab_mirrors,
+                "gitea": instance.gitea_mirrors,
+            }[selected.split("-", 1)[0]]()
             operation = selected.split("-", 1)[1]
             if operation == "status":
                 result = git.status()
@@ -102,9 +134,14 @@ def handle_mirror_command(options):
                 require(external.stat().st_size <= 16384, "limit")
                 configuration = parse(external.read_bytes())
                 require(set(configuration) <= {"name", "target", "token", "mode", "identity_id"})
-                probe = ({"probe_confirmed": options.probe_confirm,
-                          "public_probe_confirmed": options.public_probe_confirm}
-                         if selected.startswith("github-") else {})
+                probe = (
+                    {
+                        "probe_confirmed": options.probe_confirm,
+                        "public_probe_confirmed": options.public_probe_confirm,
+                    }
+                    if selected.startswith("github-")
+                    else {}
+                )
                 result = git.connect(**configuration, confirmed=True, **probe)
             elif operation == "disconnect":
                 result = git.disconnect(
@@ -188,6 +225,8 @@ def handle_mirror_command(options):
             "deadline",
             "representation_required",
             "authorization_required",
+            "secure_store_unavailable",
+            "credential_context",
             "in_use",
             "outcome_unknown",
             "integrity",
@@ -223,7 +262,7 @@ def handle_mirror_command(options):
             json.dumps(
                 {
                     "error": "mirror_operation_unavailable",
-                    "code": code if code in allowed else "invalid",
+                    "code": code if code in (allowed | PROVIDER_DIAGNOSTICS) else "invalid",
                 }
             )
         )

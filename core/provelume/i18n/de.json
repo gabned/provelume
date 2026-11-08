@@ -2760,5 +2760,11 @@
   "mirror.gitlab_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte GitLab-Repository.",
   "mirror.gitlab_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien und Commit-Autor. Die Prüfung liest Token-Bereiche und Projektrolle.",
   "mirror.gitlab_probe_notice": "Diese Vorschau prüft Token-Bereiche und Projektberechtigungen erneut, ohne entfernte Inhalte zu ändern.",
-  "mirror.gitlab_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
+  "mirror.gitlab_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung.",
+  "mirror.gitea_profile": "Gitea: Repository-Identität, Sichtbarkeit und vollständige Übertragung sind an diese Vorschau gebunden.",
+  "mirror.gitea_publish": "Gitea-Generation veröffentlichen",
+  "mirror.gitea_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte Gitea-Repository.",
+  "mirror.gitea_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien und Commit-Autor. Die Prüfung liest Token-Bereiche und Repositoryrolle.",
+  "mirror.gitea_probe_notice": "Diese Vorschau prüft Token-Bereiche und Repositoryberechtigungen erneut, ohne entfernte Inhalte zu ändern.",
+  "mirror.gitea_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
 }

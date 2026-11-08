@@ -2760,5 +2760,11 @@
   "mirror.gitlab_confirm": "Je confirme ce transfert exact vers le dépôt GitLab configuré.",
   "mirror.gitlab_transfer": "Transfert complet : contenus, fichiers de contrôle et auteur du commit. La vérification lit les portées du jeton et le rôle du projet.",
   "mirror.gitlab_probe_notice": "Cet aperçu revérifie les portées du jeton et les droits du projet sans modifier le contenu distant.",
-  "mirror.gitlab_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact."
+  "mirror.gitlab_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact.",
+  "mirror.gitea_profile": "Gitea : identité du dépôt, visibilité et transfert complet sont liés à cet aperçu.",
+  "mirror.gitea_publish": "Publier la génération Gitea",
+  "mirror.gitea_confirm": "Je confirme ce transfert exact vers le dépôt Gitea configuré.",
+  "mirror.gitea_transfer": "Transfert complet : contenus, fichiers de contrôle et auteur du commit. La vérification lit les portées du jeton et le rôle du dépôt.",
+  "mirror.gitea_probe_notice": "Cet aperçu revérifie les portées du jeton et les droits du dépôt sans modifier le contenu distant.",
+  "mirror.gitea_public_confirm": "J’ai vérifié tous les hash, fichiers de contrôle et champs du commit et confirme ce transfert public exact."
 }

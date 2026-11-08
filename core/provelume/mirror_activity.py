@@ -87,19 +87,31 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 "public_confirm",
             },
             "gitlab-reconcile": {"plan_id"},
+            "gitea-prepare": {"destination_id", "revision"},
+            "gitea-publish": {
+                "plan_id",
+                "plan_sha256",
+                "git_plan_sha256",
+                "transfer_sha256",
+                "public_confirm",
+            },
+            "gitea-reconcile": {"plan_id"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
-        if selected.startswith(("git-", "github-", "gitlab-")):
-            hosted = selected.startswith(("github-", "gitlab-"))
-            git = (
-                instance.gitlab_mirrors()
-                if selected.startswith("gitlab-")
-                else instance.github_mirrors()
-                if hosted
-                else instance.git_mirrors()
+        if selected.startswith(("git-", "github-", "gitlab-", "gitea-")):
+            hosted = selected.startswith(("github-", "gitlab-", "gitea-"))
+            git = {
+                "git": instance.git_mirrors,
+                "github": instance.github_mirrors,
+                "gitlab": instance.gitlab_mirrors,
+                "gitea": instance.gitea_mirrors,
+            }[selected.split("-", 1)[0]]()
+            selected = (
+                selected.replace("github-", "git-", 1)
+                .replace("gitlab-", "git-", 1)
+                .replace("gitea-", "git-", 1)
             )
-            selected = selected.replace("github-", "git-", 1).replace("gitlab-", "git-", 1)
             if selected == "git-initialize":
                 git.initialize_local(
                     fields["destination_id"],

@@ -2760,5 +2760,11 @@
   "mirror.gitlab_confirm": "Confermo questo esatto trasferimento al repository GitLab configurato.",
   "mirror.gitlab_transfer": "Trasferimento completo: contenuti, file di controllo e autore del commit. La verifica legge ambiti del token e ruolo nel progetto.",
   "mirror.gitlab_probe_notice": "Preparare questa anteprima riverifica gli ambiti del token e i permessi del progetto senza modificare contenuti remoti.",
-  "mirror.gitlab_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico."
+  "mirror.gitlab_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico.",
+  "mirror.gitea_profile": "Gitea: identità del repository, visibilità e trasferimento completo sono vincolati a questa anteprima.",
+  "mirror.gitea_publish": "Pubblica generazione Gitea",
+  "mirror.gitea_confirm": "Confermo questo esatto trasferimento al repository Gitea configurato.",
+  "mirror.gitea_transfer": "Trasferimento completo: contenuti, file di controllo e autore del commit. La verifica legge ambiti del token e ruolo nel repository.",
+  "mirror.gitea_probe_notice": "Preparare questa anteprima riverifica gli ambiti del token e i permessi del repository senza modificare contenuti remoti.",
+  "mirror.gitea_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico."
 }

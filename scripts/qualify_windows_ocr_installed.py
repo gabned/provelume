@@ -140,7 +140,7 @@ def _fault(worker, temporary, kind):
                 process.wait(5)
 
 
-def qualify(executable, kit, root, output, build_report, installer):
+def qualify(executable, kit, root, output, build_report, installer, gitea_server):
     if sys.platform != "win32":
         raise ValueError("Native disposable Windows runner required")
     root.mkdir()
@@ -360,6 +360,19 @@ def qualify(executable, kit, root, output, build_report, installer):
         assert gitlab_mirror_trial["real_gitlab"] == "NOT_RUN"
         assert gitlab_mirror_trial["native_vault_helper"]["result"] == "PASS"
         assert gitlab_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
+        gitea_mirror_trial = command("gitea-mirror-qualify", root / "Synthetic Gitea",
+                                     optional_git_path=git_dependency_path)
+        assert gitea_mirror_trial["result"] == "PASS" and not gitea_mirror_trial["network_used"]
+        assert gitea_mirror_trial["real_gitea"] == "NOT_RUN"
+        assert gitea_mirror_trial["native_vault_helper"]["result"] == "PASS"
+        gitea_server_trial = command(
+            "gitea-server-qualify", root / "Synthetic actual Gitea TLS",
+            "--binary", gitea_server, optional_git_path=git_dependency_path)
+        assert gitea_server_trial["result"] == "PASS"
+        assert gitea_server_trial["mode"] == "FULL_NATIVE"
+        assert gitea_server_trial["native_mirror_publication"] == "PASS"
+        assert not gitea_server_trial["driver_external_network_used"]
+        assert not gitea_server_trial["real_accounts"]
         assert github_mirror_trial["native_vault_helper"]["result"] == "PASS"
         assert github_mirror_trial["native_vault_helper"]["backend"] == "NATIVE_CURRENT_USER_DPAPI"
         assert github_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
@@ -393,6 +406,8 @@ def qualify(executable, kit, root, output, build_report, installer):
             "s17_git_mirror_trial": git_mirror_trial,
             "s18_github_mirror_trial": github_mirror_trial,
             "s19_gitlab_mirror_trial": gitlab_mirror_trial,
+            "s20_gitea_mirror_trial": gitea_mirror_trial,
+            "s20_actual_gitea_tls_trial": gitea_server_trial,
             "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",
@@ -451,7 +466,9 @@ def qualify(executable, kit, root, output, build_report, installer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("executable", "kit", "root", "output", "build-report", "installer"):
+    for name in ("executable", "kit", "root", "output", "build-report", "installer",
+                 "gitea-server"):
         parser.add_argument("--" + name, required=True, type=Path)
     args = parser.parse_args()
-    qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer)
+    qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer,
+            args.gitea_server)

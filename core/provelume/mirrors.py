@@ -660,7 +660,10 @@ class Mirrors:
             require(type(transport_proof) is dict)
             provider = transport_proof.get("provider_observation")
             hosted = transport_proof.get("profile") in {
-                "github.com/2022-11-28", "gitlab.com/v4/classic-pat"}
+                "github.com/2022-11-28",
+                "gitlab.com/v4/classic-pat",
+                "gitea/28.3.0/v1/current-token",
+            }
             require(
                 type(transport_proof) is dict
                 and set(transport_proof)
@@ -678,8 +681,13 @@ class Mirrors:
                 )
             )
             require(
-                transport_proof["profile"] in {
-                    "git-local/v1", "github.com/2022-11-28", "gitlab.com/v4/classic-pat"}
+                transport_proof["profile"]
+                in {
+                    "git-local/v1",
+                    "github.com/2022-11-28",
+                    "gitlab.com/v4/classic-pat",
+                    "gitea/28.3.0/v1/current-token",
+                }
                 and type(transport_proof["commit_written"]) is bool
                 and type(transport_proof["git_version"]) is str
                 and len(transport_proof["git_version"]) <= 40
