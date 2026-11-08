@@ -8,11 +8,13 @@ credential, installed user profile or external URL is selected by this driver.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
 import platform
 import socket
+import struct
 import subprocess
 import time
 import traceback
@@ -187,6 +189,27 @@ from provelume.shell_settings import ShellSettingsManager, default_settings
 manager=ShellSettingsManager(Path(sys.argv[1])/'launcher.json', default_settings())
 manager.set_interface_mode(sys.argv[2], expected_revision=manager.load().settings.revision)
 """
+
+
+def capture_native_page(context, page, destination):
+    # At native profile zoom !=1, Playwright's CSS-sized full_page clip cuts
+    # the actual bitmap. CDP's device-independent content bounds retain the
+    # real zoomed width/height; no CSS scaling or viewport change is applied.
+    session = context.new_cdp_session(page)
+    try:
+        metrics = session.send("Page.getLayoutMetrics")
+        clip = {**metrics["contentSize"], "scale": 1}
+        result = session.send("Page.captureScreenshot", {
+            "format": "png", "captureBeyondViewport": True, "clip": clip})
+        data = base64.b64decode(result["data"], validate=True)
+        assert data[:8] == b"\x89PNG\r\n\x1a\n"
+        width, height = struct.unpack(">II", data[16:24])
+        assert width == clip["width"] and height == clip["height"]
+        destination.write_bytes(data)
+        return {"method": "NATIVE_CDP_CONTENT_BOUNDS", "width": width, "height": height,
+                "css_content": metrics["cssContentSize"]}
+    finally:
+        session.detach()
 
 
 def main():
@@ -459,7 +482,7 @@ def main():
                                                          'document.documentElement.clientWidth')
                                     cell['mirror_rsync_preview']='AUTOMATIC_SYNTHETIC_WIRE_PREVIEW_ONLY'
                                 image = work / f"{mode}-{language}-{width}.png"
-                                page.screenshot(path=str(image), full_page=True)
+                                cell["capture"] = capture_native_page(context, page, image)
                                 cell.update(result="PASS", screenshot=image.name,
                                             sha256=hashlib.sha256(image.read_bytes()).hexdigest())
                             except Exception as error:
@@ -473,7 +496,8 @@ def main():
                                       width:e.getBoundingClientRect().width
                                     })).filter(e=>e.right>innerWidth+1).slice(0,20)''')
                                 failed_image = work / f"{mode}-{language}-{width}-failure.png"
-                                page.screenshot(path=str(failed_image), full_page=True)
+                                cell["failure_capture"] = capture_native_page(
+                                    context, page, failed_image)
                                 cell["failure_screenshot"] = failed_image.name
                                 cell["failure_screenshot_sha256"] = hashlib.sha256(
                                     failed_image.read_bytes()).hexdigest()
