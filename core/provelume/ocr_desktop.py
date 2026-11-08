@@ -176,18 +176,22 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                 PublicationError,
                 ShellSettingsBusy,
             ) as exc:
-                json.dump(
-                    {
-                        "status": "unavailable",
-                        "code": (
-                            "provisioning_busy"
-                            if isinstance(exc, ShellSettingsBusy)
-                            else getattr(exc, "code", "invalid_kit")
-                        ),
-                        "network_used": False,
-                    },
-                    stream,
-                )
+                failure = {
+                    "status": "unavailable",
+                    "code": (
+                        "provisioning_busy"
+                        if isinstance(exc, ShellSettingsBusy)
+                        else getattr(exc, "code", "invalid_kit")
+                    ),
+                    "network_used": False,
+                }
+                if options.command == "gitea-server-qualify":
+                    from .mirror_gitea_server_qualification import GiteaQualificationFailure
+
+                    if isinstance(exc, GiteaQualificationFailure):
+                        failure["qualification_evidence"] = exc.evidence
+                        failure["network_used"] = None
+                json.dump(failure, stream)
                 stream.write("\n")
                 return 2
     except (OSError, ValueError, OcrKitError):

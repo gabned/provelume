@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
 from uuid import uuid4
@@ -46,6 +47,27 @@ INPUTS = {
 }
 SERVER_SECONDS = 300
 SERVER_LOG_BYTES = 4 * 1024 * 1024
+COMMAND_EVIDENCE = ContextVar("gitea_fixture_command_evidence", default=None)
+
+
+class GiteaQualificationFailure(MirrorError):
+    def __init__(self, code, evidence):
+        super().__init__(code)
+        self.evidence = evidence
+
+
+def command_kind(arguments):
+    for marker, operation in (
+        ("--version", "component_version"),
+        ("req", "tls_certificate"),
+        ("secret", "server_secret"),
+        ("migrate", "schema_migrate"),
+        ("generate-access-token", "synthetic_token"),
+        ("create", "synthetic_user"),
+    ):
+        if marker in arguments:
+            return operation
+    return "fixture_command"
 
 
 def binary_identity(path):
@@ -79,6 +101,7 @@ def command(arguments, *, work, environment):
     sensitive = any(value in arguments for value in ("generate-access-token", "create", "secret"))
     stamp = uuid4().hex
     record = {
+        "operation": command_kind(arguments),
         "returncode": result.returncode,
         "stdout_bytes": len(result.stdout),
         "stderr_bytes": len(result.stderr),
@@ -86,11 +109,15 @@ def command(arguments, *, work, environment):
         "stderr_sha256": hashlib.sha256(result.stderr).hexdigest(),
         "sensitive_stdout": sensitive,
     }
+    records = COMMAND_EVIDENCE.get()
+    if records is not None:
+        require(len(records) < 16, "limit")
+        records.append(record)
     (work / (stamp + "-command.json")).write_text(json.dumps(record, indent=2) + "\n")
     if not sensitive:
         (work / (stamp + "-stdout-original.log")).write_bytes(result.stdout)
         (work / (stamp + "-stderr-original.log")).write_bytes(result.stderr)
-    require(result.returncode == 0, "gitea_fixture_command")
+    require(result.returncode == 0, "gitea_fixture_command_" + record["operation"])
     return result.stdout
 
 
@@ -225,10 +252,14 @@ def fixture_server(root, binary):
     openssl = shutil.which("openssl")
     require(openssl is not None, "gitea_tls_component")
     key, certificate = root / "synthetic-key.pem", root / "synthetic-ca.pem"
+    openssl_config = root / "synthetic-openssl.cnf"
+    openssl_config.write_text("[req]\ndistinguished_name = dn\n[dn]\n", encoding="ascii")
     command(
         [
             openssl,
             "req",
+            "-config",
+            str(openssl_config),
             "-x509",
             "-newkey",
             "rsa:2048",
@@ -398,6 +429,26 @@ ROOT_PATH = {paths["work"]}/log
 
 
 def qualify_gitea_server(root, server_binary, *, api_only=False):
+    records = []
+    token = COMMAND_EVIDENCE.set(records)
+    try:
+        return _qualify_gitea_server(root, server_binary, api_only=api_only)
+    except Exception as error:
+        code = error.code if isinstance(error, MirrorError) else "gitea_fixture_unavailable"
+        evidence = {
+            "schema": "concordia-gitea-failure-evidence/v1",
+            "result": "NOT_RUN" if code.startswith("gitea_fixture_command_") else "UNKNOWN",
+            "mode": "API_ONLY" if api_only else "FULL_NATIVE",
+            "commands": records,
+            "raw_credential_output": "EXCLUDED",
+            "whole_host_network": "NOT_INSTRUMENTED",
+        }
+        raise GiteaQualificationFailure(code, evidence) from None
+    finally:
+        COMMAND_EVIDENCE.reset(token)
+
+
+def _qualify_gitea_server(root, server_binary, *, api_only=False):
     """Select API_ONLY before admission; full native never falls back to a fake vault."""
     from unittest.mock import patch
 

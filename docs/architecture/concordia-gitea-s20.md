@@ -105,3 +105,17 @@ The shared mirror UI also wraps the full public CA fingerprint. S21's additional
 browser fixture exposed that unbroken code at 320 CSS px in Cura; the original
 FAIL/DOM evidence (555 px document width from a 501 px code element) is preserved.
 This correction changes rendering, not trust bytes or verification semantics.
+
+The original installed Windows run 42430399347/a1/job128577804334 failed in a
+fixture command before server qualification. Its public operator result named no
+command phase, and the disposable runner's private command records were outside
+the uploaded evidence. That original cause remains UNKNOWN; Linux success does
+not resolve it. The permanent driver now returns only closed operation names,
+exit codes, byte counts and stdout/stderr SHA-256 in its failure result, which the
+installed harness preserves. Sensitive raw output is excluded. A failed command
+is NOT_RUN for the actual-server trial; incomplete later failure remains UNKNOWN.
+It does not claim zero network activity after an error. The TLS fixture also uses
+an explicit fixed OpenSSL configuration instead of a host-dependent default.
+This removes an ambient prerequisite; it is not a causal attribution for the
+older Windows failure. Native Windows qualification on the changed candidate is
+still mandatory, with the same budgets and no retry of the completed old run.
