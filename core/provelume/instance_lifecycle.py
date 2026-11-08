@@ -583,6 +583,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("manual-web-*"))
                 or any(transaction_root.glob("email-intake-*"))
                 or any(transaction_root.glob("google-intake-*"))
+                or any(transaction_root.glob("productivity-intake-*"))
                 or any(transaction_root.glob("transcript-intake-*"))
                 or any(transaction_root.glob("review-*"))
                 or any(transaction_root.glob("capture-*"))
@@ -596,6 +597,7 @@ class InstanceLifecycleManager:
                 ATOMIC_COMMIT_SCHEMA_VERSION,
                 EMAIL_INTAKE_TRANSACTION_PROFILE,
                 GOOGLE_INTAKE_TRANSACTION_PROFILE,
+                PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE,
                 REVIEW_TRANSACTION_PROFILE,
                 TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                 AtomicRecoveryHandler,
@@ -616,6 +618,7 @@ class InstanceLifecycleManager:
                         AtomicRecoveryHandler(
                             profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
                         ),
+                        AtomicRecoveryHandler(profile=PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE),
                         AtomicRecoveryHandler(
                             profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                         ),
