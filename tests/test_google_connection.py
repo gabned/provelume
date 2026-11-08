@@ -269,17 +269,18 @@ def test_refresh_and_remote_project_revocation_are_explicit(journey):
     _, gmail = connect(manager, transport)
     identity = gmail["instance_id"]
     _, _drive = connect(manager, transport, "drive", identity)
-    item = manager.sources.capability_record(identity, "gmail")
-    slot = item["credential_reference"]["name"]
+    reference = manager._owned_reference(identity, "gmail")
+    slot = reference["name"]
     vault.values[slot]["expires_at"] = time.time() - 1
     transport.capability = "gmail"
-    assert resolve_google_credential(item["credential_reference"], vault=vault, transport=transport)
+    assert resolve_google_credential(reference, vault=vault, transport=transport)
     assert transport.calls[-1][1]["grant_type"] == "refresh_token"
     with pytest.raises(GoogleConnectionError, match="google_consent_required"):
         manager.revoke_project(identity, "gmail", consent=False)
     result = manager.revoke_project(identity, "gmail", consent=True)
     assert result["affected_capabilities"] == 2
-    assert {c["status"] for c in manager.view()["connections"][0]["capabilities"]} == {"revoked"}
+    states = {c["name"]: c["status"] for c in manager.view()["connections"][0]["capabilities"]}
+    assert states == {"gmail": "revoked", "drive": "revoked", "calendar": "disconnected"}
     assert len([call for call in transport.calls if call[0] == REVOCATION_ENDPOINT]) == 1
     assert not any(key.startswith("google_grant_") for key in vault.values)
 
@@ -509,7 +510,7 @@ def test_expired_authorization_can_reconnect_and_discard_owned_old_secret(journe
     _, gmail = connect(manager, transport)
     _, drive = connect(manager, transport, "drive", gmail["instance_id"])
     identity = gmail["instance_id"]
-    reference = manager.sources.capability_record(identity, "gmail")["credential_reference"]
+    reference = manager._owned_reference(identity, "gmail")
     vault.values[reference["name"]]["expires_at"] = 0
     transport.fail = "google_reconnect_required"
     with pytest.raises(GoogleConnectionError, match="google_reconnect_required"):
@@ -534,7 +535,7 @@ def test_transient_refresh_failure_does_not_revoke_a_grant(journey):
     _, connection = connect(manager, transport)
     identity = connection["instance_id"]
     item = manager.sources.capability_record(identity, "gmail")
-    vault.values[item["credential_reference"]["name"]]["expires_at"] = 0
+    vault.values[manager._owned_reference(identity, "gmail")["name"]]["expires_at"] = 0
     transport.fail = "google_connection_failed"
     with pytest.raises(GoogleAdapterError, match="Google connection is unavailable"):
         manager.test(identity, "gmail")
@@ -564,9 +565,8 @@ def test_remote_revoke_disables_every_affected_capability_even_if_secret_cleanup
     vault.delete = locked
     with pytest.raises(GoogleCredentialError):
         manager.revoke_project(first["instance_id"], "gmail", consent=True)
-    assert {item["status"] for item in manager.view()["connections"][0]["capabilities"]} == {
-        "revoked"
-    }
+    states = {c["name"]: c["status"] for c in manager.view()["connections"][0]["capabilities"]}
+    assert states == {"gmail": "revoked", "drive": "revoked", "calendar": "disconnected"}
 
 
 def test_credential_store_never_selects_a_plaintext_backend(monkeypatch):
@@ -694,6 +694,7 @@ def test_locked_store_is_retryable_for_test_and_intake_without_losing_grant(jour
     assert caught.value.code == "google_secure_store_unavailable"
     assert manager.sources.capability_record(identity, "gmail") == before
     adapter = GoogleApiAdapter(
+        vault=vault,
         credential_resolver=lambda ref: resolve_google_credential(
             ref, vault=vault, transport=transport
         )
