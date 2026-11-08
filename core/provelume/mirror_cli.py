@@ -6,6 +6,7 @@ from pathlib import Path
 from .icalendar_feeds import _local_path
 from .mirror_contract import FOLDER_DIAGNOSTICS, PROVIDER_DIAGNOSTICS, parse, require
 from .mirror_jobs import MirrorJobs, local_preview
+from .mirror_rsync_protocol import RSYNC_DIAGNOSTICS
 from .service import ProvelumeInstance
 
 
@@ -28,6 +29,14 @@ def add_mirror_commands(commands):
         "folder-prepare",
         "folder-publish",
         "folder-reconcile",
+        "rsync-status",
+        "rsync-create-identity",
+        "rsync-disconnect",
+        "rsync-initialize",
+        "rsync-prepare",
+        "rsync-publish",
+        "rsync-reconcile",
+        "rsync-resume",
         "git-initialize",
         "git-prepare",
         "git-publish",
@@ -60,6 +69,7 @@ def add_mirror_commands(commands):
             "github-connect",
             "gitlab-connect",
             "gitea-connect",
+            "rsync-create-identity",
         }:
             command.add_argument("configuration_file", type=Path)
         if name in {
@@ -70,13 +80,20 @@ def add_mirror_commands(commands):
             "gitlab-prepare",
             "gitea-prepare",
             "folder-prepare",
+            "rsync-prepare",
         }:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name in {"revoke", "github-disconnect", "gitlab-disconnect", "gitea-disconnect"}:
+        if name in {
+            "revoke",
+            "github-disconnect",
+            "gitlab-disconnect",
+            "gitea-disconnect",
+            "rsync-disconnect",
+        }:
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name in {"git-initialize", "folder-initialize"}:
+        if name in {"git-initialize", "folder-initialize", "rsync-initialize"}:
             command.add_argument("destination_id")
             command.add_argument("--expected-destination-sha256", required=True)
         if name in {
@@ -92,6 +109,9 @@ def add_mirror_commands(commands):
             "gitea-reconcile",
             "folder-publish",
             "folder-reconcile",
+            "rsync-publish",
+            "rsync-reconcile",
+            "rsync-resume",
         }:
             command.add_argument("plan_id")
         if name == "discard":
@@ -102,6 +122,10 @@ def add_mirror_commands(commands):
         if name == "folder-publish":
             command.add_argument("--expected-plan-sha256", required=True)
             command.add_argument("--expected-folder-plan-sha256", required=True)
+        if name == "rsync-publish":
+            command.add_argument("--expected-plan-sha256", required=True)
+        if name in {"rsync-publish", "rsync-resume"}:
+            command.add_argument("--expected-rsync-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
         if name in {"github-publish", "gitlab-publish", "gitea-publish"}:
@@ -116,6 +140,7 @@ def add_mirror_commands(commands):
             "gitlab-status",
             "gitea-status",
             "folder-status",
+            "rsync-status",
         }:
             command.add_argument("--confirm", action="store_true")
 
@@ -134,9 +159,52 @@ def handle_mirror_command(options):
             "gitlab-status",
             "gitea-status",
             "folder-status",
+            "rsync-status",
         }:
             require(options.confirm is True, "consent_required")
-        if selected.startswith("folder-"):
+        if selected.startswith("rsync-"):
+            transport = instance.rsync_mirrors()
+            operation = selected.removeprefix("rsync-")
+            if operation == "status":
+                result = transport.status()
+            elif operation == "create-identity":
+                external = _local_path(options.configuration_file, instance.root)
+                require(external.stat().st_size <= 4096, "limit")
+                payload = parse(external.read_bytes())
+                require(set(payload) == {"name"})
+                result = transport.create_identity(name=payload["name"], confirmed=True)
+            elif operation == "disconnect":
+                result = transport.disconnect(
+                    options.identity_id, expected_revision=options.expected_revision, confirmed=True
+                )
+            elif operation == "initialize":
+                result = transport.initialize(
+                    options.destination_id,
+                    expected_destination_sha256=options.expected_destination_sha256,
+                    confirmed=True,
+                )
+            elif operation == "prepare":
+                result = transport.prepare(
+                    options.destination_id,
+                    expected_revision=options.expected_revision,
+                    confirmed=True,
+                )
+            elif operation == "publish":
+                result = transport.publish(
+                    options.plan_id,
+                    expected_plan_sha256=options.expected_plan_sha256,
+                    expected_rsync_plan_sha256=options.expected_rsync_plan_sha256,
+                    confirmed=True,
+                )
+            elif operation == "resume":
+                result = transport.resume(
+                    options.plan_id,
+                    expected_rsync_plan_sha256=options.expected_rsync_plan_sha256,
+                    confirmed=True,
+                )
+            else:
+                result = transport.reconcile(options.plan_id, confirmed=True)
+        elif selected.startswith("folder-"):
             folder = instance.folder_mirrors()
             operation = selected.removeprefix("folder-")
             if operation == "status":
@@ -308,7 +376,8 @@ def handle_mirror_command(options):
                 {
                     "error": "mirror_operation_unavailable",
                     "code": code
-                    if code in (allowed | PROVIDER_DIAGNOSTICS | FOLDER_DIAGNOSTICS)
+                    if code
+                    in (allowed | PROVIDER_DIAGNOSTICS | FOLDER_DIAGNOSTICS | RSYNC_DIAGNOSTICS)
                     else "invalid",
                 }
             )

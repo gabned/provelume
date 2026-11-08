@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Kopieren und aktivieren",
   "mirror.folder_reconcile": "Ergebnis ohne erneutes Senden prüfen",
   "mirror.folder_initialize_help": "Einen neuen privaten Spiegel am konfigurierten, noch nicht vorhandenen Ziel erstellen. Vorhandene Ordner werden weder übernommen noch bereinigt.",
-  "mirror.folder_initialize": "Lokalen Spiegel erstellen"
+  "mirror.folder_initialize": "Lokalen Spiegel erstellen",
+  "mirror.configure_help": "Wählen Sie ein eingerichtetes Ziel, um die Generation zu prüfen. Netzwerkziele benötigen ihre Werkzeuge und Berechtigungen.",
+  "mirror.rsync_help": "Eine vollständige Generation über SSH mit geprüftem Host senden. Die Aktivierung folgt der unabhängigen Dateiprüfung; frühere Generationen bleiben erhalten.",
+  "mirror.rsync_initialize_help": "Nur den neuen Bereich registrieren, der für diese Identität auf dem freigegebenen entfernten Host vorbereitet wurde.",
+  "mirror.rsync_receipt": "Geprüfter SSH-Spiegelbeleg",
+  "mirror.rsync_confirm": "Ich bestätige die vollständige Generation sowie das eingestellte UTC-Zeitfenster und die Bandbreite.",
+  "mirror.rsync_publish": "Über SSH senden",
+  "mirror.rsync_reconcile": "Ziel ohne Senden prüfen",
+  "mirror.rsync_resume_help": "Eine Fortsetzung ist nur möglich, wenn das Ziel belegt, dass die Aktivierung nie begonnen hat. Eine ungewisse Aktivierung bleibt ungeklärt.",
+  "mirror.rsync_resume": "Sichere Fortsetzung anfordern",
+  "mirror.rsync_tools_unavailable": "Die erforderlichen rsync- oder SSH-Werkzeuge fehlen oder werden nicht unterstützt. Prüfen Sie die Verbindungsanleitung.",
+  "mirror.rsync_host_refused": "Der Hostschlüssel weicht vom freigegebenen Ziel ab. Prüfen Sie den Host, bevor Sie die Konfiguration ändern.",
+  "mirror.rsync_credential_unavailable": "Die SSH-Anmeldedaten sind nicht verfügbar oder wurden widerrufen. Entsperren Sie den sicheren Speicher oder verbinden Sie die Identität erneut.",
+  "mirror.rsync_outside_window": "Außerhalb des eingestellten UTC-Zeitfensters. Senden Sie innerhalb dieses Zeitfensters.",
+  "mirror.rsync_unresolved": "Das Ergebnis bleibt ungeklärt. Prüfen Sie das Ziel, bevor Sie eine sichere Fortsetzung anfordern."
 }

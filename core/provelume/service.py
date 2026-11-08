@@ -80,6 +80,11 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def rsync_mirrors(self):
+        from .mirror_rsync import RsyncMirrors
+
+        return RsyncMirrors(self.store, mirrors=self.mirrors())
+
     def folder_mirrors(self):
         from .mirror_folder import FolderMirrors
 

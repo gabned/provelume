@@ -18364,6 +18364,90 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.configure_help": {
+      "context": "Pinned SSH mirror explicit operation: configure_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_help": {
+      "context": "Pinned SSH mirror explicit operation: rsync_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_initialize_help": {
+      "context": "Pinned SSH mirror explicit operation: rsync_initialize_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_receipt": {
+      "context": "Pinned SSH mirror explicit operation: rsync_receipt",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_confirm": {
+      "context": "Pinned SSH mirror explicit operation: rsync_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_publish": {
+      "context": "Pinned SSH mirror explicit operation: rsync_publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_reconcile": {
+      "context": "Pinned SSH mirror explicit operation: rsync_reconcile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_resume_help": {
+      "context": "Pinned SSH mirror explicit operation: rsync_resume_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_resume": {
+      "context": "Pinned SSH mirror explicit operation: rsync_resume",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_tools_unavailable": {
+      "context": "Pinned SSH mirror action refusal: rsync_tools_unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_host_refused": {
+      "context": "Pinned SSH mirror action refusal: rsync_host_refused",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_credential_unavailable": {
+      "context": "Pinned SSH mirror action refusal: rsync_credential_unavailable",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_outside_window": {
+      "context": "Pinned SSH mirror action refusal: rsync_outside_window",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.rsync_unresolved": {
+      "context": "Pinned SSH mirror action refusal: rsync_unresolved",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

@@ -40,9 +40,11 @@ def configuration(value):
             "port",
             "username",
             "host_key",
+            "configuration_sha256",
             "namespace",
             "bandwidth_kib",
-            "window_utc",
+            "window_start_minute_utc",
+            "window_end_minute_utc",
         }
         and value["transport"] == "rsync-ssh",
         "rsync_target",
@@ -63,6 +65,11 @@ def configuration(value):
         and re.fullmatch(r"[0-9a-f]{32}", value["namespace"]),
         "rsync_target",
     )
+    require(
+        type(value["configuration_sha256"]) is str
+        and re.fullmatch(r"[0-9a-f]{64}", value["configuration_sha256"]),
+        "rsync_target",
+    )
     require(type(value["host_key"]) is str and len(value["host_key"]) <= 128, "ssh_host_key")
     try:
         blob = base64.b64decode(value["host_key"], validate=True)
@@ -74,7 +81,7 @@ def configuration(value):
         type(value["bandwidth_kib"]) is int and 1 <= value["bandwidth_kib"] <= 102400,
         "rsync_bandwidth",
     )
-    window = value["window_utc"]
+    window = [value["window_start_minute_utc"], value["window_end_minute_utc"]]
     require(
         type(window) is list
         and len(window) == 2
@@ -90,7 +97,11 @@ def window_open(target, instant):
     require(
         instant.utcoffset() is not None and instant.utcoffset().total_seconds() == 0, "rsync_window"
     )
-    return target["window_utc"][0] <= instant.hour * 60 + instant.minute < target["window_utc"][1]
+    return (
+        target["window_start_minute_utc"]
+        <= instant.hour * 60 + instant.minute
+        < target["window_end_minute_utc"]
+    )
 
 
 def environment(work):
@@ -200,14 +211,18 @@ class NativeSession:
             for item in (source, stdout, stderr):
                 item.unlink(missing_ok=True)
 
-    def component(self, name):
-        binary = shutil.which(name)
+    def component(self, name, *, binary=None):
+        binary = str(binary) if binary is not None else shutil.which(name)
         require(binary is not None, "rsync_component_unavailable")
         info = Path(binary).stat()
         require(
             stat.S_ISREG(info.st_mode) and info.st_size <= 16 * 1024 * 1024,
             "rsync_component_unavailable",
         )
+        if os.name == "nt" and name == "rsync":
+            from .mirror_rsync_windows import admit
+
+            admit(binary)
         code, output, errors = self.run(
             [binary, "-V" if name == "ssh" else "--version"], check=False
         )
@@ -314,5 +329,16 @@ def ssh_call(session, target, seed, request):
             ssh_arguments(binary["path"], target, work, owned.endpoint),
             incoming=request,
             maximum=MAX_MANIFEST_BYTES + 4096,
+            check=False,
         )
+        if result[0] != 0:
+            code = "ssh_command_failed"
+            if (
+                b"Host key verification failed" in result[2]
+                or b"REMOTE HOST IDENTIFICATION HAS CHANGED" in result[2]
+            ):
+                code = "ssh_host_key"
+            elif b"Permission denied" in result[2]:
+                code = "ssh_credentials"
+            raise MirrorError(code)
     return result[1], {"component": binary, "agent": owned.report}

@@ -85,7 +85,7 @@ def test_every_registered_command_retains_grammar_and_parse_behavior():
     full = cli.build_parser()
     complete = _subparsers(full)
     # Enumerate actual registrations, including both publication subcommands.
-    assert _registration_count(full) == 314
+    assert _registration_count(full) == 322
     for name, reference in complete.choices.items():
         selected = cli._build_parser(name)
         choices = _subparsers(selected)

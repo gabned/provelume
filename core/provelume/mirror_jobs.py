@@ -71,12 +71,13 @@ class MirrorJobs:
                 if now < due:
                     skipped += 1
                     continue
-            if profile in {"git", "github", "gitlab", "gitea", "folder"}:
+            if profile in {"git", "github", "gitlab", "gitea", "folder", "rsync-ssh"}:
                 from .mirror_folder import FolderMirrors
                 from .mirror_git import GitMirrors
                 from .mirror_gitea import GiteaMirrors
                 from .mirror_github import GitHubMirrors
                 from .mirror_gitlab import GitLabMirrors
+                from .mirror_rsync import RsyncMirrors
 
                 transport = (
                     {
@@ -85,12 +86,22 @@ class MirrorJobs:
                         "gitlab": GitLabMirrors,
                         "gitea": GiteaMirrors,
                         "folder": FolderMirrors,
+                        "rsync-ssh": RsyncMirrors,
                     }[profile]
                 )(self.store, mirrors=self.mirrors)
                 # Explicit scheduled mode supplies current scope consent. An
                 # unresolved external claim refuses admission before any process.
                 result = None
                 try:
+                    if profile == "rsync-ssh":
+                        from .mirror_ssh_runtime import window_open
+
+                        _row, _authority, target, _reference = transport.context(
+                            row["id"], scheduled=True
+                        )
+                        if not window_open(target, now):
+                            skipped += 1
+                            continue
                     result = transport.prepare(
                         row["id"],
                         expected_revision=row["revision"],
@@ -106,6 +117,8 @@ class MirrorJobs:
                         **(
                             {"expected_folder_plan_sha256": result["folder_plan_sha256"]}
                             if profile == "folder"
+                            else {"expected_rsync_plan_sha256": result["rsync_plan_sha256"]}
+                            if profile == "rsync-ssh"
                             else {"expected_git_plan_sha256": result["git_plan_sha256"]}
                         ),
                     )
@@ -131,6 +144,7 @@ class MirrorJobs:
                     "gitlab": "COMPLETED_GITLAB",
                     "gitea": "COMPLETED_GITEA",
                     "folder": "COMPLETED_FOLDER",
+                    "rsync-ssh": "COMPLETED_RSYNC_SSH",
                     "git": "COMPLETED_GIT_LOCAL",
                 }[profile]
             else:

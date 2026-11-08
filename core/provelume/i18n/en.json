@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copy and activate",
   "mirror.folder_reconcile": "Check outcome without sending again",
   "mirror.folder_initialize_help": "Create a new private mirror at the configured absent destination. Existing folders are not adopted or cleaned up.",
-  "mirror.folder_initialize": "Create local mirror"
+  "mirror.folder_initialize": "Create local mirror",
+  "mirror.configure_help": "Choose a configured destination to preview its generation. Network destinations need their tools and access.",
+  "mirror.rsync_help": "Send a complete generation over pinned SSH. Activation follows independent file verification; earlier generations remain.",
+  "mirror.rsync_initialize_help": "Enroll only the fresh namespace prepared for this identity on the approved remote host.",
+  "mirror.rsync_receipt": "Verified SSH mirror receipt",
+  "mirror.rsync_confirm": "I confirm this complete generation and the configured UTC window and bandwidth.",
+  "mirror.rsync_publish": "Send over SSH",
+  "mirror.rsync_reconcile": "Check destination without sending",
+  "mirror.rsync_resume_help": "Resume is available only when the destination proves that activation has never started. An uncertain activation stays unresolved.",
+  "mirror.rsync_resume": "Request safe resume",
+  "mirror.rsync_tools_unavailable": "Required rsync or SSH tools are missing or unsupported. Check the connection guide.",
+  "mirror.rsync_host_refused": "The host key differs from the approved destination. Verify the host before changing its configuration.",
+  "mirror.rsync_credential_unavailable": "The SSH credential is unavailable or revoked. Unlock the secure store or reconnect the identity.",
+  "mirror.rsync_outside_window": "Outside the configured UTC window. Send within that window.",
+  "mirror.rsync_unresolved": "The outcome remains unresolved. Check the destination before requesting a safe resume."
 }

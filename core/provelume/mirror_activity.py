@@ -30,6 +30,7 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 notice=request.query_params.get("notice"),
                 git_plan=None,
                 folder_plan=None,
+                rsync_plan=None,
                 git_status=instance.git_mirrors().status(),
                 profiles={row["id"]: row["profile"] for row in engine.view()["identities"]},
                 receipt=None,
@@ -55,6 +56,14 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                     values.update(
                         folder_plan=folder_plan,
                         folder_plan_sha256=fingerprint(folder_plan),
+                        receipt=engine._load("receipts/" + plan_id + ".json"),
+                    )
+                rsync_plan = engine._load("rsync/plans/" + plan_id + ".json")
+                if rsync_plan is not None:
+                    _plan, rsync_plan = instance.rsync_mirrors().rsync_plan(plan_id)
+                    values.update(
+                        rsync_plan=rsync_plan,
+                        rsync_plan_sha256=fingerprint(rsync_plan),
                         receipt=engine._load("receipts/" + plan_id + ".json"),
                     )
             return templates.TemplateResponse(
@@ -109,9 +118,47 @@ def attach_mirror_routes(app, instance, templates, context_factory):
             "folder-prepare": {"destination_id", "revision"},
             "folder-publish": {"plan_id", "plan_sha256", "folder_plan_sha256"},
             "folder-reconcile": {"plan_id"},
+            "rsync-initialize": {"destination_id", "destination_sha256"},
+            "rsync-prepare": {"destination_id", "revision"},
+            "rsync-publish": {"plan_id", "plan_sha256", "rsync_plan_sha256"},
+            "rsync-reconcile": {"plan_id"},
+            "rsync-resume": {"plan_id", "rsync_plan_sha256"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
+        if selected.startswith("rsync-"):
+            transport = instance.rsync_mirrors()
+            if selected == "rsync-initialize":
+                transport.initialize(
+                    fields["destination_id"],
+                    expected_destination_sha256=fields["destination_sha256"],
+                    confirmed=True,
+                )
+                return {"notice": "saved"}
+            if selected == "rsync-prepare":
+                plan = transport.prepare(
+                    fields["destination_id"],
+                    expected_revision=int(fields["revision"]),
+                    confirmed=True,
+                )
+                return {"plan": plan["id"]}
+            if selected == "rsync-publish":
+                outcome = transport.publish(
+                    fields["plan_id"],
+                    expected_plan_sha256=fields["plan_sha256"],
+                    expected_rsync_plan_sha256=fields["rsync_plan_sha256"],
+                    confirmed=True,
+                )
+            elif selected == "rsync-resume":
+                outcome = transport.resume(
+                    fields["plan_id"],
+                    expected_rsync_plan_sha256=fields["rsync_plan_sha256"],
+                    confirmed=True,
+                )
+            else:
+                outcome = transport.reconcile(fields["plan_id"], confirmed=True)
+            complete = outcome.get("receipt", {}).get("schema") == "provelume-mirror-receipt/v1"
+            return {"plan": fields["plan_id"], "notice": "saved" if complete else "unavailable"}
         if selected.startswith("folder-"):
             folder = instance.folder_mirrors()
             if selected == "folder-initialize":
@@ -237,6 +284,16 @@ def attach_mirror_routes(app, instance, templates, context_factory):
             result = await run_in_threadpool(action, fields)
         except (ValueError, KeyError, OSError, TypeError) as error:
             code = getattr(error, "code", "unavailable")
+            rsync_notices = {
+                "rsync_component_unavailable": "rsync_tools_unavailable",
+                "rsync_profile_not_qualified": "rsync_tools_unavailable",
+                "ssh_profile_not_qualified": "rsync_tools_unavailable",
+                "ssh_host_key": "rsync_host_refused",
+                "ssh_credentials": "rsync_credential_unavailable",
+                "rsync_window_closed": "rsync_outside_window",
+                "rsync_resume_not_proven_safe": "rsync_unresolved",
+                "rsync_activation_not_proven_safe": "rsync_unresolved",
+            }
             notice = (
                 "limit"
                 if code in {"limit", "generation_limit", "plan_limit", "deadline"}
@@ -246,6 +303,8 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                     else "unavailable"
                 )
             )
+            if fields.get("action", "").startswith("rsync-"):
+                notice = rsync_notices.get(code, notice)
             result = {"notice": notice}
             if fields.get("plan_id"):
                 try:

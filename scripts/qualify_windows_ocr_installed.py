@@ -342,6 +342,12 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
         assert not folder_trial["process_used"]
         assert folder_trial["native_vault_qualification"] == "PASS"
         assert folder_trial["external_ledger_backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        rsync_agent = command("rsync-credential-qualify", root / "Synthetic native SSH agent")
+        assert rsync_agent["result"] == "PASS"
+        assert rsync_agent["mode"] == "NATIVE_VAULT_AND_OWNED_AGENT_IPC_ONLY"
+        assert rsync_agent["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        assert rsync_agent["native_ssh_authentication"] == "NOT_RUN"
+        assert rsync_agent["native_rsync_transport"] == "NOT_RUN"
         git_binary = shutil.which("git")
         assert git_binary and Path(git_binary).is_absolute()
         git_root = Path(git_binary).parent.parent

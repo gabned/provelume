@@ -204,6 +204,7 @@ def test_actual_contained_agent_worker_signs_through_private_ipc_and_has_no_key_
         for path in root.rglob("*"):
             if path.is_file():
                 value = path.read_bytes()
-                assert seed not in value and base64.b64encode(seed) not in value
+                leaked = seed in value or base64.b64encode(seed) in value
+                assert not leaked
     assert owned.report["signatures"] == 1 and owned.report["host_bound"]
     assert (os.name == "nt" or not Path(endpoint).exists()) and not root.exists()

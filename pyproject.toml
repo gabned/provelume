@@ -35,6 +35,7 @@ dev = [
 [project.scripts]
 provelume = "provelume.cli:main"
 provelume-desktop = "provelume.desktop:main"
+provelume-rsync-helper = "provelume.mirror_rsync_remote_main:main"
 
 [tool.provelume.release]
 codename = "Entitas"

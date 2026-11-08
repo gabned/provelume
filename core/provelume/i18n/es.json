@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copiar y activar",
   "mirror.folder_reconcile": "Verificar el resultado sin volver a enviar",
   "mirror.folder_initialize_help": "Crear un nuevo espejo privado en el destino configurado, que no debe existir. Las carpetas existentes no se adoptan ni se limpian.",
-  "mirror.folder_initialize": "Crear espejo local"
+  "mirror.folder_initialize": "Crear espejo local",
+  "mirror.configure_help": "Elija un destino configurado para revisar la generación. Los destinos de red necesitan sus herramientas y permisos.",
+  "mirror.rsync_help": "Enviar una generación completa por SSH con el host verificado. Se activa tras verificar los archivos de forma independiente; se conservan las generaciones anteriores.",
+  "mirror.rsync_initialize_help": "Registrar solo el espacio nuevo preparado para esta identidad en el host remoto autorizado.",
+  "mirror.rsync_receipt": "Recibo verificado del espejo SSH",
+  "mirror.rsync_confirm": "Confirmo la generación completa, la ventana UTC y el ancho de banda configurados.",
+  "mirror.rsync_publish": "Enviar por SSH",
+  "mirror.rsync_reconcile": "Comprobar destino sin enviar",
+  "mirror.rsync_resume_help": "Solo se puede reanudar si el destino demuestra que la activación nunca comenzó. Una activación incierta sigue sin resolverse.",
+  "mirror.rsync_resume": "Solicitar reanudación segura",
+  "mirror.rsync_tools_unavailable": "Faltan las herramientas rsync o SSH requeridas, o no son compatibles. Consulte la guía de conexión.",
+  "mirror.rsync_host_refused": "La clave del host difiere del destino autorizado. Verifique el host antes de cambiar la configuración.",
+  "mirror.rsync_credential_unavailable": "La credencial SSH no está disponible o se ha revocado. Desbloquee el almacén seguro o vuelva a conectar la identidad.",
+  "mirror.rsync_outside_window": "Fuera de la ventana UTC configurada. Envíe dentro de esa ventana.",
+  "mirror.rsync_unresolved": "El resultado sigue sin resolverse. Compruebe el destino antes de solicitar una reanudación segura."
 }

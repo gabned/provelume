@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copiază și activează",
   "mirror.folder_reconcile": "Verifică rezultatul fără o nouă trimitere",
   "mirror.folder_initialize_help": "Creează o oglindă privată nouă la destinația configurată, care nu trebuie să existe. Dosarele existente nu sunt preluate sau curățate.",
-  "mirror.folder_initialize": "Creează oglinda locală"
+  "mirror.folder_initialize": "Creează oglinda locală",
+  "mirror.configure_help": "Alege o destinație configurată pentru a verifica generația. Destinațiile de rețea au nevoie de instrumentele și permisiunile lor.",
+  "mirror.rsync_help": "Trimite o generație completă prin SSH cu gazda verificată. Activarea urmează verificării independente a fișierelor; generațiile anterioare se păstrează.",
+  "mirror.rsync_initialize_help": "Înregistrează doar spațiul nou pregătit pentru această identitate pe gazda la distanță autorizată.",
+  "mirror.rsync_receipt": "Dovadă verificată a oglinzii SSH",
+  "mirror.rsync_confirm": "Confirm generația completă, intervalul UTC și lățimea de bandă configurate.",
+  "mirror.rsync_publish": "Trimite prin SSH",
+  "mirror.rsync_reconcile": "Verifică destinația fără trimitere",
+  "mirror.rsync_resume_help": "Reluarea este posibilă numai dacă destinația dovedește că activarea nu a început niciodată. O activare incertă rămâne neclarificată.",
+  "mirror.rsync_resume": "Solicită reluare sigură",
+  "mirror.rsync_tools_unavailable": "Instrumentele rsync sau SSH necesare lipsesc ori nu sunt acceptate. Consultă ghidul de conectare.",
+  "mirror.rsync_host_refused": "Cheia gazdei diferă de cea a destinației autorizate. Verifică gazda înainte de a-i schimba configurația.",
+  "mirror.rsync_credential_unavailable": "Credențialul SSH nu este disponibil sau este revocat. Deblochează depozitul securizat ori reconectează identitatea.",
+  "mirror.rsync_outside_window": "În afara intervalului UTC configurat. Trimite în acel interval.",
+  "mirror.rsync_unresolved": "Rezultatul rămâne neclarificat. Verifică destinația înainte de a solicita o reluare sigură."
 }

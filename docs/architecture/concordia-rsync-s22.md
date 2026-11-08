@@ -1,7 +1,7 @@
 # Concordia S22 — bounded rsync over pinned SSH and owned activation
 
 This homogeneous PRODUCT workstream consumes unaccepted S21
-`21e337a00a3b085ca38dfcd39259c4cbcd092a9f` under #383/6706150974's ordered
+`52205da92145d5a137a035b62aa669885535c227` under #383/6706150974's ordered
 development/automatic-test authority. Acceptance still requires S16/S21. Actual
 main is `9c6d89c035e009e342d2c6d5c9ed3081fbcb77e8`; Protocol1.5.2/pin02317e0,
 97 canonical files, PR-local legacy and deferred Lifecycle v2 remain. Product
@@ -33,8 +33,12 @@ Rsync success alone cannot activate anything. A versioned owned remote helper
 admits a fresh private local root, physical namespace ownership, known canonical/
 Original/control/backup exclusions, bounded native child containment, no aliases
 and a complete manifest/hash reread. Transfer uses an SSH-protected stdin rsync
-daemon channel confined to one operation's destination staging, without a public
-daemon listener or arbitrary remote command. Activation is a separate exact
+receiver confined to one operation's staging, without a daemon listener or
+arbitrary remote command. The owned adapter checks the exact server arguments
+observed from the signed upstream3.5.2 sender; the helper selects its own receiver
+executable and stage path independently. Windows converts the local source drive
+through the qualified MSYS2 mapping, so its colon cannot become a remote source.
+Activation is a separate exact
 expected-pointer operation using the independently qualified native filesystem
 primitive. Earlier active generations and destination-only history remain.
 There is no destination adoption, deletion, prune, automatic repair, reverse
@@ -43,8 +47,10 @@ synchronization or backup/restore claim.
 An external one-attempt claim precedes destination effects and binds the complete
 transport plan. Interrupted/uncertain activation is reconciled read-only against
 the specific operation, including after Root restore, and never retried. Explicit
-resume may continue only a partial transfer whose durable remote phase proves
-that activation has not started; it cannot replay an uncertain activation.
+resume may continue an interrupted transfer only after a durable remote phase
+proves its native receiver stopped and activation never started. A fully verified
+stage may proceed to its first activation under that same proof, without data
+resend. An uncertain activation cannot be replayed.
 Scheduling honors the configured UTC window and bandwidth, has one attempt and
 fences failures for manual intervention. Resume never runs automatically.
 
@@ -60,13 +66,19 @@ actual-main gates remain; no release or live destination is authorized here.
 
 ## Initial implementation evidence and remaining gates
 
-The initial implementation contains the closed Ed25519 signer, private native
+The implementation contains the closed Ed25519 signer, private native
 socket/Windows named-pipe worker, creation-time process containment and fixed SSH
 argument builder. RFC8032, wrong-host/session/user/service/flags, one-signature,
 expiry, malformed-frame and actual owned-worker IPC checks are automatic source
-evidence. Native Windows/frozen, actual rsync transport, remote helper, activation,
-explicit resume, CLI/UI/scheduler and complete platform qualification remain
-unaccepted until their own exact-candidate evidence exists.
+evidence. The CLI, local CSRF UI, seven UNVERIFIED catalogues and private scheduler
+use the same complete-generation transport, separate verified activation, explicit
+resume and read-only recovery. Synthetic-wire tests use real local namespace
+state, interrupted-before/after-native-rename, actual Root restore, external
+one-attempt claims, scheduling/failure fences and passive GETs. They do not attest
+native SSH or rsync. Native Windows/frozen, complete native transport, rendered
+browser/installer/CI/review and acceptance still require their own exact-candidate
+evidence. The initial remote helper filesystem profile is Linux local renameat2;
+Windows native client qualification stays separate.
 
 The official 3.5.2 source archive is 1,977,884 bytes, SHA-256
 `a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8`;

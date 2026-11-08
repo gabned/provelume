@@ -456,9 +456,41 @@ class FolderTree:
 @contextmanager
 def folder_root(target, *, store, device, destination_sha256, deadline=None, fresh=False):
     configuration(target)
-    selected = Path(target["path"])
+    expected = {
+        "instance_id": store.read_config()["instance"]["id"],
+        "device_sha256": device,
+        "destination_sha256": destination_sha256,
+    }
+    with owned_folder_root(
+        target["path"],
+        expected=expected,
+        admit=lambda selected: exclude_instance_tree(selected, store),
+        deadline=deadline,
+        fresh=fresh,
+    ) as tree:
+        yield tree
+
+
+@contextmanager
+def owned_folder_root(value, *, expected, admit, deadline=None, fresh=False, namespace=None):
+    """Shared native primitive; each caller supplies its real namespace authority.
+
+    Local mirrors use their actual Instance. A forced-command remote helper uses
+    independently installed namespace configuration, never a pretend Store.
+    """
+    require(
+        type(expected) is dict
+        and set(expected) == {"instance_id", "device_sha256", "destination_sha256"}
+        and callable(admit),
+        "folder_unknown_target",
+    )
+    require(
+        namespace is None or type(namespace) is str and re.fullmatch(r"[0-9a-f]{32}", namespace),
+        "folder_unknown_target",
+    )
+    selected = Path(value)
     with pinned_parent(selected) as (path, parent):
-        exclude_instance_tree(path.parent.resolve() / path.name, store)
+        admit(path.parent.resolve() / path.name)
         if fresh:
             require(
                 not path.exists() and not path.is_symlink() and not path.is_junction(),
@@ -488,14 +520,12 @@ def folder_root(target, *, store, device, destination_sha256, deadline=None, fre
             tree = FolderTree(root, descriptor, binding, deadline=deadline)
             expected = {
                 "schema": "provelume-folder-target/v1",
-                "instance_id": store.read_config()["instance"]["id"],
-                "device_sha256": device,
+                **expected,
                 "root_sha256": fingerprint(binding),
-                "destination_sha256": destination_sha256,
             }
             if fresh:
                 require(not tree.names(), "folder_unknown_content")
-                tree.write(MARKER, raw({**expected, "namespace": uuid4().hex}))
+                tree.write(MARKER, raw({**expected, "namespace": namespace or uuid4().hex}))
                 tree.write("transfer.lock", b"\0")
                 tree.mkdir("staging")
                 tree.mkdir("generations")
@@ -504,7 +534,8 @@ def folder_root(target, *, store, device, destination_sha256, deadline=None, fre
                 set(marker) == set(expected) | {"namespace"}
                 and {key: value for key, value in marker.items() if key != "namespace"} == expected
                 and type(marker["namespace"]) is str
-                and re.fullmatch(r"[0-9a-f]{32}", marker["namespace"]),
+                and re.fullmatch(r"[0-9a-f]{32}", marker["namespace"])
+                and (namespace is None or marker["namespace"] == namespace),
                 "folder_unknown_target",
             )
             tree.marker = marker

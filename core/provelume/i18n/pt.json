@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copiar e ativar",
   "mirror.folder_reconcile": "Verificar o resultado sem voltar a enviar",
   "mirror.folder_initialize_help": "Criar um novo espelho privado no destino configurado, que não deve existir. As pastas existentes não são adotadas nem limpas.",
-  "mirror.folder_initialize": "Criar espelho local"
+  "mirror.folder_initialize": "Criar espelho local",
+  "mirror.configure_help": "Escolha um destino configurado para rever a geração. Os destinos de rede precisam das suas ferramentas e permissões.",
+  "mirror.rsync_help": "Enviar uma geração completa por SSH com o anfitrião verificado. É ativada após verificação independente dos ficheiros; as gerações anteriores são preservadas.",
+  "mirror.rsync_initialize_help": "Registar apenas o novo espaço preparado para esta identidade no anfitrião remoto autorizado.",
+  "mirror.rsync_receipt": "Recibo do espelho SSH verificado",
+  "mirror.rsync_confirm": "Confirmo a geração completa, a janela UTC e a largura de banda configuradas.",
+  "mirror.rsync_publish": "Enviar por SSH",
+  "mirror.rsync_reconcile": "Verificar o destino sem enviar",
+  "mirror.rsync_resume_help": "Só é possível retomar se o destino provar que a ativação nunca começou. Uma ativação incerta continua por esclarecer.",
+  "mirror.rsync_resume": "Pedir retoma segura",
+  "mirror.rsync_tools_unavailable": "As ferramentas rsync ou SSH necessárias estão ausentes ou não são suportadas. Consulte o guia de ligação.",
+  "mirror.rsync_host_refused": "A chave do anfitrião difere do destino autorizado. Verifique o anfitrião antes de alterar a configuração.",
+  "mirror.rsync_credential_unavailable": "A credencial SSH está indisponível ou revogada. Desbloqueie o armazenamento seguro ou volte a ligar a identidade.",
+  "mirror.rsync_outside_window": "Fora da janela UTC configurada. Envie dentro dessa janela.",
+  "mirror.rsync_unresolved": "O resultado continua por esclarecer. Verifique o destino antes de pedir uma retoma segura."
 }

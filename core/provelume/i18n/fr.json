@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copier et activer",
   "mirror.folder_reconcile": "Vérifier le résultat sans nouvel envoi",
   "mirror.folder_initialize_help": "Créer un nouveau miroir privé à la destination configurée, qui doit être absente. Les dossiers existants ne sont ni adoptés ni nettoyés.",
-  "mirror.folder_initialize": "Créer le miroir local"
+  "mirror.folder_initialize": "Créer le miroir local",
+  "mirror.configure_help": "Choisissez une destination configurée pour examiner la génération. Les destinations réseau nécessitent leurs outils et autorisations.",
+  "mirror.rsync_help": "Envoyer une génération complète par SSH avec un hôte vérifié. Elle est activée après une vérification indépendante des fichiers ; les générations précédentes sont conservées.",
+  "mirror.rsync_initialize_help": "Enregistrer uniquement le nouvel espace préparé pour cette identité sur l’hôte distant autorisé.",
+  "mirror.rsync_receipt": "Reçu du miroir SSH vérifié",
+  "mirror.rsync_confirm": "Je confirme la génération complète, le créneau UTC et la bande passante configurés.",
+  "mirror.rsync_publish": "Envoyer par SSH",
+  "mirror.rsync_reconcile": "Vérifier la destination sans envoyer",
+  "mirror.rsync_resume_help": "La reprise exige que la destination prouve que l’activation n’a jamais commencé. Une activation incertaine reste non résolue.",
+  "mirror.rsync_resume": "Demander une reprise sûre",
+  "mirror.rsync_tools_unavailable": "Les outils rsync ou SSH requis sont absents ou non pris en charge. Consultez le guide de connexion.",
+  "mirror.rsync_host_refused": "La clé de l’hôte diffère de la destination autorisée. Vérifiez l’hôte avant de modifier sa configuration.",
+  "mirror.rsync_credential_unavailable": "L’identifiant SSH est indisponible ou révoqué. Déverrouillez le coffre sécurisé ou reconnectez l’identité.",
+  "mirror.rsync_outside_window": "En dehors du créneau UTC configuré. Envoyez pendant ce créneau.",
+  "mirror.rsync_unresolved": "Le résultat reste non résolu. Vérifiez la destination avant de demander une reprise sûre."
 }

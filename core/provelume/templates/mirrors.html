@@ -4,7 +4,7 @@
 <section class="panel stack" id="mirror-inventory">
   <h1>{{ t('mirror.title') }}</h1>
   <p>{{ t('mirror.lead') }}</p>
-  {% if not git_plan and not folder_plan %}<p role="status" id="mirror-unavailable">{{ t('mirror.unavailable') }}</p>{% endif %}
+  {% if not git_plan and not folder_plan and not rsync_plan %}<p role="status" id="mirror-unavailable">{{ t('mirror.configure_help') }}</p>{% endif %}
   {% if editable %}
   <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -20,7 +20,7 @@
     <button>{{ t('mirror.save_access') }}</button>
   </form>
   {% endif %}
-  {% if notice %}<p role="status">{{ t('mirror.' + notice) if notice in ['saved', 'unavailable', 'limit', 'representation_required'] else t('mirror.unavailable') }}</p>{% endif %}
+  {% if notice %}<p role="status">{{ t('mirror.' + notice) if notice in ['saved', 'unavailable', 'limit', 'representation_required', 'rsync_tools_unavailable', 'rsync_host_refused', 'rsync_credential_unavailable', 'rsync_outside_window', 'rsync_unresolved'] else t('mirror.unavailable') }}</p>{% endif %}
   <h2>{{ t('mirror.identities') }}</h2>
   {% for identity in mirrors.identities %}<p>{{ identity.name }} · {{ identity.profile }} · {{ t('mirror.revision') }} {{ identity.revision }}</p>{% endfor %}
   <h2>{{ t('mirror.destinations') }}</h2>
@@ -37,16 +37,16 @@
       <input type="hidden" name="revision" value="{{ destination.revision }}">
       <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
       {% if profiles[destination.identity_id] in ['github', 'gitlab', 'gitea'] %}<p>{{ t('mirror.' + profiles[destination.identity_id] + '_probe_notice') }}</p>{% endif %}
-      <button name="action" value="{{ profiles[destination.identity_id] + '-prepare' if profiles[destination.identity_id] in ['github', 'gitlab', 'gitea', 'git', 'folder'] else 'prepare' }}">{{ t('mirror.prepare') }}</button>
+      <button name="action" value="{{ 'rsync-prepare' if profiles[destination.identity_id] == 'rsync-ssh' else (profiles[destination.identity_id] + '-prepare' if profiles[destination.identity_id] in ['github', 'gitlab', 'gitea', 'git', 'folder'] else 'prepare') }}">{{ t('mirror.prepare') }}</button>
       <button name="action" value="disable">{{ t('mirror.disable') }}</button>
     </form>
-    {% if profiles[destination.identity_id] in ['git', 'folder'] %}
+    {% if profiles[destination.identity_id] in ['git', 'folder', 'rsync-ssh'] %}
     <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="action" value="{{ profiles[destination.identity_id] }}-initialize">
+      <input type="hidden" name="action" value="{{ 'rsync' if profiles[destination.identity_id] == 'rsync-ssh' else profiles[destination.identity_id] }}-initialize">
       <input type="hidden" name="destination_id" value="{{ destination.id }}">
       <input type="hidden" name="destination_sha256" value="{{ destination.destination_sha256 }}">
-      <p>{{ t('mirror.folder_initialize_help') if profiles[destination.identity_id] == 'folder' else t('mirror.git_initialize_help') }}</p>
+      <p>{{ t('mirror.rsync_initialize_help') if profiles[destination.identity_id] == 'rsync-ssh' else (t('mirror.folder_initialize_help') if profiles[destination.identity_id] == 'folder' else t('mirror.git_initialize_help')) }}</p>
       <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
       <button>{{ t('mirror.folder_initialize') if profiles[destination.identity_id] == 'folder' else t('mirror.git_initialize') }}</button>
     </form>
@@ -58,6 +58,45 @@
   {% set hosted_profile = plan.authority.identity.profile if git_plan and git_plan.provider_binding else 'git' %}
   <section class="panel stack" id="mirror-preview">
     <h2>{{ t('mirror.preview') }}</h2>
+    {% if rsync_plan %}
+    <section id="mirror-rsync-plan" class="stack">
+      <p>{{ t('mirror.rsync_help') }}</p>
+      <p role="status">{{ t('mirror.git_state_' + plan.state) }}</p>
+      <p class="object-text">{{ t('mirror.folder_expected_generation') }}: <code>{{ rsync_plan.active_pointer.generation if rsync_plan.active_pointer else '∅' }}</code></p>
+      {% if receipt %}<p id="mirror-rsync-receipt">{{ t('mirror.rsync_receipt') }} · {{ receipt.completed_at }}</p>{% endif %}
+      {% if editable and plan.state == 'prepared' %}
+      <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="rsync-publish">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="plan_sha256" value="{{ plan.plan_sha256 }}">
+        <input type="hidden" name="rsync_plan_sha256" value="{{ rsync_plan_sha256 }}">
+        <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.rsync_confirm') }}</label>
+        <button>{{ t('mirror.rsync_publish') }}</button>
+      </form>
+      {% endif %}
+      {% if editable %}
+      <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="rsync-reconcile">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
+        <button>{{ t('mirror.rsync_reconcile') }}</button>
+      </form>
+      {% if plan.state in ['dispatched', 'unknown'] %}
+      <form method="post" action="/mirrors?lang={{ lang }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="rsync-resume">
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        <input type="hidden" name="rsync_plan_sha256" value="{{ rsync_plan_sha256 }}">
+        <p>{{ t('mirror.rsync_resume_help') }}</p>
+        <label><input type="checkbox" name="confirm" value="yes" required> {{ t('mirror.confirm') }}</label>
+        <button>{{ t('mirror.rsync_resume') }}</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </section>
+    {% endif %}
     {% if folder_plan %}
     <section id="mirror-folder-plan" class="stack">
       <p>{{ t('mirror.folder_help') }}</p>
@@ -87,7 +126,7 @@
       {% endif %}
     </section>
     {% endif %}
-    {% if not folder_plan %}<p>{{ t('mirror.' + hosted_profile + '_profile') if git_plan and git_plan.provider_binding else (t('mirror.git_local') if git_plan else t('mirror.local_only')) }}</p>{% endif %}
+    {% if not folder_plan and not rsync_plan %}<p>{{ t('mirror.' + hosted_profile + '_profile') if git_plan and git_plan.provider_binding else (t('mirror.git_local') if git_plan else t('mirror.local_only')) }}</p>{% endif %}
     {% if git_plan %}
     <p role="status" id="mirror-git-state">{{ t('mirror.git_state_' + plan.state) }}</p>
     <dl id="mirror-git-plan">

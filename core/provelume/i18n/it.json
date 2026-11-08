@@ -2775,5 +2775,19 @@
   "mirror.folder_publish": "Copia e attiva",
   "mirror.folder_reconcile": "Verifica esito senza inviare di nuovo",
   "mirror.folder_initialize_help": "Crea un nuovo mirror privato nella destinazione configurata, che deve essere assente. Le cartelle esistenti non vengono adottate o ripulite.",
-  "mirror.folder_initialize": "Crea mirror locale"
+  "mirror.folder_initialize": "Crea mirror locale",
+  "mirror.configure_help": "Scegli una destinazione configurata per vedere la generazione proposta. Le destinazioni di rete richiedono strumenti e accessi propri.",
+  "mirror.rsync_help": "Invia una generazione completa tramite SSH con host verificato. Si attiva dopo la verifica indipendente dei file; le generazioni precedenti restano.",
+  "mirror.rsync_initialize_help": "Registra solo il nuovo spazio preparato per questa identità sull’host remoto autorizzato.",
+  "mirror.rsync_receipt": "Ricevuta del mirror SSH verificato",
+  "mirror.rsync_confirm": "Confermo la generazione completa, la finestra UTC e la banda configurate.",
+  "mirror.rsync_publish": "Invia tramite SSH",
+  "mirror.rsync_reconcile": "Controlla la destinazione senza inviare",
+  "mirror.rsync_resume_help": "La ripresa è disponibile solo se la destinazione dimostra che l’attivazione non è mai iniziata. Un’attivazione incerta resta da chiarire.",
+  "mirror.rsync_resume": "Richiedi ripresa sicura",
+  "mirror.rsync_tools_unavailable": "Gli strumenti rsync o SSH richiesti sono assenti o non supportati. Consulta la guida alla connessione.",
+  "mirror.rsync_host_refused": "La chiave host è diversa da quella della destinazione autorizzata. Verifica l’host prima di cambiare la configurazione.",
+  "mirror.rsync_credential_unavailable": "La credenziale SSH non è disponibile o è revocata. Sblocca l’archivio sicuro o ricollega l’identità.",
+  "mirror.rsync_outside_window": "Fuori dalla finestra UTC configurata. Invia entro quella finestra.",
+  "mirror.rsync_unresolved": "L’esito resta da chiarire. Controlla la destinazione prima di richiedere una ripresa sicura."
 }

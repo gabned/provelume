@@ -676,7 +676,14 @@ class Mirrors:
             from .mirror_folder_files import validate_transport_proof
 
             validate_transport_proof(transport_proof, observation)
-        if transport_proof is not None and not folder_proof:
+        rsync_proof = (
+            type(transport_proof) is dict and transport_proof.get("profile") == "rsync-ssh/3.5.2/v1"
+        )
+        if rsync_proof:
+            from .mirror_rsync_protocol import validate_transport_proof
+
+            validate_transport_proof(transport_proof, observation)
+        if transport_proof is not None and not (folder_proof or rsync_proof):
             require(type(transport_proof) is dict)
             provider = transport_proof.get("provider_observation")
             hosted = transport_proof.get("profile") in {
