@@ -58,6 +58,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     gitea_server.add_argument("instance", type=Path)
     gitea_server.add_argument("--binary", type=Path, required=True)
     gitea_server.add_argument("--api-only", action="store_true")
+    folder_mirror = commands.add_parser("folder-mirror-qualify")
+    folder_mirror.add_argument("instance", type=Path)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -70,7 +72,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "gitea-server-qualify":
+                if options.command == "folder-mirror-qualify":
+                    from .mirror_folder_qualification import qualify_folder_mirror
+
+                    result = qualify_folder_mirror(options.instance)
+                elif options.command == "gitea-server-qualify":
                     from .mirror_gitea_server_qualification import qualify_gitea_server
 
                     result = qualify_gitea_server(

@@ -19,6 +19,30 @@ MAX_DESTINATIONS = 32
 MAX_SECONDS = 60
 PLAN_SECONDS = 900
 PROFILES = ("git", "github", "gitlab", "gitea", "folder", "rsync-ssh")
+FOLDER_DIAGNOSTICS = frozenset(
+    "folder_" + suffix
+    for suffix in (
+        "target",
+        "path",
+        "filesystem",
+        "privacy",
+        "missing",
+        "exists",
+        "alias",
+        "atomic_activation",
+        "incomplete",
+        "unknown_content",
+        "unknown_target",
+        "storage_limit",
+        "plan",
+        "target_changed",
+        "profile_not_qualified",
+        "credentials",
+        "disk_full",
+        "proof",
+        "busy",
+    )
+)
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 _PATH = re.compile(r"(?:[a-z0-9_-]+/){0,4}[a-z0-9_.-]+\Z")
 _SECRET = re.compile(

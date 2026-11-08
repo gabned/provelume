@@ -337,6 +337,11 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
         # Git is an explicit optional native dependency. All existing installed
         # qualifications retain empty PATH; this separate case admits only Git's
         # installation directories and the Windows system directory, never Python.
+        folder_trial = command("folder-mirror-qualify", root / "Synthetic native folder")
+        assert folder_trial["result"] == "PASS" and not folder_trial["network_used"]
+        assert not folder_trial["process_used"]
+        assert folder_trial["native_vault_qualification"] == "PASS"
+        assert folder_trial["external_ledger_backend"] == "NATIVE_CURRENT_USER_DPAPI"
         git_binary = shutil.which("git")
         assert git_binary and Path(git_binary).is_absolute()
         git_root = Path(git_binary).parent.parent
@@ -408,6 +413,7 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
             "s19_gitlab_mirror_trial": gitlab_mirror_trial,
             "s20_gitea_mirror_trial": gitea_mirror_trial,
             "s20_actual_gitea_tls_trial": gitea_server_trial,
+            "s21_native_folder_trial": folder_trial,
             "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",

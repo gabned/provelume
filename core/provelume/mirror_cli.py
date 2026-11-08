@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .icalendar_feeds import _local_path
-from .mirror_contract import PROVIDER_DIAGNOSTICS, parse, require
+from .mirror_contract import FOLDER_DIAGNOSTICS, PROVIDER_DIAGNOSTICS, parse, require
 from .mirror_jobs import MirrorJobs, local_preview
 from .service import ProvelumeInstance
 
@@ -23,6 +23,11 @@ def add_mirror_commands(commands):
         "drop-generation",
         "schedule",
         "git-status",
+        "folder-status",
+        "folder-initialize",
+        "folder-prepare",
+        "folder-publish",
+        "folder-reconcile",
         "git-initialize",
         "git-prepare",
         "git-publish",
@@ -64,13 +69,14 @@ def add_mirror_commands(commands):
             "github-prepare",
             "gitlab-prepare",
             "gitea-prepare",
+            "folder-prepare",
         }:
             command.add_argument("destination_id")
             command.add_argument("--expected-revision", type=int, required=True)
         if name in {"revoke", "github-disconnect", "gitlab-disconnect", "gitea-disconnect"}:
             command.add_argument("identity_id")
             command.add_argument("--expected-revision", type=int, required=True)
-        if name == "git-initialize":
+        if name in {"git-initialize", "folder-initialize"}:
             command.add_argument("destination_id")
             command.add_argument("--expected-destination-sha256", required=True)
         if name in {
@@ -84,6 +90,8 @@ def add_mirror_commands(commands):
             "gitlab-reconcile",
             "gitea-publish",
             "gitea-reconcile",
+            "folder-publish",
+            "folder-reconcile",
         }:
             command.add_argument("plan_id")
         if name == "discard":
@@ -91,6 +99,9 @@ def add_mirror_commands(commands):
         if name in {"git-publish", "github-publish", "gitlab-publish", "gitea-publish"}:
             command.add_argument("--expected-plan-sha256", required=True)
             command.add_argument("--expected-git-plan-sha256", required=True)
+        if name == "folder-publish":
+            command.add_argument("--expected-plan-sha256", required=True)
+            command.add_argument("--expected-folder-plan-sha256", required=True)
         if name == "drop-generation":
             command.add_argument("generation")
         if name in {"github-publish", "gitlab-publish", "gitea-publish"}:
@@ -98,7 +109,14 @@ def add_mirror_commands(commands):
         if name == "github-connect":
             command.add_argument("--probe-confirm", action="store_true")
             command.add_argument("--public-probe-confirm", action="store_true")
-        if name not in {"status", "git-status", "github-status", "gitlab-status", "gitea-status"}:
+        if name not in {
+            "status",
+            "git-status",
+            "github-status",
+            "gitlab-status",
+            "gitea-status",
+            "folder-status",
+        }:
             command.add_argument("--confirm", action="store_true")
 
 
@@ -115,9 +133,36 @@ def handle_mirror_command(options):
             "github-status",
             "gitlab-status",
             "gitea-status",
+            "folder-status",
         }:
             require(options.confirm is True, "consent_required")
-        if selected.startswith(("git-", "github-", "gitlab-", "gitea-")):
+        if selected.startswith("folder-"):
+            folder = instance.folder_mirrors()
+            operation = selected.removeprefix("folder-")
+            if operation == "status":
+                result = folder.status()
+            elif operation == "initialize":
+                result = folder.initialize_local(
+                    options.destination_id,
+                    expected_destination_sha256=options.expected_destination_sha256,
+                    confirmed=True,
+                )
+            elif operation == "prepare":
+                result = folder.prepare(
+                    options.destination_id,
+                    expected_revision=options.expected_revision,
+                    confirmed=True,
+                )
+            elif operation == "publish":
+                result = folder.publish(
+                    options.plan_id,
+                    expected_plan_sha256=options.expected_plan_sha256,
+                    expected_folder_plan_sha256=options.expected_folder_plan_sha256,
+                    confirmed=True,
+                )
+            else:
+                result = folder.reconcile(options.plan_id, confirmed=True)
+        elif selected.startswith(("git-", "github-", "gitlab-", "gitea-")):
             hosted = selected.startswith(("github-", "gitlab-", "gitea-"))
             git = {
                 "git": instance.git_mirrors,
@@ -262,7 +307,9 @@ def handle_mirror_command(options):
             json.dumps(
                 {
                     "error": "mirror_operation_unavailable",
-                    "code": code if code in (allowed | PROVIDER_DIAGNOSTICS) else "invalid",
+                    "code": code
+                    if code in (allowed | PROVIDER_DIAGNOSTICS | FOLDER_DIAGNOSTICS)
+                    else "invalid",
                 }
             )
         )

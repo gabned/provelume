@@ -136,10 +136,20 @@ class Mirrors:
         if pending is not None:
             require(
                 type(pending) is dict
-                and set(pending) == {"operation_id", "generation", "serial", "plan_sha256"},
+                and set(pending)
+                in (
+                    {"operation_id", "generation", "serial", "plan_sha256"},
+                    {"operation_id", "generation", "serial", "plan_sha256", "transport_sha256"},
+                ),
                 "integrity",
             )
             identifier(pending["operation_id"], "mirplan")
+            if "transport_sha256" in pending:
+                require(
+                    type(pending["transport_sha256"]) is str
+                    and HASH.fullmatch(pending["transport_sha256"]),
+                    "integrity",
+                )
             require(
                 type(pending["serial"]) is int
                 and pending["serial"] == value["serial"]
@@ -621,7 +631,7 @@ class Mirrors:
         identifier(plan_id, "mirplan")
         require(False, "transport_not_qualified")
 
-    def _claim_locked(self, plan_id, **arguments):
+    def _claim_locked(self, plan_id, *, transport_sha256=None, **arguments):
         """For independently qualified transports only; caller holds guard through claim."""
         plan, manifest = self.validate_preview_locked(plan_id, **arguments)
         operations = self.operation_ledger(
@@ -640,6 +650,9 @@ class Mirrors:
             "serial": operations["serial"],
             "plan_sha256": fingerprint(plan),
         }
+        if transport_sha256 is not None:
+            require(type(transport_sha256) is str and HASH.fullmatch(transport_sha256), "integrity")
+            operations["inflight"]["transport_sha256"] = transport_sha256
         # This durable claim is outside every Instance backup/restore. Even a
         # crash before the local journal write consumes this plan permanently.
         self.save_operation_ledger(operations)
@@ -656,7 +669,14 @@ class Mirrors:
             "stale",
         )
         destination_observation(observation)
-        if transport_proof is not None:
+        folder_proof = (
+            type(transport_proof) is dict and transport_proof.get("profile") == "folder-local/v1"
+        )
+        if folder_proof:
+            from .mirror_folder_files import validate_transport_proof
+
+            validate_transport_proof(transport_proof, observation)
+        if transport_proof is not None and not folder_proof:
             require(type(transport_proof) is dict)
             provider = transport_proof.get("provider_observation")
             hosted = transport_proof.get("profile") in {

@@ -98,6 +98,19 @@ if sys.argv[2]=='yes':
         include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
     mirror_plan=local_preview(mirrors,mirror_target['id'],expected_revision=1)
     fixture['mirror_plan_id']=mirror_plan['id']
+    from provelume.mirror_folder import FolderMirrors
+    folder_identity=mirrors.create_identity(name='Synthetic native folder',profile='folder',
+        credential={'reference':''},confirmed=True)
+    folder_target=mirrors.configure(identity_id=folder_identity['id'],
+        name='Synthetic private folder destination',
+        target={'transport':'folder','path':str(root/'Synthetic native folder destination')},
+        scope={'kind':'area','id':mirror_area['id']},
+        include_rules={'originals':[],'attachments':[],'ai_receipts':[]},mode='manual',confirmed=True)
+    folder=FolderMirrors(instance.store,mirrors=mirrors)
+    folder.initialize_local(folder_target['id'],
+        expected_destination_sha256=folder_target['destination_sha256'],confirmed=True)
+    fixture['mirror_folder_plan_id']=folder.prepare(folder_target['id'],
+        expected_revision=1,confirmed=True)['id']
     from provelume.mirror_git import GitMirrors
     git_identity=mirrors.create_identity(name='Synthetic local Git',profile='git',
         credential={'reference':''},confirmed=True)
@@ -356,6 +369,14 @@ def main():
                                     assert page.evaluate("document.documentElement.scrollWidth <= "
                                                         "document.documentElement.clientWidth")
                                     cell['mirror_local_preview']='AUTOMATIC_SYNTHETIC_PASS'
+                                    response=page.goto(origin+'/mirrors?'+urlencode({
+                                        'lang':language,'plan':fixture['mirror_folder_plan_id']}))
+                                    assert response.status==200
+                                    assert page.locator('#mirror-folder-plan').is_visible()
+                                    assert 'mirror.folder_help' not in page.content()
+                                    assert page.evaluate('document.documentElement.scrollWidth <= '
+                                                         'document.documentElement.clientWidth')
+                                    cell['mirror_folder_preview']='AUTOMATIC_NATIVE_LOCAL_PASS'
                                     response=page.goto(origin+'/mirrors?'+urlencode({
                                         'lang':language,'plan':fixture['mirror_git_plan_id']}))
                                     assert response.status==200

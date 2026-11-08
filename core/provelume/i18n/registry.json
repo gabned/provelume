@@ -18310,6 +18310,60 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "mirror.folder_help": {
+      "context": "Native local-folder mirror operation: folder_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_expected_generation": {
+      "context": "Native local-folder mirror operation: folder_expected_generation",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_staging": {
+      "context": "Native local-folder mirror operation: folder_staging",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_receipt": {
+      "context": "Native local-folder mirror operation: folder_receipt",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_confirm": {
+      "context": "Native local-folder mirror operation: folder_confirm",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_publish": {
+      "context": "Native local-folder mirror operation: folder_publish",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_reconcile": {
+      "context": "Native local-folder mirror operation: folder_reconcile",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_initialize_help": {
+      "context": "Native local-folder mirror operation: folder_initialize_help",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
+    },
+    "mirror.folder_initialize": {
+      "context": "Native local-folder mirror operation: folder_initialize",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": true
     }
   },
   "schema_version": 1,

@@ -29,6 +29,7 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 editable=_loopback_request(request),
                 notice=request.query_params.get("notice"),
                 git_plan=None,
+                folder_plan=None,
                 git_status=instance.git_mirrors().status(),
                 profiles={row["id"]: row["profile"] for row in engine.view()["identities"]},
                 receipt=None,
@@ -46,6 +47,14 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                     values.update(
                         git_plan=git_plan,
                         git_plan_sha256=fingerprint(git_plan),
+                        receipt=engine._load("receipts/" + plan_id + ".json"),
+                    )
+                folder_plan = engine._load("folder/plans/" + plan_id + ".json")
+                if folder_plan is not None:
+                    _plan, folder_plan = instance.folder_mirrors().folder_plan(plan_id)
+                    values.update(
+                        folder_plan=folder_plan,
+                        folder_plan_sha256=fingerprint(folder_plan),
                         receipt=engine._load("receipts/" + plan_id + ".json"),
                     )
             return templates.TemplateResponse(
@@ -96,9 +105,40 @@ def attach_mirror_routes(app, instance, templates, context_factory):
                 "public_confirm",
             },
             "gitea-reconcile": {"plan_id"},
+            "folder-initialize": {"destination_id", "destination_sha256"},
+            "folder-prepare": {"destination_id", "revision"},
+            "folder-publish": {"plan_id", "plan_sha256", "folder_plan_sha256"},
+            "folder-reconcile": {"plan_id"},
         }
         require(selected in allowed and set(fields) == allowed[selected] | {"action", "confirm"})
         engine = instance.mirrors()
+        if selected.startswith("folder-"):
+            folder = instance.folder_mirrors()
+            if selected == "folder-initialize":
+                folder.initialize_local(
+                    fields["destination_id"],
+                    expected_destination_sha256=fields["destination_sha256"],
+                    confirmed=True,
+                )
+                return {"notice": "saved"}
+            if selected == "folder-prepare":
+                plan = folder.prepare(
+                    fields["destination_id"],
+                    expected_revision=int(fields["revision"]),
+                    confirmed=True,
+                )
+                return {"plan": plan["id"]}
+            if selected == "folder-publish":
+                outcome = folder.publish(
+                    fields["plan_id"],
+                    expected_plan_sha256=fields["plan_sha256"],
+                    expected_folder_plan_sha256=fields["folder_plan_sha256"],
+                    confirmed=True,
+                )
+            else:
+                outcome = folder.reconcile(fields["plan_id"], confirmed=True)
+            complete = outcome.get("receipt", {}).get("schema") == "provelume-mirror-receipt/v1"
+            return {"plan": fields["plan_id"], "notice": "saved" if complete else "unavailable"}
         if selected.startswith(("git-", "github-", "gitlab-", "gitea-")):
             hosted = selected.startswith(("github-", "gitlab-", "gitea-"))
             git = {

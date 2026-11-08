@@ -2766,5 +2766,14 @@
   "mirror.gitea_confirm": "Confirmo esta transferência exata para o repositório Gitea configurado.",
   "mirror.gitea_transfer": "Transferência completa: conteúdos, ficheiros de controlo e autor do commit. A verificação lê âmbitos do token e função no repositório.",
   "mirror.gitea_probe_notice": "Esta pré-visualização verifica novamente os âmbitos do token e permissões do repositório sem alterar conteúdo remoto.",
-  "mirror.gitea_public_confirm": "Revisei todos os hashes, ficheiros de controlo e campos do commit e confirmo esta transferência pública exata."
+  "mirror.gitea_public_confirm": "Revisei todos os hashes, ficheiros de controlo e campos do commit e confirmo esta transferência pública exata.",
+  "mirror.folder_help": "Copiar uma geração completa para o destino local. Só fica ativa após a verificação de todos os ficheiros; as gerações anteriores são preservadas.",
+  "mirror.folder_expected_generation": "Geração ativa anterior",
+  "mirror.folder_staging": "Elementos de preparação preservados",
+  "mirror.folder_receipt": "Destino local verificado",
+  "mirror.folder_confirm": "Copiar esta pré-visualização exata e ativar a geração completa verificada.",
+  "mirror.folder_publish": "Copiar e ativar",
+  "mirror.folder_reconcile": "Verificar o resultado sem voltar a enviar",
+  "mirror.folder_initialize_help": "Criar um novo espelho privado no destino configurado, que não deve existir. As pastas existentes não são adotadas nem limpas.",
+  "mirror.folder_initialize": "Criar espelho local"
 }

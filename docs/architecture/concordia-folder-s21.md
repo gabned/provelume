@@ -47,3 +47,48 @@ scheduler and the actual frozen installed Windows path must use the same backend
 Windows Server runner evidence does not attest Windows 11 Home/Pro 25H2. Human
 observations remain DEFERRED_BY_MAINTAINER / NOT_RUN until the completed official
 release on the maintainer PC; no intermediate installation there is authorized.
+
+## Implemented candidate
+
+The backend pins native local parents/root and uses descriptor-relative no-follow
+I/O on Linux, with a per-namespace nonblocking lock and renameat2 no-replace
+promotion followed by atomic pointer replacement. The native Windows profile is
+local NTFS, guarded directory/file handles, a native byte-range lock and
+write-through MoveFileExW activation. Unknown filesystems and unavailable
+primitives refuse activation. It is neither a remote share transport nor an
+attestation of whole-system power-loss durability. Completed POSIX staging
+directories are flushed before promotion. Target growth is bounded to eight
+generation/staging entries, 10,000 files and 512 MiB; S16's per-generation limits
+and the 60-second operation budget are unchanged. No automatic pruning occurs.
+
+The external durable claim additionally binds the exact folder plan SHA-256.
+A grafted/restored transport plan cannot change the predeclared pointer or
+filesystem/namespace binding. Reconciliation validates that external binding
+before target access and cannot send. Current-state proof and historical external
+receipts remain distinct; a historical receipt does not attest the live target.
+No-op verifies the complete existing generation and leaves destination bytes
+unchanged. Enrolment never adopts a pre-existing folder.
+
+Five CLI commands, local CSRF controls in both shells/seven UNVERIFIED catalogues,
+the existing one-attempt scheduler and the source/frozen folder operator use the
+same backend. The old S16 scheduled-preview-only test is superseded by native
+folder publication/interval/disable coverage in S21, plus a missing-enrolment
+failure fence that survives actual Root restore; it is not a removed gate.
+
+`folder-mirror-qualify` exercises actual native filesystem operations, repeat
+no-op and controlled ENOSPC faults before/after activation, followed by actual
+Root restore and read-only reconciliation without resend. Windows must use fresh
+native current-user DPAPI state. The default Linux source operator explicitly
+labels its external ledger SYNTHETIC_IN_MEMORY / native vault NOT_RUN; the
+independent native Secret Service mode requires separate admission and evidence.
+The permanent installed Windows workflow demands the actual frozen/native-vault
+folder result with the application PATH empty. No Git or network is required.
+
+Original preparatory outcomes are retained: initial tests expected raw OSError,
+while existing parent guards correctly close it as MaintenanceTargetError; the
+obsolete S16 scheduled-preview expectation failed once when the real folder
+backend became available. The revised native assertions retain all original
+interval/disabled checks and prove real publication and preserved destination
+data. Cross-transport preparation now passes 181 tests with one native-Windows
+skip. Full unchanged-candidate native/browser/CI/review and actual-main acceptance
+remain separate PR-local gates; all predecessor acceptances remain open.

@@ -456,38 +456,6 @@ def test_automatic_frozen_qualification_is_separate_from_transport_acceptance(tm
     assert run_ocr_command(["mirror-qualify", str(target)], tmp_path / "reused.json") == 2
 
 
-def test_scheduled_policy_prepares_local_only_and_respects_interval_and_disabled(tmp_path):
-    from provelume.mirror_jobs import MirrorJobs
-
-    instance, engine, identity, destination, _ = seed(tmp_path)
-    destination = engine.configure(
-        identity_id=identity["id"],
-        name=destination["name"],
-        target=engine._grant(identity)["destinations"][destination["id"]]["target"],
-        scope=destination["scope"],
-        include_rules=destination["include_rules"],
-        mode="scheduled",
-        interval_seconds=300,
-        destination_id=destination["id"],
-        expected_revision=1,
-        confirmed=True,
-    )
-    bridge = MirrorJobs(instance.store, mirrors=engine)
-    policy = bridge.policy()
-    instance.scheduler._mirror_manager_factory = lambda _store: bridge
-    assert policy["state"] == "enabled" and policy["retry"]["max_attempts"] == 1
-    job = bridge.scheduler.run_now(policy["id"])["job"]
-    executed = instance.scheduler.run_one(job_id=job["id"])
-    assert executed["status"] == "succeeded"
-    assert len(engine.plans()) == 1 and engine.plans()[0]["scheduled"]
-    job = bridge.scheduler.run_now(policy["id"], request_key="synthetic-next")["job"]
-    assert instance.scheduler.run_one(job_id=job["id"])["status"] == "succeeded"
-    assert len(engine.plans()) == 1
-    engine.disable(destination["id"], expected_revision=2, confirmed=True)
-    assert bridge.policy()["state"] == "disabled"
-    assert not (tmp_path / "destination").exists()
-
-
 @pytest.mark.parametrize(
     "profile,enabled,code",
     [

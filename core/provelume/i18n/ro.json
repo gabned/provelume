@@ -2766,5 +2766,14 @@
   "mirror.gitea_confirm": "Confirm acest transfer exact către depozitul Gitea configurat.",
   "mirror.gitea_transfer": "Transfer complet: conținut, fișiere de control și autorul commitului. Verificarea citește domeniile tokenului și rolul în depozit.",
   "mirror.gitea_probe_notice": "Această previzualizare verifică din nou domeniile tokenului și permisiunile depozitului fără a modifica conținutul la distanță.",
-  "mirror.gitea_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact."
+  "mirror.gitea_public_confirm": "Am verificat fiecare hash, fișier de control și câmp al commitului și confirm acest transfer public exact.",
+  "mirror.folder_help": "Copiază o generație completă în destinația locală. Devine activă numai după verificarea tuturor fișierelor; generațiile anterioare se păstrează.",
+  "mirror.folder_expected_generation": "Generația activă anterioară",
+  "mirror.folder_staging": "Elemente de pregătire păstrate",
+  "mirror.folder_receipt": "Destinație locală verificată",
+  "mirror.folder_confirm": "Copiază exact această previzualizare și activează generația completă verificată.",
+  "mirror.folder_publish": "Copiază și activează",
+  "mirror.folder_reconcile": "Verifică rezultatul fără o nouă trimitere",
+  "mirror.folder_initialize_help": "Creează o oglindă privată nouă la destinația configurată, care nu trebuie să existe. Dosarele existente nu sunt preluate sau curățate.",
+  "mirror.folder_initialize": "Creează oglinda locală"
 }

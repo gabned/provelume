@@ -2766,5 +2766,14 @@
   "mirror.gitea_confirm": "I confirm this exact transfer to the configured Gitea repository.",
   "mirror.gitea_transfer": "Complete transfer: payload, control files and commit identity. Access checks read token scopes and repository role.",
   "mirror.gitea_probe_notice": "Preparing this preview rechecks the token scopes and repository permissions without changing remote content.",
-  "mirror.gitea_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer."
+  "mirror.gitea_public_confirm": "I reviewed every file hash, control file and commit field shown and confirm this exact public transfer.",
+  "mirror.folder_help": "Copy a complete generation to the local destination. It becomes active only after every file has been verified; earlier generations remain.",
+  "mirror.folder_expected_generation": "Previously active generation",
+  "mirror.folder_staging": "Retained staging entries",
+  "mirror.folder_receipt": "Local destination verified",
+  "mirror.folder_confirm": "Copy this exact preview and activate the complete verified generation.",
+  "mirror.folder_publish": "Copy and activate",
+  "mirror.folder_reconcile": "Check outcome without sending again",
+  "mirror.folder_initialize_help": "Create a new private mirror at the configured absent destination. Existing folders are not adopted or cleaned up.",
+  "mirror.folder_initialize": "Create local mirror"
 }

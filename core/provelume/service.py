@@ -80,6 +80,11 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def folder_mirrors(self):
+        from .mirror_folder import FolderMirrors
+
+        return FolderMirrors(self.store, mirrors=self.mirrors())
+
     def gitea_mirrors(self):
         from .mirror_gitea import GiteaMirrors
 

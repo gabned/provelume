@@ -71,7 +71,8 @@ class MirrorJobs:
                 if now < due:
                     skipped += 1
                     continue
-            if profile in {"git", "github", "gitlab", "gitea"}:
+            if profile in {"git", "github", "gitlab", "gitea", "folder"}:
+                from .mirror_folder import FolderMirrors
                 from .mirror_git import GitMirrors
                 from .mirror_gitea import GiteaMirrors
                 from .mirror_github import GitHubMirrors
@@ -83,6 +84,7 @@ class MirrorJobs:
                         "github": GitHubMirrors,
                         "gitlab": GitLabMirrors,
                         "gitea": GiteaMirrors,
+                        "folder": FolderMirrors,
                     }[profile]
                 )(self.store, mirrors=self.mirrors)
                 # Explicit scheduled mode supplies current scope consent. An
@@ -99,9 +101,13 @@ class MirrorJobs:
                     published = transport.publish(
                         result["id"],
                         expected_plan_sha256=result["plan_sha256"],
-                        expected_git_plan_sha256=result["git_plan_sha256"],
                         confirmed=True,
                         _deadline=deadline,
+                        **(
+                            {"expected_folder_plan_sha256": result["folder_plan_sha256"]}
+                            if profile == "folder"
+                            else {"expected_git_plan_sha256": result["git_plan_sha256"]}
+                        ),
                     )
                     require(
                         published["receipt"]["schema"] == "provelume-mirror-receipt/v1", "conflict"
@@ -124,6 +130,7 @@ class MirrorJobs:
                     "github": "COMPLETED_GITHUB",
                     "gitlab": "COMPLETED_GITLAB",
                     "gitea": "COMPLETED_GITEA",
+                    "folder": "COMPLETED_FOLDER",
                     "git": "COMPLETED_GIT_LOCAL",
                 }[profile]
             else:

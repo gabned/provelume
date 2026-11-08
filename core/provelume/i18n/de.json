@@ -2766,5 +2766,14 @@
   "mirror.gitea_confirm": "Ich bestätige diese genaue Übertragung an das konfigurierte Gitea-Repository.",
   "mirror.gitea_transfer": "Vollständige Übertragung: Inhalte, Steuerdateien und Commit-Autor. Die Prüfung liest Token-Bereiche und Repositoryrolle.",
   "mirror.gitea_probe_notice": "Diese Vorschau prüft Token-Bereiche und Repositoryberechtigungen erneut, ohne entfernte Inhalte zu ändern.",
-  "mirror.gitea_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung."
+  "mirror.gitea_public_confirm": "Ich habe alle Hashes, Steuerdateien und Commit-Felder geprüft und bestätige genau diese öffentliche Übertragung.",
+  "mirror.folder_help": "Eine vollständige Generation an das lokale Ziel kopieren. Sie wird erst nach Prüfung aller Dateien aktiv; frühere Generationen bleiben erhalten.",
+  "mirror.folder_expected_generation": "Zuvor aktive Generation",
+  "mirror.folder_staging": "Aufbewahrte Staging-Einträge",
+  "mirror.folder_receipt": "Lokales Ziel geprüft",
+  "mirror.folder_confirm": "Diese genaue Vorschau kopieren und die vollständig geprüfte Generation aktivieren.",
+  "mirror.folder_publish": "Kopieren und aktivieren",
+  "mirror.folder_reconcile": "Ergebnis ohne erneutes Senden prüfen",
+  "mirror.folder_initialize_help": "Einen neuen privaten Spiegel am konfigurierten, noch nicht vorhandenen Ziel erstellen. Vorhandene Ordner werden weder übernommen noch bereinigt.",
+  "mirror.folder_initialize": "Lokalen Spiegel erstellen"
 }

@@ -2766,5 +2766,14 @@
   "mirror.gitea_confirm": "Confermo questo esatto trasferimento al repository Gitea configurato.",
   "mirror.gitea_transfer": "Trasferimento completo: contenuti, file di controllo e autore del commit. La verifica legge ambiti del token e ruolo nel repository.",
   "mirror.gitea_probe_notice": "Preparare questa anteprima riverifica gli ambiti del token e i permessi del repository senza modificare contenuti remoti.",
-  "mirror.gitea_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico."
+  "mirror.gitea_public_confirm": "Ho verificato ogni hash, file di controllo e campo del commit mostrato e confermo questo esatto trasferimento pubblico.",
+  "mirror.folder_help": "Copia una generazione completa nella destinazione locale. Diventa attiva solo dopo la verifica di tutti i file; le generazioni precedenti restano.",
+  "mirror.folder_expected_generation": "Generazione attiva precedente",
+  "mirror.folder_staging": "Elementi di staging conservati",
+  "mirror.folder_receipt": "Destinazione locale verificata",
+  "mirror.folder_confirm": "Copia questa esatta anteprima e attiva la generazione completa verificata.",
+  "mirror.folder_publish": "Copia e attiva",
+  "mirror.folder_reconcile": "Verifica esito senza inviare di nuovo",
+  "mirror.folder_initialize_help": "Crea un nuovo mirror privato nella destinazione configurata, che deve essere assente. Le cartelle esistenti non vengono adottate o ripulite.",
+  "mirror.folder_initialize": "Crea mirror locale"
 }
