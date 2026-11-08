@@ -905,35 +905,17 @@ class ConnectorManager:
             "network_attempted": False,
         }
 
-    def _instance_view(
+    def _instance_policy_view(
         self,
         instance: Mapping[str, Any],
         definitions: Mapping[str, Mapping[str, Any]],
-        sources: Mapping[str, Mapping[str, Any]],
-        *,
-        document_counts: Mapping[str, int],
-        acquisition_counts: Mapping[str, int],
     ) -> dict[str, Any]:
         raw_network = self.store.read_config().get("network")
         network = raw_network if isinstance(raw_network, Mapping) else {}
         global_network = bool(network.get("external_access", False))
-        instance_id = str(instance["id"])
         lifecycle = connector_instance_lifecycle(instance)
         config = self._configuration(instance)
         authorization = connector_instance_authorization(instance)
-        selected_sources = [
-            self._source_view(
-                source,
-                instance,
-                document_counts=document_counts,
-                acquisition_counts=acquisition_counts,
-            )
-            for source in sources.values()
-            if source["connector_instance_id"] == instance_id
-        ]
-        selected_sources.sort(
-            key=lambda item: (str(item["name"]).casefold(), str(item["id"]))
-        )
         active = lifecycle["lifecycle_state"] == "active"
         configured_enabled = bool(lifecycle["enabled"] and active)
         effective_network = (
@@ -955,21 +937,12 @@ class ConnectorManager:
         else:
             health_status = "not_checked"
             health_code = "network_not_attempted"
-        active_sources = sum(
-            item["lifecycle_state"] == "active" for item in selected_sources
-        )
-        enabled_sources = sum(bool(item["effective_enabled"]) for item in selected_sources)
         return {
             **dict(instance),
             **config,
             **lifecycle,
             "authorization": authorization,
             "definition": dict(definitions[str(instance["definition_id"])]),
-            "sources": selected_sources,
-            "source_count": len(selected_sources),
-            "active_source_count": active_sources,
-            "enabled_source_count": enabled_sources,
-            "removed_source_count": len(selected_sources) - active_sources,
             "configured_enabled": configured_enabled,
             "effective_network": effective_network,
             "policy": {
@@ -993,6 +966,44 @@ class ConnectorManager:
             "credential_reference_configured": config["credential_reference"] is not None,
             "network_attempted": False,
         }
+
+    def _instance_view(
+        self,
+        instance: Mapping[str, Any],
+        definitions: Mapping[str, Mapping[str, Any]],
+        sources: Mapping[str, Mapping[str, Any]],
+        *,
+        document_counts: Mapping[str, int],
+        acquisition_counts: Mapping[str, int],
+    ) -> dict[str, Any]:
+        selected_sources = [
+            self._source_view(source, instance, document_counts=document_counts,
+                              acquisition_counts=acquisition_counts)
+            for source in sources.values()
+            if source["connector_instance_id"] == instance["id"]
+        ]
+        selected_sources.sort(key=lambda item: (str(item["name"]).casefold(), str(item["id"])))
+        active_sources = sum(item["lifecycle_state"] == "active" for item in selected_sources)
+        return {
+            **self._instance_policy_view(instance, definitions),
+            "sources": selected_sources,
+            "source_count": len(selected_sources),
+            "active_source_count": active_sources,
+            "enabled_source_count": sum(
+                bool(item["effective_enabled"]) for item in selected_sources
+            ),
+            "removed_source_count": len(selected_sources) - active_sources,
+        }
+
+    def get_instance_policy(self, instance_id: str) -> dict[str, Any] | None:
+        """Revalidate current policy without rebuilding archive/UI counts.
+
+        This is a fresh read, including the complete connector graph validation.
+        It deliberately exposes no source inventories or document counts.
+        """
+        definitions, instances, _sources = self._state()
+        instance = instances.get(instance_id)
+        return None if instance is None else self._instance_policy_view(instance, definitions)
 
     def _views(
         self,

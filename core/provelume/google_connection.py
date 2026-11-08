@@ -81,7 +81,7 @@ class GoogleConnectionManager:
         if not self.store.read_config().get("network", {}).get("external_access", False):
             raise GoogleConnectionError("google_network_disabled")
         if instance_id is not None:
-            connector = self.sources.connectors.get_instance(instance_id)
+            connector = self.sources.connectors.get_instance_policy(instance_id)
             if (
                 connector is None
                 or not connector["configured_enabled"]
