@@ -90,6 +90,19 @@ fixed payload child. Actual copy/hash, frozen execution and full Windows wire
 qualification remain separate mandatory gates; no component/version is admitted
 by this correction alone.
 
+The more specific17e7489 source diagnostic, run42461227798/a1/job128670745843,
+passes native copy/inventory/bytes and reaches `native_system_ssh_version`.
+Its contained system SSH9.5p2 command returns255 with zero output. A separately
+pinned upstream source read at PowerShell/openssh-portable0172cc6 identifies
+`init_prog_paths` requiring ProgramData before stdio initialization; missing
+ProgramData invokes a fatal exit before diagnostics are available. This source
+read does not attest the installed Windows binary or the cause of older failures.
+The closed child environment now supplies a private ProgramData equal to its
+owned work directory, rather than inheriting global host SSH configuration.
+The original Job/handle/command bounds remain. Exact changed-head native evidence
+is still required; the observed Windows SSH version remains unadmitted for full
+transport until its separate authentication/rsync qualification succeeds.
+
 `rsync-mirror-qualify` uses an exact-source, credential-free Linux fixture image,
 fresh internal-only Docker network and native Secret Service. It performs actual
 SSH/rsync, independent inventories, full/no-op, wrong host/key, revocation,
