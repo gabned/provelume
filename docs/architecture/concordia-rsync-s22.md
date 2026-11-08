@@ -121,6 +121,20 @@ The diagnostic persists in the installer artifact even if a later case fails.
 Source/unit, native Linux, Windows components, rendered synthetic preview and full
 Windows transport remain distinct gates; none accepts S22 or its predecessors.
 
+On source00b86db and integrated6a99f1b, local Docker create exceeded its unchanged
+30-second preparation bound before any SSH server started. Both named containers
+were subsequently observed in Created state and independently removed with their
+empty internal networks. Those native journeys remain incomplete, not PASS. The
+qualifier had marked creation only after the CLI returned, so a create completed
+inside Docker after client timeout escaped its finally cleanup. Fresh fixtures
+now carry a unique owner label on container and network; cleanup independently
+inspects that label, reconciles both resources and writes its original receipt.
+Foreign resources are refused. Missing observations, timeout or failed removal
+remain UNKNOWN and block cleanup success. No command, product or Public CI limit
+is increased. The interrupted00b86db native suite remains INTERRUPTED; the changed
+source needs fresh full qualification. This is fixture ownership recovery, not a
+CPU hypothesis, an application timing correction or a Windows transport result.
+
 The official 3.5.2 source archive is 1,977,884 bytes, SHA-256
 `a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8`;
 the 273-byte detached signature has SHA-256
