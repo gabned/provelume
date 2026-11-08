@@ -449,11 +449,17 @@ class AtomicInstanceCommit:
             # on failure, before a prepared manifest can authorize publication.
             for directory in sorted({path.parent for path, _data in payloads}, key=str):
                 directory.mkdir(mode=0o700, exist_ok=True)
-            with self._prepare_pool_scope() as writers:
-                pending = [writers.submit(_write_journal_payload, path, data)
-                           for path, data in payloads]
-                for write in pending:
-                    write.result()
+            if len(payloads) == 1:
+                # A single payload has no independent I/O to overlap. Complete
+                # the same exclusive write/flush/fsync in the owning thread;
+                # starting and joining a pool adds scheduling work only.
+                _write_journal_payload(*payloads[0])
+            elif payloads:
+                with self._prepare_pool_scope() as writers:
+                    pending = [writers.submit(_write_journal_payload, path, data)
+                               for path, data in payloads]
+                    for write in pending:
+                        write.result()
             for directory in (stage / "candidates", stage / "preimages"):
                 if directory.exists():
                     _fsync_directory(directory)
@@ -520,7 +526,7 @@ class AtomicInstanceCommit:
                 # an interrupted subset; no committed marker or acknowledgement may
                 # precede completion of all flushes. Failure also joins the pool
                 # before rollback so no late writer can race with restoration.
-                self._publish_entries(stage, manifest, self._transaction_pool)
+                self._publish_entries(stage, manifest)
                 self._shutdown_transaction_pool()
                 committed = {
                     **manifest,
@@ -572,7 +578,7 @@ class AtomicInstanceCommit:
                 del self._transaction_pool_state
                 del self._transaction_pool_failure
 
-    def _publish_entries(self, stage, manifest, flushers):
+    def _publish_entries(self, stage, manifest):
         directories = set()
         for entry in manifest["entries"]:
             target, _ = _instance_target(
@@ -634,10 +640,14 @@ class AtomicInstanceCommit:
         # flushing it separately for each entry only repeats the same I/O.
         # Every future still completes before the committed marker, and the
         # enclosing pool joins on failure before rollback can restore preimages.
-        pending = [flushers.submit(_fsync_directory, directory)
-                   for directory in sorted(directories, key=str)]
-        for flush in pending:
-            flush.result()
+        if len(directories) == 1:
+            _fsync_directory(next(iter(directories)))
+        elif directories:
+            with self._prepare_pool_scope() as flushers:
+                pending = [flushers.submit(_fsync_directory, directory)
+                           for directory in sorted(directories, key=str)]
+                for flush in pending:
+                    flush.result()
 
 
 def _write_journal_payload(path: Path, data: bytes) -> None:
