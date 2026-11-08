@@ -360,3 +360,21 @@ def test_failed_fixture_command_preserves_closed_phase_and_output_hashes_without
     public = json.dumps(error.evidence).encode()
     assert stdout not in public and stderr not in public
     assert not list(tmp_path.glob("*-stdout-original.log"))
+
+
+def test_failed_migration_summary_is_bounded_and_removes_issued_secret_and_opaque_values():
+    from provelume import mirror_gitea_server_qualification as driver
+
+    protected = "SYNTHETIC_ISSUED_VALUE_NOT_AN_ACCOUNT_KEY"
+    token = driver.COMMAND_SECRETS.set([protected])
+    try:
+        message = (
+            "Synthetic sqlite migration: missing driver; " + protected + " " + "a" * 64
+        ).encode()
+        result = driver.error_summary(message)
+        leaked = protected in result or "a" * 64 in result
+        assert not leaked
+        assert "missing driver" in result and "<redacted>" in result
+        assert len(driver.error_summary(b"x " * 1000)) <= 512
+    finally:
+        driver.COMMAND_SECRETS.reset(token)
