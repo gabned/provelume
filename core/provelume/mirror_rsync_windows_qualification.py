@@ -35,7 +35,8 @@ def qualification_phase(phase):
                 for frame, line in list(traceback.walk_tb(exc.__traceback__))[-6:]
             ],
         }
-        suffix = Path(exc.filename).suffix if isinstance(getattr(exc, "filename", None), str) else ""
+        filename = getattr(exc, "filename", None)
+        suffix = Path(filename).suffix if isinstance(filename, str) else ""
         failure.evidence["temporary_role"] = {
             ".in": "stdin", ".out": "stdout", ".err": "stderr"
         }.get(suffix, "not_transport_temporary")

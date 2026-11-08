@@ -29,7 +29,10 @@ def test_native_failure_exposes_phase_and_type_without_exception_message(kind):
 
 def test_native_sharing_failure_identifies_temporary_role_without_its_path():
     failure = PermissionError(13, "synthetic-private-error", "/synthetic-private/session.err")
-    with pytest.raises(WindowsComponentsFailure) as caught, qualification_phase("native_local_copy"):
+    with (
+        pytest.raises(WindowsComponentsFailure) as caught,
+        qualification_phase("native_local_copy"),
+    ):
         raise failure
     assert caught.value.evidence["temporary_role"] == "stderr"
     assert "private" not in json.dumps(caught.value.evidence)
