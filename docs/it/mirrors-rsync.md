@@ -47,8 +47,8 @@ utente. L’helper con comando forzato ammette un protocollo chiuso. La generazi
 locale immutabile viene riletta; il remoto ricontrolla file e hash prima
 dell’attivazione separata. Le generazioni precedenti restano.
 
-Dopo un’interruzione, `mirror-rsync-reconcile PIANO --confirm` controlla senza
-inviare. `mirror-rsync-resume PIANO --expected-rsync-plan-sha256 HASH --confirm`
+Dopo un’interruzione, `mirror-rsync-reconcile ISTANZA PIANO --confirm` controlla senza
+inviare. `mirror-rsync-resume ISTANZA PIANO --expected-rsync-plan-sha256 HASH --confirm`
 richiede una richiesta esplicita, piano non scaduto, stessi permessi e chiave,
 finestra UTC e banda. È possibile solo se un record durevole dimostra che il
 ricevente è terminato e l’attivazione non è iniziata. Una generazione già

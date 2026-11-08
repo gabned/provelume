@@ -140,7 +140,7 @@ def _fault(worker, temporary, kind):
                 process.wait(5)
 
 
-def qualify(executable, kit, root, output, build_report, installer, gitea_server):
+def qualify(executable, kit, root, output, build_report, installer, gitea_server, rsync_directory):
     if sys.platform != "win32":
         raise ValueError("Native disposable Windows runner required")
     root.mkdir()
@@ -348,6 +348,13 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
         assert rsync_agent["backend"] == "NATIVE_CURRENT_USER_DPAPI"
         assert rsync_agent["native_ssh_authentication"] == "NOT_RUN"
         assert rsync_agent["native_rsync_transport"] == "NOT_RUN"
+        rsync_components = command("rsync-windows-components-qualify",
+                                   root / "Synthetic native Windows rsync",
+                                   "--fixture-directory", rsync_directory)
+        assert rsync_components["result"] == "PASS"
+        assert rsync_components["native_local_copy"] == "PASS"
+        assert rsync_components["native_ssh_authentication"] == "NOT_RUN"
+        assert rsync_components["native_rsync_over_ssh"] == "NOT_RUN"
         git_binary = shutil.which("git")
         assert git_binary and Path(git_binary).is_absolute()
         git_root = Path(git_binary).parent.parent
@@ -420,6 +427,8 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
             "s20_gitea_mirror_trial": gitea_mirror_trial,
             "s20_actual_gitea_tls_trial": gitea_server_trial,
             "s21_native_folder_trial": folder_trial,
+            "s22_native_agent_trial": rsync_agent,
+            "s22_native_components_trial": rsync_components,
             "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",
@@ -479,8 +488,8 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("executable", "kit", "root", "output", "build-report", "installer",
-                 "gitea-server"):
+                 "gitea-server", "rsync-directory"):
         parser.add_argument("--" + name, required=True, type=Path)
     args = parser.parse_args()
     qualify(args.executable, args.kit, args.root, args.output, args.build_report, args.installer,
-            args.gitea_server)
+            args.gitea_server, args.rsync_directory)

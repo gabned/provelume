@@ -66,6 +66,9 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     rsync_mirror.add_argument("--expected-source-commit", required=True)
     rsync_agent = commands.add_parser("rsync-credential-qualify")
     rsync_agent.add_argument("instance", type=Path)
+    rsync_windows = commands.add_parser("rsync-windows-components-qualify")
+    rsync_windows.add_argument("instance", type=Path)
+    rsync_windows.add_argument("--fixture-directory", required=True, type=Path)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -85,6 +88,12 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                         options.instance,
                         image=options.fixture_image,
                         expected_source_commit=options.expected_source_commit,
+                    )
+                elif options.command == "rsync-windows-components-qualify":
+                    from .mirror_rsync_windows_qualification import qualify_components
+
+                    result = qualify_components(
+                        options.instance, fixture_directory=options.fixture_directory
                     )
                 elif options.command == "rsync-credential-qualify":
                     from .mirror_rsync_agent_qualification import qualify_agent

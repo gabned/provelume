@@ -11,7 +11,10 @@ and the exact qualified SSH profile are required. Missing or unsupported tools
 refuse before credential access or connection. Windows uses the separately
 pinned MSYS2 input and its complete DLL set; a generic Cygwin installation is
 not substituted. The checked-in Windows input is qualification metadata, not
-a bundled executable or a native Windows PASS. See
+a bundled executable or a native Windows PASS. Its installed diagnostic checks
+the complete input set, a real local copy and the system SSH version separately.
+An observed Windows SSH version remains unadmitted until actual authentication
+and rsync/SSH qualification are complete. See
 [the S22 contract](architecture/concordia-rsync-s22.md) for current evidence.
 
 1. Enable mirrors and the separate rsync permission explicitly. Create a
@@ -54,8 +57,8 @@ remote caller supplies an arbitrary command. The complete immutable local
 generation is reread before transfer; remote hashes/inventory are checked before
 its separate activation. Prior active data is retained.
 
-After interruption, `mirror-rsync-reconcile PLAN --confirm` is read-only.
-`mirror-rsync-resume PLAN --expected-rsync-plan-sha256 HASH --confirm` is an
+After interruption, `mirror-rsync-reconcile INSTANCE PLAN --confirm` is read-only.
+`mirror-rsync-resume INSTANCE PLAN --expected-rsync-plan-sha256 HASH --confirm` is an
 explicit operation within the original plan expiry, current scope/key binding,
 UTC window and bandwidth. It requires a durable stopped-receiver record and
 proof activation never began. A verified stage proceeds to its first activation

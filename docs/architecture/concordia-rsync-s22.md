@@ -80,6 +80,24 @@ browser/installer/CI/review and acceptance still require their own exact-candida
 evidence. The initial remote helper filesystem profile is Linux local renameat2;
 Windows native client qualification stays separate.
 
+`rsync-mirror-qualify` uses an exact-source, credential-free Linux fixture image,
+fresh internal-only Docker network and native Secret Service. It performs actual
+SSH/rsync, independent inventories, full/no-op, wrong host/key, revocation,
+controlled before/after activation with actual Root restore, native partial
+disconnection/explicit resume, physical tmpfs ENOSPC and a replaced directory with
+a copied ownership marker. Each completed case is durably recorded before the
+next; incomplete preparation remains UNKNOWN. The finite wrapped partial input
+and its configured32KiB/s bandwidth make the declared interruption observable;
+product limits and deadlines are unchanged. Fault hooks exist only in the fixture
+image, outside the product package.
+
+Frozen Windows has separate diagnostics for native DPAPI/owned agent IPC and the
+eleven-file pinned MSYS2 input/native local copy/system OpenSSH version. These
+receipts explicitly do not attest native SSH authentication or rsync over SSH.
+The diagnostic persists in the installer artifact even if a later case fails.
+Source/unit, native Linux, Windows components, rendered synthetic preview and full
+Windows transport remain distinct gates; none accepts S22 or its predecessors.
+
 The official 3.5.2 source archive is 1,977,884 bytes, SHA-256
 `a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8`;
 the 273-byte detached signature has SHA-256

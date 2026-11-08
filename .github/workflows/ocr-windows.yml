@@ -83,6 +83,11 @@ jobs:
         run: |
           python scripts/acquire_concordia_gitea_fixture.py --output "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" > "$env:RUNNER_TEMP/ocr-output/gitea-input.json"
           if ($LASTEXITCODE -ne 0) { throw "Gitea fixture acquisition failed." }
+      - name: Acquire the pinned external Windows rsync qualification input
+        shell: pwsh
+        run: |
+          python scripts/acquire_concordia_rsync_fixture.py --output "$env:RUNNER_TEMP/rsync-fixture" > "$env:RUNNER_TEMP/ocr-output/rsync-input.json"
+          if ($LASTEXITCODE -ne 0) { throw "Rsync fixture acquisition failed." }
       - name: Install that exact package, exercise offline kit and remove disposable installation
         shell: pwsh
         run: |
@@ -92,7 +97,7 @@ jobs:
           if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) { throw "Disposable installation failed." }
           try {
             $kit = Get-ChildItem "$env:RUNNER_TEMP/ocr-output/provelume-*-ocr-windows-x64.zip" | Select-Object -First 1
-            python scripts/qualify_windows_ocr_installed.py --executable "$target/Provelume.exe" --installer $setup.FullName --kit $kit.FullName --build-report "$env:RUNNER_TEMP/ocr-output/ocr-kit-build.json" --gitea-server "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" --root "$env:RUNNER_TEMP/Concordia OCR Qualification" --output "$env:RUNNER_TEMP/ocr-output/windows-installed-ocr.json"
+            python scripts/qualify_windows_ocr_installed.py --executable "$target/Provelume.exe" --installer $setup.FullName --kit $kit.FullName --build-report "$env:RUNNER_TEMP/ocr-output/ocr-kit-build.json" --gitea-server "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" --rsync-directory "$env:RUNNER_TEMP/rsync-fixture" --root "$env:RUNNER_TEMP/Concordia OCR Qualification" --output "$env:RUNNER_TEMP/ocr-output/windows-installed-ocr.json"
             if ($LASTEXITCODE -ne 0) { throw "Installed offline OCR qualification failed." }
           } finally {
             $uninstall = Start-Process -FilePath "$target/unins000.exe" -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru

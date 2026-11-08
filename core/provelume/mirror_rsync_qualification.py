@@ -344,6 +344,8 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
             mirrors=mirrors,
             records=fixtures,
         ) as (container, target):
+            if fault == "disconnect":
+                target["bandwidth_kib"] = 32
             row = mirrors.configure(
                 identity_id=identity["identity"]["id"],
                 name="Synthetic isolated SSH namespace",
@@ -399,7 +401,11 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                 continue
             if fault == "disconnect":
                 (source / "partial.md").write_text(
-                    "# Synthetic finite partial transfer\n" + secrets.token_hex(1024 * 1024)
+                    "# Synthetic finite partial transfer\n"
+                    + "".join(
+                        "Synthetic public fixture row " + secrets.token_hex(16) + "\n"
+                        for _ in range(2048)
+                    )
                 )
             else:
                 (source / "two.md").write_text(
