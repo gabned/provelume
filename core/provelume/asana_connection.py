@@ -170,7 +170,7 @@ class AsanaConnection:
         return "productivity_asana_link_" + identity
 
     def connector(self, identity):
-        value = self.connectors.get_instance(identity)
+        value = self.connectors.get_instance_policy(identity)
         require(value is not None and value["definition"]["adapter_key"] == KEY, "unsupported")
         return value
 

@@ -141,7 +141,7 @@ class GoogleSourceManager:
                 "google_payload_invalid", "Google connector instance was not found"
             )
         record = self._read_json(path)
-        connector = self.connectors.get_instance(instance_id)
+        connector = self.connectors.get_instance_policy(instance_id)
         if connector is None or connector.get("definition_id") not in {
                 GOOGLE_DEFINITION_ID, GOOGLE_LEGACY_DEFINITION_ID}:
             raise GoogleContractError(
@@ -695,7 +695,7 @@ class GoogleSourceManager:
         capability = self.capability_record(
             instance_id, str(source["capability"]), require_enabled=True
         )
-        connector = self.connectors.get_instance(instance_id)
+        connector = self.connectors.get_instance_policy(instance_id)
         if connector is None or connector.get("lifecycle_state") == "removed":
             raise GoogleContractError(
                 "google_source_removed", "Google connector instance is unavailable"

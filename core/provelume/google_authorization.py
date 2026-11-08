@@ -33,7 +33,7 @@ class GoogleCapabilityAuthority:
 
     def authorization_policy(self, instance_id):
         record = self.sources._instance_record(instance_id)
-        connector = self.sources.connectors.get_instance(instance_id)
+        connector = self.sources.connectors.get_instance_policy(instance_id)
         item = record["capabilities"][self.capability]
         return {
             "active": connector["lifecycle_state"] == "active",
