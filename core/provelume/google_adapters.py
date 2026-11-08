@@ -19,6 +19,7 @@ from .google_contract import (
     GoogleAdapterError,
     GoogleAuthorizationError,
     GoogleContractError,
+    GoogleCursorInvalidated,
     GoogleItem,
     GoogleLimits,
     GooglePage,
@@ -149,9 +150,30 @@ class GoogleApiAdapter:
         self,
         *,
         credential_resolver: Callable[[Mapping[str, str]], str] = _environment_secret,
+        vault=None,
     ):
         self._credential_resolver = credential_resolver
+        self.vault = vault
         self._opener = build_opener(_NoRedirect())
+
+    def _external_reference(self, instance, capability):
+        from .google_credentials import GoogleCredentialError, GoogleCredentialVault
+
+        vault = self.vault or GoogleCredentialVault()
+        try:
+            reference = normalise_secret_reference(vault.read(
+                f"google_link_{instance['connector_instance_id']}_{capability}"))
+            if reference is None or not reference["name"].startswith("google_grant_"):
+                raise GoogleAuthorizationError()
+            grant = vault.read(reference["name"])
+            if (not isinstance(grant, dict) or grant.get("capability") != capability
+                    or grant.get("account_binding_sha256") != instance.get(
+                        "account_binding_sha256")):
+                raise GoogleAuthorizationError()
+            return reference
+        except GoogleCredentialError:
+            raise GoogleAdapterError("google_secure_store_unavailable",
+                                     "Google system credential store is unavailable") from None
 
     @staticmethod
     def _safe_endpoint(url: str) -> None:
@@ -205,6 +227,8 @@ class GoogleApiAdapter:
                     )
                 return payload, content_type
         except HTTPError as exc:
+            if exc.code == 410:
+                raise GoogleCursorInvalidated() from exc
             if exc.code in {401, 403}:
                 raise GoogleAuthorizationError(expired=True) from exc
             if exc.code == 429:
@@ -515,12 +539,14 @@ class GoogleApiAdapter:
         cursor: str | None,
         limits: GoogleLimits,
     ) -> GooglePage:
-        del instance
         selected = normalise_capability(capability.get("capability"))
         if selected != source.get("capability"):
             raise GoogleAdapterError(
                 "google_payload_invalid", "Google Source capability binding is invalid"
             )
+        if capability.get("credential_reference") is None:
+            capability = {**capability, "credential_reference": self._external_reference(
+                instance, selected)}
         if selected == "gmail":
             return self._gmail_page(
                 capability=capability,
@@ -528,6 +554,9 @@ class GoogleApiAdapter:
                 cursor=cursor,
                 limits=limits,
             )
+        if selected == "calendar":
+            raise GoogleAdapterError("google_adapter_unavailable",
+                                     "Calendar requires its Source-bound intake driver")
         return self._drive_page(
             capability=capability,
             source=source,

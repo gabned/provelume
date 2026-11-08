@@ -16,6 +16,382 @@ pytest.importorskip("resource")
 from scripts import diagnose_concordia_cpu as diagnostic  # noqa: E402
 
 
+def test_direct_span_preserves_exception_and_binds_the_actual_caller():
+    context = {"spans": [], "active_operation": "process"}
+    token = diagnostic.CURRENT.set(context)
+    marker = ValueError("original")
+    try:
+        with pytest.raises(ValueError) as observed:
+            diagnostic.observe_span(lambda: (_ for _ in ()).throw(marker), "_shutdown_pool")()
+    finally:
+        diagnostic.CURRENT.reset(token)
+    assert observed.value is marker
+    row, = context["spans"]
+    assert row["operation"] == "process" and row["error"] == "ValueError"
+    assert row["before"]["tid"] == row["after"]["tid"]
+    assert row["before"]["monotonic_ns"] <= row["after"]["monotonic_ns"]
+    assert row["before"]["thread_cpu_ns"] <= row["after"]["thread_cpu_ns"]
+
+
+def test_clock_only_worker_keeps_real_capture_and_original_failure_without_rich_hooks(
+    tmp_path, monkeypatch
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    from provelume.service import ProvelumeInstance
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("clock-only arm must not invoke the common rich observer bundle")
+
+    for name in ["accounting", "BoundaryCounters", "pool_observer", "durability_observer"]:
+        monkeypatch.setattr(diagnostic, name, forbidden)
+
+    def measure(artifacts, output):
+        instance = ProvelumeInstance.initialise(artifacts / "instance")
+        probe = qualify_ai_runtime.deterministic_probe(instance, 0)
+        return qualify_ai_runtime.evaluate({"samples": [], "deterministic_idle": [probe],
+                                            "failures": ["original failure retained"]})
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    output = tmp_path / "output"
+    output.mkdir()
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode="boundary",
+                      caller_spans=True, clock_only=True)
+    report = json.loads((output / "report-before-observer.json").read_text())
+    assert report["status"] == "DIAGNOSTIC_ONLY"
+    assert report["instrumented_evaluated_status"] == "FAIL"
+    assert report["failures"] == ["original failure retained"]
+    probe, = report["deterministic_idle"]
+    assert probe["preserved"] and probe["search_found"]
+    row = probe["diagnostic_timeline"]
+    assert row["counter_collection"] == "NOT_COLLECTED / CLOCK_ONLY"
+    assert not any(k in row for k in ["durability", "pool_tasks", "boundary_inventory"])
+    assert len(row["operations"]) == 2 and len(row["spans"]) == 6
+    assert diagnostic.method_span_errors([row]) == []
+    assert not (output / "timeline.jsonl").exists()
+
+
+@pytest.mark.parametrize("options", [
+    {}, {"caller_spans": True, "pool_accounting": True},
+    {"caller_spans": True, "pool_prefix": True},
+    {"caller_spans": True, "placement": "same_logical"},
+])
+def test_clock_only_refuses_other_collection_contracts_before_import(tmp_path, options):
+    with pytest.raises(ValueError, match="isolated caller clocks"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, mode="boundary", clock_only=True,
+                          **options)
+
+
+@pytest.mark.parametrize("prefix,caller,source", [
+    (False, False, None), (True, False, "a" * 40), (False, True, "a" * 40),
+])
+def test_clock_bundle_requires_its_own_single_source_admission(tmp_path, prefix, caller, source):
+    with pytest.raises(ValueError, match="own explicit full observer source"):
+        diagnostic.run(tmp_path, tmp_path, tmp_path / "new", observer_study=True,
+                       observer_revision=source, pool_prefix=prefix, caller_spans=caller,
+                       clock_bundle=True)
+    assert not (tmp_path / "new").exists()
+
+
+@pytest.mark.parametrize("defect", [None, "probe", "span", "tid", "cpu", "counter", "exit",
+                                   "network", "qualified", "boundary"])
+def test_clock_collection_retains_failed_gates_and_refuses_missing_observations(tmp_path, defect):
+    def point(n):
+        return dict(monotonic_ns=n, process_cpu_ns=n, thread_cpu_ns=n, tid=42)
+
+    rows = []
+    for i in range(25):
+        ops, spans = [], []
+        for name, n in [("submit", 100), ("process", 500)]:
+            ops.append(dict(operation=name, before=point(n), after=point(n + 300)))
+            spans.extend(dict(operation=name, span=method, before=point(n + 50),
+                              after=point(n + 100)) for method in
+                         ["_prepare", "_publish_entries", "_shutdown_pool"])
+        rows.append(dict(probe_id=i + 1, counter_collection="NOT_COLLECTED / CLOCK_ONLY",
+                         before=point(0), after=point(1000), operations=ops, spans=spans))
+    report = dict(status="DIAGNOSTIC_ONLY", qualification_eligible=False,
+                  instrumented_evaluated_status="FAIL", network="PASS", worker_pids=[42],
+                  gates={"s06_governed": "FAIL"})
+    if defect == "probe":
+        rows.pop()
+    elif defect == "span":
+        rows[0]["spans"].pop()
+    elif defect == "tid":
+        rows[0]["spans"][0]["after"]["tid"] = 43
+    elif defect == "cpu":
+        rows[0]["operations"][0]["after"]["thread_cpu_ns"] = 0
+    elif defect == "counter":
+        rows[0]["pool_tasks"] = []
+    elif defect == "network":
+        report["network"] = "NOT_RUN"
+    elif defect == "qualified":
+        report["qualification_eligible"] = True
+    elif defect == "boundary":
+        rows[0]["operations"][0]["boundary_before"] = {}
+    (tmp_path / "report.json").write_text(json.dumps(report))
+    (tmp_path / "probe-accounting.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n")
+    (tmp_path / "network.42").write_text("" if defect == "exit" else "+++ exited with 0 +++\n")
+    if defect:
+        with pytest.raises(ValueError):
+            diagnostic.verify_caller_collection(tmp_path, clock_only=True)
+    else:
+        result = diagnostic.verify_caller_collection(tmp_path, clock_only=True)
+        assert result["qualification_eligible"] is False
+        assert result["probes"] == 25 and result["method_spans"] == 150
+        original = json.loads((tmp_path / "report.json").read_text())
+        assert original["gates"] == {"s06_governed": "FAIL"}
+
+
+def test_prefix_stops_before_any_run1_warm_case_and_preserves_earlier_failures():
+    calls = []
+
+    def warm(*args):
+        calls.append(args[-1])
+        return "forwarded"
+
+    wrapped = diagnostic.prefix_warm_case(warm)
+    report = {"samples": [{"pass": True}] * 20,
+              "deterministic_busy": [{"worker_observed": True}], "failures": []}
+    assert wrapped(report, None, None, None, None, None, 0) == "forwarded"
+    report["deterministic_busy"].append({"worker_observed": True})
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        wrapped(report, None, None, None, None, None, 1)
+    assert stopped.value.reason == "TARGET_PREFIX_COMPLETE" and calls == [0]
+    report["failures"].append("original_failure")
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        wrapped(report, None, None, None, None, None, 1)
+    assert stopped.value.reason == "APPLICATION_FAILURE"
+    assert report["failures"] == ["original_failure"] and calls == [0]
+
+
+@pytest.mark.parametrize("busy", [[], [{"worker_observed": False}]])
+def test_prefix_stops_before_run0_warm_work_if_first_concurrency_is_missing(busy):
+    report = {"samples": [], "deterministic_busy": busy, "failures": []}
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_warm_case(lambda *a: pytest.fail("must not start warm work"))(
+            report, None, None, None, None, None, 0)
+    assert stopped.value.reason == "MISSING_CONCURRENCY" and not report["samples"]
+
+
+@pytest.mark.parametrize("change,reason", [
+    ("missing_case", "INCOMPLETE_PREFIX"), ("missing_concurrency", "MISSING_CONCURRENCY"),
+])
+def test_prefix_refuses_incomplete_boundary(change, reason):
+    report = {"samples": [{}] * 20, "deterministic_busy": [{"worker_observed": True}] * 2}
+    if change == "missing_case":
+        report["samples"].pop()
+    else:
+        report["deterministic_busy"] = [{"worker_observed": True}, {"worker_observed": False}]
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_warm_case(lambda *a: pytest.fail("must stop"))(
+            report, None, None, None, None, None, 1)
+    assert stopped.value.reason == reason
+
+
+def test_prefix_self_test_retains_failed_evidence():
+    class Evidence:
+        result = "FAILED"
+
+        def public_record(self):
+            return {"result": self.result, "original": "preserved"}
+
+    with pytest.raises(diagnostic.PrefixStop) as stopped:
+        diagnostic.prefix_self_test(lambda: Evidence())()
+    assert stopped.value.reason == "SELF_TEST_FAILED"
+    assert stopped.value.evidence == {"result": "FAILED", "original": "preserved"}
+
+
+def test_prefix_environment_omits_operator_credentials_without_changing_host_home(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "synthetic-private")
+    monkeypatch.setenv("HTTPS_PROXY", "synthetic-private-proxy")
+    original_home = os.environ.get("HOME")
+    environment = diagnostic.prefix_environment()
+    assert "GH_TOKEN" not in environment and "HTTPS_PROXY" not in environment
+    assert environment.get("HOME") == original_home == os.environ.get("HOME")
+    assert environment["PYTHONNOUSERSITE"] == "1"
+
+
+def test_prefix_worker_preserves_original_finalization_and_partial_network_gate(
+    tmp_path, monkeypatch
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    finalized = []
+
+    def evaluate(report):
+        report.update(status="FAIL", gates={"retained": "FAIL"})
+        return report
+
+    def measure(artifacts, output):
+        report = {"samples": [{"pass": True, "total_seconds": 1, "memory": {"peak_rss": 1}}] * 20,
+                  "deterministic_busy": [{"worker_observed": True}] * 2, "failures": []}
+        try:
+            qualify_ai_runtime.measure_warm_case(report, None, None, None, None, None, 1)
+            pytest.fail("prefix must not execute run1 warm case")
+        finally:
+            finalized.append(True)
+            qualify_ai_runtime.evaluate(report)
+            output.write_text(json.dumps(report))
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    monkeypatch.setattr(qualify_ai_runtime, "evaluate", evaluate)
+    diagnostic.worker(root, tmp_path, tmp_path, mode="boundary", pool_accounting=True,
+                      pool_prefix=True)
+    assert finalized == [True]
+    report = json.loads((tmp_path / "report-before-observer.json").read_text())
+    assert report["instrumented_evaluated_status"] == "FAIL"
+    assert report["gates"] == {"retained": "FAIL"}
+    state = json.loads((tmp_path / "prefix-state.json").read_text())
+    assert state["stop"] == "TARGET_PREFIX_COMPLETE"
+    diagnostic.observe(root, tmp_path)
+    observed = json.loads((tmp_path / "report.json").read_text())
+    assert observed["network"] == "NOT_RUN"
+    assert observed["network_observation"]["complete_phases"] is False
+    assert observed["qualification_eligible"] is False
+
+
+@pytest.mark.parametrize("mode,pool", [("legacy", True), ("extended", True), ("boundary", False)])
+def test_prefix_requires_its_observation_contract_before_source_import(tmp_path, mode, pool):
+    with pytest.raises(ValueError, match="boundary accounting"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, mode=mode,
+                          pool_accounting=pool, pool_prefix=True)
+
+
+@pytest.mark.parametrize("explode", [False, True])
+def test_full_span_worker_forwards_later_cases_and_restores_methods_on_failure(
+    tmp_path, monkeypatch, explode
+):
+    root = Path(diagnostic.__file__).resolve().parents[1]
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    import qualify_ai_runtime
+
+    from provelume.atomic_commit import AtomicInstanceCommit
+
+    original_prepare = AtomicInstanceCommit._prepare
+    forwarded, finalized = [], []
+
+    def warm(*args):
+        forwarded.append(True)
+        if explode:
+            raise ValueError("application failure retained")
+        return "later phase reached"
+
+    def evaluate(report):
+        report.update(status="FAIL", gates={"s06_governed": "FAIL"})
+        return report
+
+    def measure(artifacts, output):
+        report = {"failures": []}
+        try:
+            assert AtomicInstanceCommit._prepare is not original_prepare
+            assert qualify_ai_runtime.measure_warm_case(1) == "later phase reached"
+        finally:
+            finalized.append(True)
+            qualify_ai_runtime.evaluate(report)
+            output.write_text(json.dumps(report))
+        return report
+
+    monkeypatch.setattr(qualify_ai_runtime, "measure_warm_case", warm)
+    monkeypatch.setattr(qualify_ai_runtime, "measure", measure)
+    monkeypatch.setattr(qualify_ai_runtime, "evaluate", evaluate)
+    if explode:
+        with pytest.raises(ValueError, match="application failure retained"):
+            diagnostic.worker(root, tmp_path, tmp_path, mode="boundary",
+                              pool_accounting=True, caller_spans=True)
+    else:
+        diagnostic.worker(root, tmp_path, tmp_path, mode="boundary",
+                          pool_accounting=True, caller_spans=True)
+    assert forwarded == finalized == [True]
+    assert AtomicInstanceCommit._prepare is original_prepare
+    assert not (tmp_path / "prefix-state.json").exists()
+    report = json.loads((tmp_path / "report-before-observer.json").read_text())
+    assert report["gates"] == {"s06_governed": "FAIL"}
+    assert report["status"] == "DIAGNOSTIC_ONLY"
+    assert report["qualification_eligible"] is False
+
+
+def test_prefix_requires_explicit_current_source_before_acquisition(tmp_path):
+    with pytest.raises(ValueError, match="explicit observer source"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       observer_study=True, pool_prefix=True)
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("prefix,source", [(False, None), (True, "f" * 40)])
+def test_full_caller_spans_require_their_own_explicit_admission(tmp_path, prefix, source):
+    with pytest.raises(ValueError, match="one explicit full observer source"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       observer_study=True, observer_revision=source,
+                       pool_prefix=prefix, caller_spans=True)
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("options", [
+    {"mode": "extended", "pool_accounting": True},
+    {"mode": "boundary", "pool_accounting": False},
+    {"mode": "boundary", "pool_accounting": True, "pool_prefix": True},
+])
+def test_full_caller_spans_refuse_incompatible_observation_before_import(tmp_path, options):
+    with pytest.raises(ValueError, match="caller spans require"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, caller_spans=True, **options)
+
+
+@pytest.mark.parametrize("defect", [None, "network_claim", "network_call", "span", "tid", "exit"])
+def test_prefix_collection_never_promotes_partial_or_missing_observations(tmp_path, defect):
+    counter = {"schedstat": "1 0 1", "io": "rchar: 0"}
+    rows = []
+    for index in range(5):
+        operations, spans = [], []
+        for name in ["submit", "process"]:
+            boundary = {"tasks": [{"role": "parent", "tid": 42, **counter}]}
+            operations.append({"operation": name,
+                "before": {"tid": 42, "monotonic_ns": 100},
+                "after": {"tid": 42, "monotonic_ns": 900},
+                "boundary_before": boundary, "boundary_after": boundary})
+            for method in ["_prepare", "_publish_entries", "_shutdown_pool"]:
+                spans.append({"span": method, "operation": name,
+                              "before": {"tid": 42, "monotonic_ns": 200},
+                              "after": {"tid": 42, "monotonic_ns": 300}})
+        rows.append({"probe_id": index + 1, "operations": operations, "spans": spans,
+                     "pool_tasks": [{"counters_before": counter, "counters_after": counter}]})
+    report = {"status": "DIAGNOSTIC_ONLY", "qualification_eligible": False,
+              "instrumented_evaluated_status": "FAIL", "failures": [],
+              "network": "NOT_RUN", "network_observation": {"complete_phases": False},
+              "deterministic_idle": [{"preserved": True, "search_found": True}] * 3,
+              "deterministic_busy": [{"preserved": True, "search_found": True,
+                                      "worker_observed": True}] * 2,
+              "samples": [{"pass": True}] * 20, "worker_pids": [42]}
+    trace = "1.000000 +++ exited with 0 +++\n"
+    if defect == "network_claim":
+        report["network"] = "PASS"
+    elif defect == "network_call":
+        trace = "1.000000 socket(AF_INET, SOCK_STREAM, 0) = 3\n" + trace
+    elif defect == "span":
+        rows[0]["spans"].pop()
+    elif defect == "tid":
+        rows[0]["spans"][0]["after"]["tid"] = 99
+    elif defect == "exit":
+        trace = ""
+    (tmp_path / "report.json").write_text(json.dumps(report))
+    (tmp_path / "prefix-state.json").write_text(json.dumps({"stop": "TARGET_PREFIX_COMPLETE"}))
+    (tmp_path / "probe-accounting.jsonl").write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n")
+    (tmp_path / "network.42").write_text(trace)
+    result = diagnostic.inspect_prefix(tmp_path)
+    assert result["status"] == ("INCOMPLETE" if defect else "PREFIX_COLLECTION_COMPLETE")
+    assert result["qualification_eligible"] is False
+    assert result["full_phase_network_gate"] == "NOT_RUN"
+    assert result["original_partial_evaluated_status"] == "FAIL"
+
+
 def test_failed_gate_survives_every_observer_evaluation():
     def evaluate(report):
         report["gates"] = {"s06_governed": "FAIL"}
@@ -75,11 +451,13 @@ def test_sampler_binds_actual_process_and_retains_unclosed_probe(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux diagnostic worker")
-@pytest.mark.parametrize("mode,placement", [("legacy", None), ("boundary", None),
-                                         ("extended", None), ("boundary", "same_logical"),
-                                         ("boundary", "portable_foreground")])
+@pytest.mark.parametrize("mode,placement,pool_accounting", [
+    ("legacy", None, False), ("boundary", None, False), ("extended", None, False),
+    ("boundary", "same_logical", False), ("boundary", "portable_foreground", False),
+    ("boundary", None, True), ("extended", None, True),
+])
 def test_final_network_observer_cannot_requalify_instrumented_capture(
-    tmp_path, monkeypatch, mode, placement
+    tmp_path, monkeypatch, mode, placement, pool_accounting
 ):
     # Exercise the real worker and observer import boundaries. No native model is
     # involved; a retained synthetic failure must survive the final evaluator.
@@ -120,7 +498,9 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(
         })
     output = tmp_path / "output"
     output.mkdir()
-    diagnostic.worker(root, tmp_path / "artifacts", output, mode, placement)
+    inherited = sorted(os.sched_getaffinity(0))
+    diagnostic.worker(root, tmp_path / "artifacts", output, mode, placement,
+                      pool_accounting=pool_accounting)
     assert observations == []
     assert not (output / "report.json").exists()
     worker_finished = True
@@ -155,6 +535,69 @@ def test_final_network_observer_cannot_requalify_instrumented_capture(
             assert context["placement"]["restored"] == allowed
             assert all(row["boundary_before"]["cgroups"] is not None
                        for row in context["operations"])
+        if pool_accounting:
+            assert sorted(os.sched_getaffinity(0)) == inherited
+            assert context["pool_tasks"]
+            assert all(task["affinity"] == inherited for task in context["pool_tasks"])
+            assert all(diagnostic._observed_task_counters(task[label])
+                       for task in context["pool_tasks"]
+                       for label in ("counters_before", "counters_after"))
+
+
+@pytest.mark.parametrize("revision", ["main", "A" * 40, "a" * 39, "--help", "$(false)"])
+def test_observer_source_rejects_unbounded_refs_before_git(tmp_path, monkeypatch, revision):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid source must stop before Git or acquisition")
+
+    monkeypatch.setattr(subprocess, "check_output", forbidden)
+    with pytest.raises(ValueError, match="full commit SHA"):
+        diagnostic.observer_source(tmp_path, revision)
+
+
+def test_observer_source_binds_fetched_main_not_driver_head(tmp_path):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    git("init", "-q")
+    git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "main")
+    main = git("rev-parse", "HEAD")
+    git("update-ref", "refs/remotes/origin/main", main)
+    git("-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.invalid",
+        "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "driver")
+    driver = git("rev-parse", "HEAD")
+    selected = diagnostic.observer_source(tmp_path, main)
+    assert selected["source"] == main and selected["tree"] == git("rev-parse", main + "^{tree}")
+    with pytest.raises(ValueError, match="differs from fetched main"):
+        diagnostic.observer_source(tmp_path, driver)
+    (tmp_path / "dirty").write_text("synthetic")
+    with pytest.raises(ValueError, match="not clean"):
+        diagnostic.observer_source(tmp_path, main)
+
+
+def test_single_source_control_refuses_reverse_before_output_or_acquisition(tmp_path):
+    with pytest.raises(ValueError, match="fixed ABBA order"):
+        diagnostic.run(tmp_path, tmp_path / "missing", tmp_path / "output",
+                       reverse=True, observer_study=True, observer_revision="a" * 40)
+    assert not (tmp_path / "output").exists()
+
+
+def test_pool_accounting_refuses_legacy_before_source_import(tmp_path):
+    with pytest.raises(ValueError, match="operation-boundary"):
+        diagnostic.worker(tmp_path, tmp_path, tmp_path, pool_accounting=True)
+
+
+def test_observer_admission_preserves_existing_evidence_before_git(tmp_path, monkeypatch):
+    output = tmp_path / "admission.json"
+    output.write_text("retained original observation")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("existing evidence must stop before collection or acquisition")
+
+    monkeypatch.setattr(subprocess, "check_output", forbidden)
+    with pytest.raises(ValueError, match="preserve existing"):
+        diagnostic.admit_observer(tmp_path, "a" * 40, output)
+    assert output.read_text() == "retained original observation"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc counters")

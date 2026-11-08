@@ -49,6 +49,8 @@ def _registration_count(parser):
 
 def _required_arguments(parser):
     values = []
+    required_group_actions = {group._group_actions[0]
+                              for group in parser._mutually_exclusive_groups if group.required}
     for action in parser._actions:
         if isinstance(action, argparse._HelpAction):
             continue
@@ -56,7 +58,7 @@ def _required_arguments(parser):
             name, child = next(iter(action.choices.items()))
             values += [name, *_required_arguments(child)]
             continue
-        if action.option_strings and not action.required:
+        if action.option_strings and not action.required and action not in required_group_actions:
             continue
         if action.option_strings:
             values.append(action.option_strings[0])
@@ -83,7 +85,7 @@ def test_every_registered_command_retains_grammar_and_parse_behavior():
     full = cli.build_parser()
     complete = _subparsers(full)
     # Enumerate actual registrations, including both publication subcommands.
-    assert _registration_count(full) == 253
+    assert _registration_count(full) == 303
     for name, reference in complete.choices.items():
         selected = cli._build_parser(name)
         choices = _subparsers(selected)
