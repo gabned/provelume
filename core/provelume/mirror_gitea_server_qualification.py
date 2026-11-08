@@ -259,6 +259,10 @@ def fixture_server(root, binary):
     home = root / "Synthetic Home"
     home.mkdir()
     environment["HOME"] = str(home)
+    if os.name == "nt":
+        # Go's os.UserHomeDir reads USERPROFILE on Windows, even with Gitea SSH
+        # disabled. Use this same fresh private fixture home, never the user's.
+        environment["USERPROFILE"] = str(home)
     # Gitea initialises its own Git identity. This fresh fixture config is
     # writable; the product's separate GitSession configuration stays closed.
     environment["GIT_CONFIG_GLOBAL"] = str(home / "synthetic.gitconfig")
