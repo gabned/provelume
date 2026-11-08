@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import socket
 import subprocess
 import tarfile
@@ -69,6 +70,7 @@ def remote_python(container, program, *, incoming=None):
 
 def fixture_preflight(root, *, image, expected_source_commit):
     require(os.name == "posix" and os.uname().sysname == "Linux", "rsync_fixture_platform")
+    require(shutil.disk_usage(root).free >= 256 * 1024 * 1024, "rsync_fixture_host_space")
     require(
         re.fullmatch(r"sha256:[0-9a-f]{64}", image)
         and re.fullmatch(r"[0-9a-f]{40}", expected_source_commit),
