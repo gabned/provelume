@@ -204,22 +204,28 @@ class FolderTree:
                 parts(name)
             return sorted(names)
 
-    def info(self, relative):
+    def info(self, relative, *, missing_leaf=False):
         names = parts(relative)
         require(names, "folder_path")
         with self.directory("/".join(names[:-1])) as directory:
-            if os.name == "nt":
-                selected = directory / names[-1]
-                require(not selected.is_symlink() and not selected.is_junction(), "folder_alias")
-                return selected.stat(follow_symlinks=False)
-            return os.stat(names[-1], dir_fd=directory, follow_symlinks=False)
+            # Interpret only an absent selected leaf while its parent guards are
+            # still held. Windows parent contexts deliberately normalize escaped
+            # FileNotFoundError; a vanished ancestor must remain a refusal.
+            try:
+                if os.name == "nt":
+                    selected = directory / names[-1]
+                    require(
+                        not selected.is_symlink() and not selected.is_junction(), "folder_alias"
+                    )
+                    return selected.stat(follow_symlinks=False)
+                return os.stat(names[-1], dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                if missing_leaf:
+                    return None
+                raise
 
     def exists(self, relative):
-        try:
-            self.info(relative)
-            return True
-        except FileNotFoundError:
-            return False
+        return self.info(relative, missing_leaf=True) is not None
 
     @contextmanager
     def file(self, relative, *, create=False):
