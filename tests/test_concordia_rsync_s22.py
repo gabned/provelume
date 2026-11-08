@@ -6,6 +6,22 @@ from provelume.mirror_contract import MirrorError
 from provelume.mirror_ssh_crypto import public_key, sign, verify
 
 
+@pytest.mark.parametrize(
+    "diagnostic,expected",
+    [
+        (b"Host key verification failed.", "ssh_host_key"),
+        (b"WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!", "ssh_host_key"),
+        (b"synthetic: Permission denied (publickey).", "ssh_credentials"),
+        (b"Disconnected: Too many authentication failures", "ssh_credentials"),
+        (b"Connection timed out", "ssh_command_failed"),
+    ],
+)
+def test_closed_native_authentication_diagnostics(diagnostic, expected):
+    from provelume.mirror_ssh_runtime import ssh_error
+
+    assert ssh_error(diagnostic) == expected
+
+
 def test_native_tls_runtime_ed25519_matches_rfc8032_vector_and_rejects_changed_data():
     # Public RFC8032 section7.1 test1; not an account credential.
     seed = bytes.fromhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")

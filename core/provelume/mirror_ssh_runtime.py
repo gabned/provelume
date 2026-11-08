@@ -307,6 +307,17 @@ def ssh_arguments(binary, target, work, agent):
     ]
 
 
+def ssh_error(errors):
+    if (
+        b"Host key verification failed" in errors
+        or b"REMOTE HOST IDENTIFICATION HAS CHANGED" in errors
+    ):
+        return "ssh_host_key"
+    if b"Permission denied" in errors or b"Too many authentication failures" in errors:
+        return "ssh_credentials"
+    return "ssh_command_failed"
+
+
 def ssh_call(session, target, seed, request):
     configuration(target)
     binary = session.component("ssh")
@@ -332,13 +343,5 @@ def ssh_call(session, target, seed, request):
             check=False,
         )
         if result[0] != 0:
-            code = "ssh_command_failed"
-            if (
-                b"Host key verification failed" in result[2]
-                or b"REMOTE HOST IDENTIFICATION HAS CHANGED" in result[2]
-            ):
-                code = "ssh_host_key"
-            elif b"Permission denied" in result[2]:
-                code = "ssh_credentials"
-            raise MirrorError(code)
+            raise MirrorError(ssh_error(result[2]))
     return result[1], {"component": binary, "agent": owned.report}

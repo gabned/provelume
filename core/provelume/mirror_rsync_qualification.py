@@ -302,15 +302,13 @@ def authentication_refusals(engine, target):
         host_error = require_failure(
             lambda: ssh_call(session, wrong_host, seed, frame(request)), {"ssh_host_key"}
         )
+    yield {"case": "actual-native-wrong-host-key", "result": "PASS", "error": host_error}
     with native_work() as session:
         credential_error = require_failure(
             lambda: ssh_call(session, target, secrets.token_bytes(32), frame(request)),
             {"ssh_credentials"},
         )
-    return [
-        {"case": "actual-native-wrong-host-key", "result": "PASS", "error": host_error},
-        {"case": "actual-native-unauthorized-key", "result": "PASS", "error": credential_error},
-    ]
+    yield {"case": "actual-native-unauthorized-key", "result": "PASS", "error": credential_error}
 
 
 def qualify_rsync_mirror(root, *, image, expected_source_commit):
@@ -376,6 +374,14 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
             require(not noop["transport_proof"]["activation_written"], "rsync_qualification")
             require(mirrors.snapshots.source_fingerprint() == canonical, "rsync_qualification")
             if fault is None:
+                cases.append(
+                    {
+                        "case": "complete-generation-and-noop",
+                        "result": "PASS",
+                        "receipt_sha256": fingerprint(first),
+                        "canonical_unchanged": True,
+                    }
+                )
                 cases.extend(authentication_refusals(engine, target))
                 pending = prepare()
                 engine.disconnect(identity["identity"]["id"], expected_revision=1, confirmed=True)
@@ -388,14 +394,6 @@ def qualify_rsync_mirror(root, *, image, expected_source_commit):
                         "case": "revoked-grant-before-native-process",
                         "result": "PASS",
                         "native_process_calls": 0,
-                    }
-                )
-                cases.append(
-                    {
-                        "case": "complete-generation-and-noop",
-                        "result": "PASS",
-                        "receipt_sha256": fingerprint(first),
-                        "canonical_unchanged": True,
                     }
                 )
                 continue
