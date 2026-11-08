@@ -68,6 +68,40 @@ def remote_python(container, program, *, incoming=None):
     ).stdout
 
 
+def cleanup_fixture(work, name, owner):
+    """Reconcile a possibly completed create; never remove an unowned resource."""
+    records = []
+    for resource in ("container", "network"):
+        command = [] if resource == "container" else ["network"]
+        record = {"resource": resource, "name": name, "result": "UNKNOWN"}
+        records.append(record)
+        try:
+            observed = docker(*command, "inspect", name, check=False)
+            record["inspect_exit"] = observed.returncode
+            if observed.returncode != 0:
+                continue
+            value = json.loads(observed.stdout)[0]
+            labels = value["Config"].get("Labels", {}) if not command else value["Labels"]
+            if labels.get("org.provelume.qualification.owner") != owner:
+                record["result"] = "OWNERSHIP_REFUSED"
+                continue
+            if resource == "container":
+                record["observed_state"] = value["State"]["Status"]
+                logs = docker("logs", name, check=False)
+                (work / "server-stdout-original.log").write_bytes(logs.stdout)
+                (work / "server-stderr-original.log").write_bytes(logs.stderr)
+            removed = docker(*command, "rm", *(["--force"] if not command else []),
+                             name, check=False)
+            record["remove_exit"] = removed.returncode
+            if removed.returncode == 0:
+                record["result"] = "OWNED_REMOVAL_CONFIRMED"
+        except (OSError, ValueError, KeyError, IndexError, subprocess.TimeoutExpired) as error:
+            record["exception"] = type(error).__name__
+    (work / "cleanup-original.json").write_bytes(raw(records))
+    require(all(row["result"] == "OWNED_REMOVAL_CONFIRMED" for row in records),
+            "rsync_fixture_cleanup_unconfirmed")
+
+
 def fixture_preflight(root, *, image, expected_source_commit):
     require(os.name == "posix" and os.uname().sysname == "Linux", "rsync_fixture_platform")
     require(shutil.disk_usage(root).free >= 256 * 1024 * 1024, "rsync_fixture_host_space")
@@ -137,15 +171,17 @@ def fixture(root, *, image, expected_source_commit, identity, instance, mirrors,
     )
     namespace = uuid4().hex
     name = "concordia-rsync-" + uuid4().hex[:12]
-    network = None
-    created = False
+    ownership = "org.provelume.qualification.owner=" + namespace
     try:
-        network = docker("network", "create", "--internal", name).stdout.decode().strip()
-        # Mark ownership before start: failed creation is still removed in finally.
+        docker("network", "create", "--internal", "--label", ownership, name)
+        # A timed-out CLI create can still complete inside Docker. Its label,
+        # rather than the CLI return, determines cleanup ownership in finally.
         docker(
             "create",
             "--name",
             name,
+            "--label",
+            ownership,
             "--user",
             "1000:1000",
             "--network",
@@ -171,7 +207,6 @@ def fixture(root, *, image, expected_source_commit, identity, instance, mirrors,
             "do n=$((n+1)); sleep 0.1; done; "
             "exec /usr/sbin/sshd -D -e -f /fixture/sshd_config",
         )
-        created = True
         docker("start", name)
         package = io.BytesIO()
         with tarfile.open(fileobj=package, mode="w") as archive:
@@ -253,13 +288,7 @@ def fixture(root, *, image, expected_source_commit, identity, instance, mirrors,
         yield name, target
     finally:
         host.unlink(missing_ok=True)
-        if created:
-            logs = docker("logs", name, check=False)
-            (work / "server-stdout-original.log").write_bytes(logs.stdout)
-            (work / "server-stderr-original.log").write_bytes(logs.stderr)
-            docker("rm", "--force", name, check=False)
-        if network:
-            docker("network", "rm", name, check=False)
+        cleanup_fixture(work, name, namespace)
 
 
 def require_failure(call, codes=None):
