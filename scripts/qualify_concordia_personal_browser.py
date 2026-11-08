@@ -15,6 +15,7 @@ import platform
 import socket
 import subprocess
 import time
+import traceback
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
@@ -428,6 +429,19 @@ def main():
                                             sha256=hashlib.sha256(image.read_bytes()).hexdigest())
                             except Exception as error:
                                 cell.update(result="FAIL", error=type(error).__name__)
+                                cell["error_source_line"] = traceback.extract_tb(
+                                    error.__traceback__)[-1].lineno
+                                cell["overflow"] = page.evaluate('''() =>
+                                    [...document.querySelectorAll('main *')].map(e => ({
+                                      tag:e.tagName,id:e.id,classes:String(e.className).slice(0,120),
+                                      right:e.getBoundingClientRect().right,
+                                      width:e.getBoundingClientRect().width
+                                    })).filter(e=>e.right>innerWidth+1).slice(0,20)''')
+                                failed_image = work / f"{mode}-{language}-{width}-failure.png"
+                                page.screenshot(path=str(failed_image), full_page=True)
+                                cell["failure_screenshot"] = failed_image.name
+                                cell["failure_screenshot_sha256"] = hashlib.sha256(
+                                    failed_image.read_bytes()).hexdigest()
                 browser.close()
         report["canonical_unchanged"] = all(
             path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == before[str(path)]
