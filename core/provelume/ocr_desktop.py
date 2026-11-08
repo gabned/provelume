@@ -29,6 +29,12 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     setup.add_argument("--retention", choices=("keep", "transit"), required=True)
     setup.add_argument("--kit", type=Path)
     setup.add_argument("--expected-sha256")
+    personal = commands.add_parser("personal-qualify")
+    personal.add_argument("instance", type=Path)
+    personal.add_argument("--retention", choices=("keep", "transit"), required=True)
+    personal.add_argument("--ocr-ready", action="store_true")
+    personal.add_argument("--kit", type=Path)
+    personal.add_argument("--expected-sha256")
     add_ocr_commands(commands)
     try:
         options = parser.parse_args(arguments)
@@ -40,7 +46,13 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "setup-qualify":
+                if options.command == "personal-qualify":
+                    from .personal_qualification import qualify_personal
+
+                    result = qualify_personal(options.instance, retention=options.retention,
+                                              ocr_required=options.ocr_ready, kit=options.kit,
+                                              kit_sha256=options.expected_sha256)
+                elif options.command == "setup-qualify":
                     from .setup_qualification import qualify_setup
 
                     result = qualify_setup(options.instance, retention=options.retention,
