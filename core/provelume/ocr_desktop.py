@@ -212,6 +212,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                     ),
                     "network_used": False,
                 }
+                if options.command == "rsync-windows-components-qualify":
+                    from .mirror_rsync_windows_qualification import WindowsComponentsFailure
+
+                    if isinstance(exc, WindowsComponentsFailure):
+                        failure["qualification_evidence"] = exc.evidence
                 if options.command == "gitea-server-qualify":
                     from .mirror_gitea_server_qualification import GiteaQualificationFailure
 

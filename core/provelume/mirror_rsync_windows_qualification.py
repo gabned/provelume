@@ -3,14 +3,37 @@
 import hashlib
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
 
 from .build_info import current_build_info
 from .maintenance_local_files import open_local_file
 from .migration_permissions import make_private
-from .mirror_contract import require
+from .mirror_contract import MirrorError, require
 from .mirror_rsync_windows import admit, inputs, native_path
 from .mirror_ssh_runtime import NativeSession
+
+
+class WindowsComponentsFailure(MirrorError):
+    """Closed diagnostics for synthetic native qualification, without path/secret text."""
+
+
+@contextmanager
+def qualification_phase(phase):
+    try:
+        yield
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        failure = WindowsComponentsFailure(getattr(exc, "code", "rsync_windows_qualification"))
+        failure.evidence = {
+            "schema": "concordia-rsync-windows-components-failure/v1",
+            "phase": phase,
+            "exception": type(exc).__name__,
+        }
+        if type(getattr(exc, "winerror", None)) is int:
+            failure.evidence["native_error"] = exc.winerror
+        if hasattr(exc, "containment_evidence"):
+            failure.evidence["containment"] = exc.containment_evidence
+        raise failure from None
 
 
 def qualify_components(root, *, fixture_directory):
@@ -18,12 +41,15 @@ def qualify_components(root, *, fixture_directory):
     root = Path(root).absolute()
     directory = Path(fixture_directory).absolute()
     require(not root.exists() and not root.is_symlink(), "target_not_fresh")
-    root.mkdir(parents=True)
-    make_private(root)
+    with qualification_phase("private_root"):
+        root.mkdir(parents=True)
+        make_private(root)
     binary = directory / "rsync.exe"
-    admitted = admit(binary)
-    session = NativeSession(root)
-    component = session.component("rsync", binary=str(binary))
+    with qualification_phase("pinned_inputs"):
+        admitted = admit(binary)
+    with qualification_phase("native_version"):
+        session = NativeSession(root)
+        component = session.component("rsync", binary=str(binary))
     source, destination = root / "Input with space", root / "Output with space"
     source.mkdir()
     destination.mkdir()
@@ -34,22 +60,23 @@ def qualify_components(root, *, fixture_directory):
     }
     for name, data in expected.items():
         (source / name).write_bytes(data)
-    session.run(
-        [
-            str(binary),
-            "--recursive",
-            "--checksum",
-            "--no-links",
-            "--no-devices",
-            "--no-specials",
-            "--no-owner",
-            "--no-group",
-            "--no-perms",
-            "--timeout=15",
-            native_path(source) + "/",
-            native_path(destination) + "/",
-        ]
-    )
+    with qualification_phase("native_local_copy"):
+        session.run(
+            [
+                str(binary),
+                "--recursive",
+                "--checksum",
+                "--no-links",
+                "--no-devices",
+                "--no-specials",
+                "--no-owner",
+                "--no-group",
+                "--no-perms",
+                "--timeout=15",
+                native_path(source) + "/",
+                native_path(destination) + "/",
+            ]
+        )
     require(
         {
             path.relative_to(destination).as_posix()
@@ -59,9 +86,10 @@ def qualify_components(root, *, fixture_directory):
         == set(expected),
         "rsync_windows_qualification",
     )
-    for name, data in expected.items():
-        with open_local_file(destination / name) as stream:
-            require(stream.read(len(data) + 1) == data, "rsync_windows_qualification")
+    with qualification_phase("copied_bytes"):
+        for name, data in expected.items():
+            with open_local_file(destination / name) as stream:
+                require(stream.read(len(data) + 1) == data, "rsync_windows_qualification")
     ssh = Path(os.environ["SYSTEMROOT"]) / "System32/OpenSSH/ssh.exe"
     observed = {"result": "UNAVAILABLE", "profile": "NOT_ADMITTED"}
     if ssh.is_file():
