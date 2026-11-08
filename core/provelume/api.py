@@ -40,40 +40,45 @@ def reject_client_installation_evidence(request: Request) -> None:
         )
 
 
-def build_api(instance: ProvelumeInstance) -> APIRouter:
-    router = APIRouter(prefix="/api/v1")
+def build_api(
+    instance: ProvelumeInstance, *, router: APIRouter | None = None,
+) -> APIRouter:
+    # Register directly on the application router when available. Including a
+    # temporary router rebuilds each API route's validation graph.
+    if router is None:
+        router = APIRouter()
 
-    @router.get("/build-info")
+    @router.get("/api/v1/build-info")
     def get_build_info() -> dict[str, Any]:
         return current_build_info()
 
-    @router.get("/about")
+    @router.get("/api/v1/about")
     def get_about() -> dict[str, Any]:
         return current_about()
 
-    @router.get("/instance")
+    @router.get("/api/v1/instance")
     def get_instance() -> dict[str, Any]:
         return instance.instance_summary()
 
-    @router.get("/connectors")
+    @router.get("/api/v1/connectors")
     def get_connectors() -> dict[str, Any]:
         return instance.connector_inventory()
 
-    @router.get("/connectors/definitions/{definition_id}")
+    @router.get("/api/v1/connectors/definitions/{definition_id}")
     def get_connector_definition(definition_id: str) -> dict[str, Any]:
         result = instance.get_connector_definition(definition_id)
         if result is None:
             raise _not_found("connector definition", definition_id)
         return result
 
-    @router.get("/connectors/{connector_instance_id}")
+    @router.get("/api/v1/connectors/{connector_instance_id}")
     def get_connector_instance(connector_instance_id: str) -> dict[str, Any]:
         result = instance.get_connector_instance(connector_instance_id)
         if result is None:
             raise _not_found("connector instance", connector_instance_id)
         return result
 
-    @router.get("/connectors/{connector_instance_id}/sources/{source_id}")
+    @router.get("/api/v1/connectors/{connector_instance_id}/sources/{source_id}")
     def get_connector_source(
         connector_instance_id: str,
         source_id: str,
@@ -83,7 +88,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("connector Source", source_id)
         return result
 
-    @router.get("/connectors/{connector_instance_id}/sources/{source_id}/acquisitions")
+    @router.get("/api/v1/connectors/{connector_instance_id}/sources/{source_id}/acquisitions")
     def get_manual_web_acquisitions(
         connector_instance_id: str,
         source_id: str,
@@ -98,7 +103,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         )
 
     @router.get(
-        "/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/{acquisition_id}"
+        "/api/v1/connectors/{connector_instance_id}/sources/{source_id}/acquisitions/{acquisition_id}"
     )
     def get_manual_web_acquisition(
         connector_instance_id: str,
@@ -114,46 +119,46 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("manual web acquisition", acquisition_id)
         return result
 
-    @router.get("/sources")
+    @router.get("/api/v1/sources")
     def get_sources() -> list[dict[str, Any]]:
         return instance.list_sources()
 
-    @router.get("/sources/{source_id}")
+    @router.get("/api/v1/sources/{source_id}")
     def get_source(source_id: str) -> dict[str, Any]:
         source = instance.get_source(source_id)
         if source is None:
             raise _not_found("source", source_id)
         return source
 
-    @router.get("/ingestion/runs")
+    @router.get("/api/v1/ingestion/runs")
     def get_ingestion_runs(
         limit: int = Query(default=50, ge=1, le=200),
     ) -> list[dict[str, Any]]:
         return instance.list_ingestion_runs(limit=limit)
 
-    @router.get("/ingestion/runs/{run_id}")
+    @router.get("/api/v1/ingestion/runs/{run_id}")
     def get_ingestion_run(run_id: str) -> dict[str, Any]:
         result = instance.get_ingestion_run(run_id)
         if result is None:
             raise _not_found("ingestion run", run_id)
         return result
 
-    @router.get("/scheduler")
+    @router.get("/api/v1/scheduler")
     def get_scheduler_status() -> dict[str, Any]:
         return instance.scheduler_status()
 
-    @router.get("/scheduler/policies")
+    @router.get("/api/v1/scheduler/policies")
     def get_scheduler_policies() -> list[dict[str, Any]]:
         return instance.list_schedule_policies()
 
-    @router.get("/scheduler/policies/{policy_id}")
+    @router.get("/api/v1/scheduler/policies/{policy_id}")
     def get_scheduler_policy(policy_id: str) -> dict[str, Any]:
         result = instance.get_schedule_policy(policy_id)
         if result is None:
             raise _not_found("scheduler policy", policy_id)
         return result
 
-    @router.get("/scheduler/jobs")
+    @router.get("/api/v1/scheduler/jobs")
     def get_scheduler_jobs(
         status: str | None = Query(
             default=None,
@@ -168,41 +173,41 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             limit=limit,
         )
 
-    @router.get("/scheduler/jobs/{job_id}")
+    @router.get("/api/v1/scheduler/jobs/{job_id}")
     def get_scheduler_job(job_id: str) -> dict[str, Any]:
         result = instance.get_scheduler_job(job_id)
         if result is None:
             raise _not_found("scheduler job", job_id)
         return result
 
-    @router.get("/scheduler/receipts")
+    @router.get("/api/v1/scheduler/receipts")
     def get_scheduler_receipts(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_scheduler_receipts(limit=limit)
 
-    @router.get("/qualification/matrix")
+    @router.get("/api/v1/qualification/matrix")
     def get_qualification_matrix() -> dict[str, Any]:
         return instance.qualification_matrix()
 
-    @router.get("/qualification/limits")
+    @router.get("/api/v1/qualification/limits")
     def get_qualification_limits() -> dict[str, Any]:
         return instance.qualification_limits()
 
-    @router.get("/qualification/sources/{source_id}/checkpoint")
+    @router.get("/api/v1/qualification/sources/{source_id}/checkpoint")
     def get_qualification_source_checkpoint(source_id: str) -> dict[str, Any]:
         try:
             return instance.qualification_source_checkpoint(source_id)
         except QualificationError as exc:
             raise _qualification_http_error(exc) from exc
 
-    @router.get("/qualification/jobs")
+    @router.get("/api/v1/qualification/jobs")
     def get_qualification_jobs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_qualification_jobs(limit=limit)
 
-    @router.get("/qualification/jobs/{job_id}")
+    @router.get("/api/v1/qualification/jobs/{job_id}")
     def get_qualification_job(job_id: str) -> dict[str, Any]:
         try:
             result = instance.get_qualification_job(job_id)
@@ -212,7 +217,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("qualification job", job_id)
         return result
 
-    @router.get("/qualification/findings")
+    @router.get("/api/v1/qualification/findings")
     def get_qualification_findings(
         source_id: str | None = None,
         finding_type: str | None = None,
@@ -229,7 +234,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         except QualificationError as exc:
             raise _qualification_http_error(exc) from exc
 
-    @router.get("/qualification/findings/{finding_id}")
+    @router.get("/api/v1/qualification/findings/{finding_id}")
     def get_qualification_finding(finding_id: str) -> dict[str, Any]:
         try:
             result = instance.get_qualification_finding(finding_id)
@@ -239,7 +244,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("qualification finding", finding_id)
         return result
 
-    @router.get("/qualification/findings/{finding_id}/decisions")
+    @router.get("/api/v1/qualification/findings/{finding_id}/decisions")
     def get_qualification_finding_decisions(finding_id: str) -> list[dict[str, Any]]:
         try:
             if instance.get_qualification_finding(finding_id) is None:
@@ -248,39 +253,39 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         except QualificationError as exc:
             raise _qualification_http_error(exc) from exc
 
-    @router.get("/qualification/decisions/{decision_id}")
+    @router.get("/api/v1/qualification/decisions/{decision_id}")
     def get_qualification_decision(decision_id: str) -> dict[str, Any]:
         result = instance.get_qualification_decision(decision_id)
         if result is None:
             raise _not_found("qualification decision", decision_id)
         return result
 
-    @router.get("/ocr/capability")
+    @router.get("/api/v1/ocr/capability")
     def get_ocr_capability() -> dict[str, Any]:
         return instance.ocr_capability()
 
-    @router.get("/ocr/jobs")
+    @router.get("/api/v1/ocr/jobs")
     def get_ocr_jobs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_ocr_jobs(limit=limit)
 
-    @router.get("/ocr/jobs/{job_id}")
+    @router.get("/api/v1/ocr/jobs/{job_id}")
     def get_ocr_job(job_id: str) -> dict[str, Any]:
         result = instance.get_ocr_job(job_id)
         if result is None:
             raise _not_found("OCR job", job_id)
         return result
 
-    @router.get("/ocr/bundles")
+    @router.get("/api/v1/ocr/bundles")
     def get_ocr_bundles(version_id: str | None = None) -> list[dict[str, Any]]:
         return instance.list_ocr_bundles(version_id)
 
-    @router.get("/email/capability")
+    @router.get("/api/v1/email/capability")
     def get_email_capability(source_id: str | None = None) -> dict[str, Any]:
         return instance.email_capability(source_id, local=False)
 
-    @router.get("/email/sources")
+    @router.get("/api/v1/email/sources")
     def get_email_sources(
         include_removed: bool = True,
     ) -> list[dict[str, Any]]:
@@ -289,75 +294,75 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             include_removed=include_removed,
         )
 
-    @router.get("/email/sources/{source_id}")
+    @router.get("/api/v1/email/sources/{source_id}")
     def get_email_source(source_id: str) -> dict[str, Any]:
         result = instance.get_email_source(source_id, local=False)
         if result is None:
             raise _not_found("email Source", source_id)
         return result
 
-    @router.get("/email/jobs")
+    @router.get("/api/v1/email/jobs")
     def get_email_jobs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_email_jobs(limit=limit)
 
-    @router.get("/email/jobs/{job_id}")
+    @router.get("/api/v1/email/jobs/{job_id}")
     def get_email_job(job_id: str) -> dict[str, Any]:
         result = instance.get_email_job(job_id)
         if result is None:
             raise _not_found("email job", job_id)
         return result
 
-    @router.get("/email/messages")
+    @router.get("/api/v1/email/messages")
     def get_email_messages(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_email_messages(source_id=source_id, limit=limit)
 
-    @router.get("/email/messages/{message_id}")
+    @router.get("/api/v1/email/messages/{message_id}")
     def get_email_message(message_id: str) -> dict[str, Any]:
         result = instance.get_email_message(message_id)
         if result is None:
             raise _not_found("email message", message_id)
         return result
 
-    @router.get("/email/threads")
+    @router.get("/api/v1/email/threads")
     def get_email_threads(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_email_threads(source_id=source_id, limit=limit)
 
-    @router.get("/email/threads/{thread_id}")
+    @router.get("/api/v1/email/threads/{thread_id}")
     def get_email_thread(thread_id: str) -> dict[str, Any]:
         result = instance.get_email_thread(thread_id)
         if result is None:
             raise _not_found("observed email thread", thread_id)
         return result
 
-    @router.get("/email/attachments")
+    @router.get("/api/v1/email/attachments")
     def get_email_attachments(
         message_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_email_attachments(message_id=message_id, limit=limit)
 
-    @router.get("/email/attachments/{attachment_id}")
+    @router.get("/api/v1/email/attachments/{attachment_id}")
     def get_email_attachment(attachment_id: str) -> dict[str, Any]:
         result = instance.get_email_attachment(attachment_id)
         if result is None:
             raise _not_found("email attachment", attachment_id)
         return result
 
-    @router.get("/transcripts/capability")
+    @router.get("/api/v1/transcripts/capability")
     def get_transcript_capability(
         source_id: str | None = None,
     ) -> dict[str, Any]:
         return instance.transcript_capability(source_id, local=False)
 
-    @router.get("/transcripts/sources")
+    @router.get("/api/v1/transcripts/sources")
     def get_transcript_sources(
         include_removed: bool = True,
     ) -> list[dict[str, Any]]:
@@ -365,40 +370,40 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             local=False, include_removed=include_removed
         )
 
-    @router.get("/transcripts/sources/{source_id}")
+    @router.get("/api/v1/transcripts/sources/{source_id}")
     def get_transcript_source(source_id: str) -> dict[str, Any]:
         result = instance.get_transcript_source(source_id, local=False)
         if result is None:
             raise _not_found("transcript Source", source_id)
         return result
 
-    @router.get("/transcripts/sources/{source_id}/checkpoint")
+    @router.get("/api/v1/transcripts/sources/{source_id}/checkpoint")
     def get_transcript_source_checkpoint(source_id: str) -> dict[str, Any]:
         if instance.get_transcript_source(source_id, local=False) is None:
             raise _not_found("transcript Source", source_id)
         return instance.transcript_source_checkpoint(source_id)
 
-    @router.get("/transcripts/jobs")
+    @router.get("/api/v1/transcripts/jobs")
     def get_transcript_jobs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_transcript_jobs(limit=limit)
 
-    @router.get("/transcripts/jobs/{job_id}")
+    @router.get("/api/v1/transcripts/jobs/{job_id}")
     def get_transcript_job(job_id: str) -> dict[str, Any]:
         result = instance.get_transcript_job(job_id)
         if result is None:
             raise _not_found("transcript job", job_id)
         return result
 
-    @router.get("/transcripts/revisions")
+    @router.get("/api/v1/transcripts/revisions")
     def get_transcript_revisions(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_transcript_revisions(source_id=source_id, limit=limit)
 
-    @router.get("/transcripts/revisions/{revision_id}")
+    @router.get("/api/v1/transcripts/revisions/{revision_id}")
     def get_transcript_revision(
         revision_id: str,
         include_content: bool = False,
@@ -410,7 +415,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             raise _not_found("transcript revision", revision_id)
         return result
 
-    @router.get("/transcripts/revisions/{revision_id}/original")
+    @router.get("/api/v1/transcripts/revisions/{revision_id}/original")
     def get_transcript_original(revision_id: str) -> Response:
         try:
             original, data = instance.get_transcript_original(revision_id)
@@ -427,7 +432,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             },
         )
 
-    @router.get("/google/capability")
+    @router.get("/api/v1/google/capability")
     def get_google_capability() -> dict[str, Any]:
         return {
             "schema_version": 1,
@@ -439,65 +444,65 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             "capabilities": ["gmail", "drive"],
         }
 
-    @router.get("/google/instances")
+    @router.get("/api/v1/google/instances")
     def get_google_instances() -> list[dict[str, Any]]:
         return instance.list_google_instances()
 
-    @router.get("/google/instances/{connector_instance_id}")
+    @router.get("/api/v1/google/instances/{connector_instance_id}")
     def get_google_instance(connector_instance_id: str) -> dict[str, Any]:
         try:
             return instance.get_google_instance(connector_instance_id)
         except ValueError as exc:
             raise _not_found("Google connector instance", connector_instance_id) from exc
 
-    @router.get("/google/sources")
+    @router.get("/api/v1/google/sources")
     def get_google_sources() -> list[dict[str, Any]]:
         return instance.list_google_sources()
 
-    @router.get("/google/sources/{source_id}")
+    @router.get("/api/v1/google/sources/{source_id}")
     def get_google_source(source_id: str) -> dict[str, Any]:
         try:
             return instance.get_google_source(source_id)
         except ValueError as exc:
             raise _not_found("Google Source", source_id) from exc
 
-    @router.get("/google/jobs")
+    @router.get("/api/v1/google/jobs")
     def get_google_jobs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_google_jobs(limit=limit)
 
-    @router.get("/google/jobs/{job_id}")
+    @router.get("/api/v1/google/jobs/{job_id}")
     def get_google_job(job_id: str) -> dict[str, Any]:
         result = instance.get_google_job(job_id)
         if result is None:
             raise _not_found("Google job", job_id)
         return result
 
-    @router.get("/google/gmail-observations")
+    @router.get("/api/v1/google/gmail-observations")
     def get_google_gmail_observations(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_google_gmail_observations(limit=limit)
 
-    @router.get("/google/drive-revisions")
+    @router.get("/api/v1/google/drive-revisions")
     def get_google_drive_revisions(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_google_drive_revisions(limit=limit)
 
-    @router.get("/maintenance")
+    @router.get("/api/v1/maintenance")
     def get_maintenance_catalog() -> list[dict[str, Any]]:
         return instance.maintenance_catalog()
 
-    @router.get("/maintenance/actions/{action_id}")
+    @router.get("/api/v1/maintenance/actions/{action_id}")
     def get_maintenance_action(action_id: str) -> dict[str, Any]:
         try:
             return instance.get_maintenance_action(action_id)
         except MaintenanceNotFoundError as exc:
             raise _not_found("maintenance action", action_id) from exc
 
-    @router.get("/maintenance/plans/{action_id}")
+    @router.get("/api/v1/maintenance/plans/{action_id}")
     def get_maintenance_plan(action_id: str) -> dict[str, Any]:
         try:
             return instance.plan_maintenance_action(action_id)
@@ -506,77 +511,77 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
         except MaintenanceError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    @router.get("/maintenance/runs")
+    @router.get("/api/v1/maintenance/runs")
     def get_maintenance_runs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_maintenance_runs(limit=limit)
 
-    @router.get("/maintenance/runs/{run_id}")
+    @router.get("/api/v1/maintenance/runs/{run_id}")
     def get_maintenance_run(run_id: str) -> dict[str, Any]:
         result = instance.get_maintenance_run(run_id)
         if result is None:
             raise _not_found("maintenance reindex run", run_id)
         return result
 
-    @router.get("/maintenance/source-cursors")
+    @router.get("/api/v1/maintenance/source-cursors")
     def get_source_reconciliation_cursors() -> list[dict[str, Any]]:
         return instance.list_source_reconciliation_cursors()
 
-    @router.get("/maintenance/source-cursors/{source_id}")
+    @router.get("/api/v1/maintenance/source-cursors/{source_id}")
     def get_source_reconciliation_cursor(source_id: str) -> dict[str, Any]:
         if not instance.folder_sources.is_managed(source_id):
             raise _not_found("Source reconciliation cursor", source_id)
         return instance.get_source_reconciliation_cursor(source_id)
 
-    @router.get("/maintenance/source-runs")
+    @router.get("/api/v1/maintenance/source-runs")
     def get_source_reconciliation_runs(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_source_reconciliation_runs(limit=limit)
 
-    @router.get("/maintenance/source-runs/{run_id}")
+    @router.get("/api/v1/maintenance/source-runs/{run_id}")
     def get_source_reconciliation_run(run_id: str) -> dict[str, Any]:
         result = instance.get_source_reconciliation_run(run_id)
         if result is None:
             raise _not_found("Source reconciliation run", run_id)
         return result
 
-    @router.get("/maintenance/resource-statistics")
+    @router.get("/api/v1/maintenance/resource-statistics")
     def get_resource_statistics(
         history_limit: int = Query(default=30, ge=1, le=500),
     ) -> dict[str, Any]:
         return instance.resource_statistics_status(history_limit=history_limit)
 
-    @router.get("/maintenance/resource-statistics/snapshots")
+    @router.get("/api/v1/maintenance/resource-statistics/snapshots")
     def get_resource_snapshots(
         limit: int = Query(default=100, ge=1, le=500),
     ) -> list[dict[str, Any]]:
         return instance.list_resource_snapshots(limit=limit)
 
-    @router.get("/maintenance/resource-statistics/snapshots/{snapshot_id}")
+    @router.get("/api/v1/maintenance/resource-statistics/snapshots/{snapshot_id}")
     def get_resource_snapshot(snapshot_id: str) -> dict[str, Any]:
         result = instance.get_resource_snapshot(snapshot_id)
         if result is None:
             raise _not_found("resource snapshot", snapshot_id)
         return result
 
-    @router.get("/hierarchy")
+    @router.get("/api/v1/hierarchy")
     def get_hierarchy() -> dict[str, Any]:
         return instance.hierarchy_tree()
 
-    @router.get("/hierarchy/{node_id}")
+    @router.get("/api/v1/hierarchy/{node_id}")
     def get_hierarchy_node(node_id: str) -> dict[str, Any]:
         node = instance.get_hierarchy_node(node_id)
         if node is None:
             raise _not_found("hierarchy node", node_id)
         return node
 
-    @router.get("/library")
+    @router.get("/api/v1/library")
     def get_library_status() -> dict[str, Any]:
         return instance.library_status()
 
-    @router.get("/documents")
+    @router.get("/api/v1/documents")
     def get_documents(
         source_id: str | None = None,
         media_type: str | None = None,
@@ -603,14 +608,14 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             disposition=disposition,
         )
 
-    @router.get("/documents/{document_id}")
+    @router.get("/api/v1/documents/{document_id}")
     def get_document(document_id: str) -> dict[str, Any]:
         document = instance.get_document(document_id)
         if document is None:
             raise _not_found("document", document_id)
         return document
 
-    @router.get("/documents/{document_id}/classification")
+    @router.get("/api/v1/documents/{document_id}/classification")
     def get_document_classification(document_id: str) -> dict[str, Any]:
         if instance.get_document(document_id) is None:
             raise _not_found("document", document_id)
@@ -619,14 +624,14 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             "classification": instance.document_classification(document_id),
         }
 
-    @router.get("/documents/{document_id}/disposition")
+    @router.get("/api/v1/documents/{document_id}/disposition")
     def get_document_disposition(document_id: str) -> dict[str, Any]:
         disposition = instance.document_disposition(document_id)
         if disposition is None:
             raise _not_found("document", document_id)
         return disposition
 
-    @router.get("/documents/{document_id}/content")
+    @router.get("/api/v1/documents/{document_id}/content")
     def get_document_content(
         document_id: str,
         mode: str = Query(default="raw", pattern="^(raw|original)$"),
@@ -651,20 +656,20 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             },
         )
 
-    @router.get("/documents/{document_id}/versions")
+    @router.get("/api/v1/documents/{document_id}/versions")
     def get_versions(document_id: str) -> list[dict[str, Any]]:
         if instance.get_document(document_id) is None:
             raise _not_found("document", document_id)
         return instance.versions(document_id)
 
-    @router.get("/documents/{document_id}/provenance")
+    @router.get("/api/v1/documents/{document_id}/provenance")
     def get_provenance(document_id: str) -> dict[str, Any]:
         result = instance.provenance(document_id)
         if result is None:
             raise _not_found("document", document_id)
         return result
 
-    @router.get("/documents/{document_id}/original")
+    @router.get("/api/v1/documents/{document_id}/original")
     def get_original(document_id: str) -> Response:
         try:
             verified = instance.document_original(document_id)
@@ -685,7 +690,7 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             },
         )
 
-    @router.get("/search")
+    @router.get("/api/v1/search")
     def search(
         q: str = Query(min_length=1, max_length=500),
         source_id: str | None = None,
@@ -706,11 +711,11 @@ def build_api(instance: ProvelumeInstance) -> APIRouter:
             ),
         }
 
-    @router.get("/knowledge-health")
+    @router.get("/api/v1/knowledge-health")
     def get_knowledge_health() -> dict[str, Any]:
         return instance.knowledge_health()
 
-    @router.get("/security/network")
+    @router.get("/api/v1/security/network")
     def get_network_status() -> dict[str, Any]:
         return instance.network_status()
 
@@ -736,7 +741,7 @@ def attach_api(
             "index_status": summary["index_status"],
         }
 
-    app.include_router(build_api(instance))
+    build_api(instance, router=app.router)
 
     @app.get("/api/v1/security/installation")
     def get_installation_verification(request: Request) -> dict[str, Any]:
