@@ -168,6 +168,22 @@ def qualify_concordia(root):
         require(False, "qualification")
     require(canonical_bytes(instance) == before, "qualification")
     cases.append("gmail_revocation_preserves_other_grants_and_acquired_knowledge")
+    for manager, _provider, source in (providers[0], providers[2]):
+        identity, _source, _definition = instance.productivity_connectors()._records(source)
+        manager.disconnect(identity["id"], expected_revision=manager.record(identity["id"])[
+            "revision"], confirmed=True)
+        require(manager.record(identity["id"])["status"] == "revoked", "qualification")
+        try:
+            manager.resolve(identity["id"], "task_read")
+        except ProductivityError as error:
+            require(error.code == "authorization_required", "qualification")
+        else:
+            require(False, "qualification")
+    for manager, _provider, source in (providers[1], providers[3]):
+        identity, _source, _definition = instance.productivity_connectors()._records(source)
+        require(manager.record(identity["id"])["status"] == "authorized", "qualification")
+    require(canonical_bytes(instance) == before, "qualification")
+    cases.append("asana_tududi_revocation_isolated_from_second_identity_and_canonical_data")
     mirrors = Mirrors(instance.store, vault=SyntheticVault())
     mirrors.set_access(enabled=True, github=False, rsync=False, expected_revision=0, confirmed=True)
     # The integrated Instance includes sensitive provider observations. Its mirror
@@ -228,7 +244,10 @@ def qualify_concordia(root):
     require(calls == oauth.calls + sum(getattr(p, "calls", 0) if type(getattr(p, "calls", 0)) is int
                 else len(p.calls) for _m, p, _s in providers), "qualification")
     cases.append("offline_portable_rebuild_gmail_and_all_provider_records")
+    from .build_info import current_build_info
+
     return {"schema": "concordia-integrated-s23/v1", "result": "PASS", "cases": cases,
+            "build": current_build_info(),
             "google_identities": 2, "google_grants": 6, "task_identities": 4, "ics_sources": 2,
             "provider_execution": "SYNTHETIC_ONLY", "live_providers": "NOT_RUN",
             "remote_destinations": "NOT_RUN", "external_network_used": False,

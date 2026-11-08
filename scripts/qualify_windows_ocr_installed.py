@@ -393,6 +393,15 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
         assert not gitea_server_trial["real_accounts"]
         assert github_mirror_trial["native_vault_helper"]["result"] == "PASS"
         assert github_mirror_trial["native_vault_helper"]["backend"] == "NATIVE_CURRENT_USER_DPAPI"
+        integrated_trial = command("concordia-integrated-qualify",
+                                   root / "Synthetic integrated Concordia",
+                                   optional_git_path=git_dependency_path)
+        assert integrated_trial["result"] == "PASS"
+        assert integrated_trial["google_grants"] == 6
+        assert integrated_trial["task_identities"] == 4
+        assert not integrated_trial["external_network_used"]
+        assert integrated_trial["live_providers"] == "NOT_RUN"
+        assert integrated_trial["remote_destinations"] == "NOT_RUN"
         assert github_mirror_trial["native_vault_helper"]["owned_helper"] == "ACTUAL_FROZEN"
         assert all(result["result"] == "PASS" and len(result["documents"]) == 2
                    and result["selected_settings_readback"] for result in setup_trials)
@@ -429,6 +438,7 @@ def qualify(executable, kit, root, output, build_report, installer, gitea_server
             "s21_native_folder_trial": folder_trial,
             "s22_native_agent_trial": rsync_agent,
             "s22_native_components_trial": rsync_components,
+            "s23_integrated_trial": integrated_trial,
             "optional_git_binary": file_identity(Path(git_binary)),
             "originals_and_canonical": "UNCHANGED",
             "path": "EMPTY_FOR_INSTALLED_COMMANDS_EXCEPT_EXPLICIT_OPTIONAL_GIT_DIRECTORIES",

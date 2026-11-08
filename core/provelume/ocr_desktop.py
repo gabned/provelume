@@ -69,6 +69,8 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     rsync_windows = commands.add_parser("rsync-windows-components-qualify")
     rsync_windows.add_argument("instance", type=Path)
     rsync_windows.add_argument("--fixture-directory", required=True, type=Path)
+    integrated = commands.add_parser("concordia-integrated-qualify")
+    integrated.add_argument("instance", type=Path)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -81,7 +83,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
         # The output must be available before any operation changes state.
         with destination.open("x", encoding="utf-8", newline="\n") as stream:
             try:
-                if options.command == "rsync-mirror-qualify":
+                if options.command == "concordia-integrated-qualify":
+                    from .concordia_qualification import qualify_concordia
+
+                    result = qualify_concordia(options.instance)
+                elif options.command == "rsync-mirror-qualify":
                     from .mirror_rsync_qualification import qualify_rsync_mirror
 
                     result = qualify_rsync_mirror(
