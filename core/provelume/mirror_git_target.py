@@ -121,6 +121,9 @@ def exclude_instance_tree(repository, store):
     )
     control = root.parent / ("." + root.name + ".provelume")
     require(not selected.is_relative_to(control), "unsafe_git_target")
+    from .mirror_filesystem_admission import exclude_known_data_directories
+
+    exclude_known_data_directories(selected, store)
     sources = store.read_config().get("sources") or {}
     require(type(sources) is dict and len(sources) <= MAX_RECORDS, "limit")
     for source in sources.values():
