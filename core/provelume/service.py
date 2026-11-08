@@ -80,6 +80,58 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def git_mirrors(self):
+        from .mirror_git import GitMirrors
+
+        return GitMirrors(self.store, mirrors=self.mirrors())
+
+    def mirrors(self):
+        from .mirrors import Mirrors
+
+        if not hasattr(self, "_mirrors_manager"):
+            self._mirrors_manager = Mirrors(self.store)
+        return self._mirrors_manager
+
+    def task_writeback(self):
+        from .task_writeback import TaskWriteBack
+
+        if not hasattr(self, "_task_writeback_manager"):
+            self._task_writeback_manager = TaskWriteBack(self.store)
+        return self._task_writeback_manager
+
+    def tududi_connection(self):
+        from .tududi_connection import TududiConnection
+
+        if not hasattr(self, "_tududi_manager"):
+            self._tududi_manager = TududiConnection(self.store)
+        return self._tududi_manager
+
+    def asana_connection(self):
+        from .asana_connection import AsanaConnection
+
+        if not hasattr(self, "_asana_manager"):
+            self._asana_manager = AsanaConnection(self.store)
+        return self._asana_manager
+
+    def icalendar_feeds(self):
+        from .icalendar_feeds import IcalendarFeeds
+
+        if not hasattr(self, "_icalendar_manager"):
+            self._icalendar_manager = IcalendarFeeds(self.store)
+        return self._icalendar_manager
+
+    def productivity_connectors(self):
+        """Explicit source-scoped read preview; no implicit network on construction."""
+        from .productivity_connectors import ProductivityConnectors
+
+        return ProductivityConnectors(self.store)
+
+    def list_productivity_records(self, source_id):
+        """Attributed local task/event projections remain readable offline."""
+        from .productivity_intake import ProductivityIntake
+
+        return ProductivityIntake(self.store).records(source_id)
+
     @staticmethod
     def ai_provider_configuration(profile, config):
         """Internal local validation; no lookup, DNS or provider contact."""
@@ -215,6 +267,7 @@ class ProvelumeInstance:
         self.google_sources = GoogleSourceManager(self.store)
         self.google = GoogleJobManager(self.store)
         self.google_connection = GoogleConnectionManager(self.store)
+        self.google.calendar_connection = self.google_connection
         self.transcript_sources = TranscriptSourceManager(self.store)
         self.transcripts = TranscriptJobManager(self.store)
         self.qualification = QualificationManager(self.store)
