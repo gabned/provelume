@@ -48,6 +48,17 @@ INPUTS = {
 SERVER_SECONDS = 300
 SERVER_LOG_BYTES = 4 * 1024 * 1024
 COMMAND_EVIDENCE = ContextVar("gitea_fixture_command_evidence", default=None)
+COMMAND_SECRETS = ContextVar("gitea_fixture_command_secrets", default=None)
+
+
+def error_summary(data):
+    value = data.decode("utf-8", errors="replace")
+    for secret in COMMAND_SECRETS.get() or ():
+        if secret:
+            value = value.replace(secret, "<redacted>")
+    value = re.sub(r"[A-Za-z0-9_+/=-]{16,}", "<redacted>", value)
+    value = "".join(char if char.isprintable() or char in "\n\t" else "?" for char in value)
+    return value[-512:]
 
 
 class GiteaQualificationFailure(MirrorError):
@@ -89,6 +100,11 @@ def binary_identity(path):
 
 
 def command(arguments, *, work, environment):
+    protected = COMMAND_SECRETS.get()
+    if protected is not None:
+        for index, argument in enumerate(arguments[:-1]):
+            if argument == "--password":
+                protected.append(arguments[index + 1])
     result = run_bounded_process(
         arguments,
         temporary_directory=work,
@@ -99,6 +115,8 @@ def command(arguments, *, work, environment):
     )
     # Credential-generating stdout is never copied to ordinary evidence/logs.
     sensitive = any(value in arguments for value in ("generate-access-token", "create", "secret"))
+    if protected is not None and sensitive:
+        protected.extend(result.stdout.decode("utf-8", errors="replace").splitlines())
     stamp = uuid4().hex
     record = {
         "operation": command_kind(arguments),
@@ -109,12 +127,15 @@ def command(arguments, *, work, environment):
         "stderr_sha256": hashlib.sha256(result.stderr).hexdigest(),
         "sensitive_stdout": sensitive,
     }
+    if result.returncode != 0 and not sensitive:
+        record["stderr_summary"] = error_summary(result.stderr)
+        record["stdout_summary"] = error_summary(result.stdout)
     records = COMMAND_EVIDENCE.get()
     if records is not None:
         require(len(records) < 16, "limit")
         records.append(record)
     (work / (stamp + "-command.json")).write_text(json.dumps(record, indent=2) + "\n")
-    if not sensitive:
+    if not sensitive and record["operation"] in {"component_version", "tls_certificate"}:
         (work / (stamp + "-stdout-original.log")).write_bytes(result.stdout)
         (work / (stamp + "-stderr-original.log")).write_bytes(result.stderr)
     require(result.returncode == 0, "gitea_fixture_command_" + record["operation"])
@@ -431,6 +452,7 @@ ROOT_PATH = {paths["work"]}/log
 def qualify_gitea_server(root, server_binary, *, api_only=False):
     records = []
     token = COMMAND_EVIDENCE.set(records)
+    secret_token = COMMAND_SECRETS.set([])
     try:
         return _qualify_gitea_server(root, server_binary, api_only=api_only)
     except Exception as error:
@@ -445,6 +467,7 @@ def qualify_gitea_server(root, server_binary, *, api_only=False):
         }
         raise GiteaQualificationFailure(code, evidence) from None
     finally:
+        COMMAND_SECRETS.reset(secret_token)
         COMMAND_EVIDENCE.reset(token)
 
 

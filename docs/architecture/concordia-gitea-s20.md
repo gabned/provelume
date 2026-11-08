@@ -119,3 +119,14 @@ an explicit fixed OpenSSL configuration instead of a host-dependent default.
 This removes an ambient prerequisite; it is not a causal attribution for the
 older Windows failure. Native Windows qualification on the changed candidate is
 still mandatory, with the same budgets and no retry of the completed old run.
+### Bounded migration preparation diagnostics
+
+The installed Windows run42438087553 on S21/52205da now preserves a specific
+S20 preparation refusal: schema_migrate exit1, stderr120bytes,
+SHA256fd137eb7be47a96c8f593afc54117eaa287e9c42dd6d5139d8930b54b3d53286.
+Version, TLS and secret-generation admission succeeded first. Its cause remains
+UNKNOWN; this is not an inference or accepted publication trial. A new diagnostic
+retains at most512 filtered characters per output for noncredential command
+failures, removing issued secrets, password arguments and opaque strings before
+truncation. Sensitive command output remains excluded. No limits or provider
+capability checks change; originals and their hashes remain distinct.
