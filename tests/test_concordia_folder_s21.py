@@ -148,6 +148,29 @@ def test_unknown_existing_destination_is_not_adopted(tmp_path):
     assert set(target.iterdir()) == {unknown}
 
 
+def test_absent_leaf_is_classified_inside_parent_guard_but_missing_parent_is_refused(tmp_path):
+    from contextlib import contextmanager
+
+    _instance, _mirrors, engine, row, _target = fixture(tmp_path)
+    initialize(engine, row)
+    with engine.tree(row, engine.context(row["id"])[2]) as tree:
+        directory = tree.directory
+
+        @contextmanager
+        def normalized(*args, **kwargs):
+            try:
+                with directory(*args, **kwargs) as selected:
+                    yield selected
+            except FileNotFoundError:
+                raise MaintenanceTargetError("target_missing") from None
+
+        with patch.object(tree, "directory", normalized):
+            assert not tree.exists("generations/" + "a" * 64)
+            assert tree.exists("generations")
+            with pytest.raises((MaintenanceTargetError, MirrorError)):
+                tree.exists("missing-parent/leaf")
+
+
 def test_modified_manifest_or_payload_is_refused_before_another_claim(tmp_path):
     _instance, mirrors, engine, row, target = fixture(tmp_path)
     initialize(engine, row)

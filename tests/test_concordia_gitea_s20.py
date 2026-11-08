@@ -323,3 +323,40 @@ def test_unsupported_actual_server_version_is_refused_without_readiness_retry(mo
     with pytest.raises(MirrorError, match="gitea_profile_not_qualified"):
         driver.await_server_version(server, "https://127.0.0.1:30443", "")
     assert len(calls) == 1
+
+
+def test_failed_fixture_command_preserves_closed_phase_and_output_hashes_without_raw_data(
+    tmp_path, monkeypatch
+):
+    import json
+    from types import SimpleNamespace
+
+    from provelume import mirror_gitea_server_qualification as driver
+
+    stdout, stderr = b"SYNTHETIC_PRIVATE_OUTPUT", b"SYNTHETIC_UNTRUSTED_ERROR"
+    monkeypatch.setattr(
+        driver,
+        "run_bounded_process",
+        lambda *args, **kwargs: SimpleNamespace(returncode=2, stdout=stdout, stderr=stderr),
+    )
+
+    def failed(*_args, **_kwargs):
+        driver.command(
+            ["synthetic-owned-binary", "generate", "secret", "SECRET_KEY"],
+            work=tmp_path,
+            environment={},
+        )
+
+    monkeypatch.setattr(driver, "_qualify_gitea_server", failed)
+    with pytest.raises(driver.GiteaQualificationFailure) as caught:
+        driver.qualify_gitea_server(tmp_path / "Fresh", tmp_path / "Synthetic binary")
+    error = caught.value
+    assert error.code == "gitea_fixture_command_server_secret"
+    assert error.evidence["result"] == "NOT_RUN"
+    assert len(error.evidence["commands"]) == 1
+    record = error.evidence["commands"][0]
+    assert record["operation"] == "server_secret" and record["sensitive_stdout"]
+    assert record["returncode"] == 2 and record["stdout_bytes"] == len(stdout)
+    public = json.dumps(error.evidence).encode()
+    assert stdout not in public and stderr not in public
+    assert not list(tmp_path.glob("*-stdout-original.log"))
