@@ -3,6 +3,7 @@
 import errno
 import json
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -362,3 +363,35 @@ def test_scheduled_native_folder_respects_interval_disable_and_failure_fence(tmp
     mirrors.disable(row["id"], expected_revision=2, confirmed=True)
     assert bridge.policy()["state"] == "disabled"
     assert (target / "active.json").is_file()
+
+
+@pytest.mark.parametrize("kind", ["other_instance", "other_control", "registered_backup"])
+def test_native_folder_refuses_foreign_instance_and_backup_inventory(tmp_path, kind):
+    from provelume.maintenance_targets import LocalTargetRegistry
+
+    instance, mirrors, engine, row, _target = fixture(tmp_path)
+    other = ProvelumeInstance.initialise(tmp_path / "Other synthetic Instance")
+    if kind == "other_instance":
+        selected = other.root / "knowledge" / "forbidden"
+    elif kind == "other_control":
+        parent = tmp_path / ".Other synthetic Instance.provelume"
+        parent.mkdir(exist_ok=True)
+        selected = parent / "forbidden"
+    else:
+        backup = instance.backup(destination=tmp_path / "Synthetic backup inventory")
+        LocalTargetRegistry(instance.store).register_archive(Path(backup["archive"]))
+        selected = tmp_path / "Synthetic backup inventory" / "forbidden"
+    row = mirrors.configure(
+        identity_id=row["identity_id"],
+        name=row["name"],
+        target={"transport": "folder", "path": str(selected)},
+        scope=row["scope"],
+        include_rules=row["include_rules"],
+        mode="manual",
+        destination_id=row["id"],
+        expected_revision=1,
+        confirmed=True,
+    )
+    with pytest.raises(MirrorError, match="unsafe_git_target"):
+        initialize(engine, row)
+    assert not selected.exists()

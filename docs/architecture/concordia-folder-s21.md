@@ -92,3 +92,21 @@ interval/disabled checks and prove real publication and preserved destination
 data. Cross-transport preparation now passes 181 tests with one native-Windows
 skip. Full unchanged-candidate native/browser/CI/review and actual-main acceptance
 remain separate PR-local gates; all predecessor acceptances remain open.
+
+The first browser candidate `f143acf` retained a real Cura 320px FAIL for all
+seven languages. A read-only DOM diagnostic identified the unwrapped Gitea CA
+fingerprint (555px document width, 501px code element), and S20 `f3e53f9`
+corrects that rendering and its strict unchanged readiness deadline. S21
+`aa3f3da` consumes that correction and its actual 28-cell browser result is PASS;
+the original failure is retained. Browser failures now preserve the source line,
+bounded element geometry and an independently hashed failure screenshot, without
+logging page text or exception payloads.
+
+A separate synthetic admission check on `aa3f3da` found that a fresh target could
+be created in another Instance's knowledge tree. This inherited shared guard defect
+was also reproduced on S17 `a40624a`; its real native correction belongs to S17
+`0ba1f4d3f8e20810d69d46f386277dcd6cb126bb`, consumed here by an ordinary dependency
+merge. Folder-specific negative cases independently require refusal of the other
+Instance, its reserved control namespace and a registered external backup
+inventory before any target creation. Old successful CI/browser/native outcomes
+do not accept a candidate with that finding; every changed head keeps its own gates.
