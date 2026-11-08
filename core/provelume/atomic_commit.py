@@ -331,6 +331,10 @@ class AtomicInstanceCommit:
         return self._PreparePoolScope(self)
 
     def _shutdown_pool(self, pool, primary):
+        # Keep the cleanup/observation boundary even when lone I/O required no
+        # executor. There is no asynchronous work to drain in that case.
+        if pool is None:
+            return
         try:
             pool.shutdown(wait=True)
         except BaseException as drain:
@@ -346,8 +350,7 @@ class AtomicInstanceCommit:
         if self._transaction_pool_state == "failed":
             raise self._transaction_pool_failure
         try:
-            if self._transaction_pool is not None:
-                self._shutdown_pool(self._transaction_pool, primary)
+            self._shutdown_pool(self._transaction_pool, primary)
         except BaseException as failure:
             self._transaction_pool_state = "failed"
             self._transaction_pool_failure = failure
@@ -526,7 +529,7 @@ class AtomicInstanceCommit:
                 # an interrupted subset; no committed marker or acknowledgement may
                 # precede completion of all flushes. Failure also joins the pool
                 # before rollback so no late writer can race with restoration.
-                self._publish_entries(stage, manifest)
+                self._publish_entries(stage, manifest, self._transaction_pool)
                 self._shutdown_transaction_pool()
                 committed = {
                     **manifest,
@@ -578,7 +581,7 @@ class AtomicInstanceCommit:
                 del self._transaction_pool_state
                 del self._transaction_pool_failure
 
-    def _publish_entries(self, stage, manifest):
+    def _publish_entries(self, stage, manifest, flushers):
         directories = set()
         for entry in manifest["entries"]:
             target, _ = _instance_target(
