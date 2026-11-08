@@ -72,6 +72,20 @@ def test_native_failure_preserves_original_closed_code_and_containment_evidence(
     assert caught.value.evidence["containment"] == original.containment_evidence
 
 
+def test_windows_ssh_gets_private_programdata_not_ambient_config_or_auth(monkeypatch, tmp_path):
+    from provelume import mirror_ssh_runtime as native
+
+    monkeypatch.setenv("PROGRAMDATA", "unapproved-host-config")
+    monkeypatch.setenv("SSH_AUTH_SOCK", "unapproved-host-agent")
+    monkeypatch.setenv("USERPROFILE", "unapproved-host-profile")
+    with monkeypatch.context() as windows:
+        windows.setattr(native.os, "name", "nt")
+        selected = native.environment(tmp_path)
+    assert selected["PROGRAMDATA"] == selected["USERPROFILE"] == str(tmp_path)
+    assert "SSH_AUTH_SOCK" not in selected
+    assert "unapproved" not in json.dumps(selected)
+
+
 def test_windows_cleanup_waits_for_all_descendants_before_releasing_job(monkeypatch):
     import ctypes
     from contextlib import ExitStack

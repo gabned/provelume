@@ -135,6 +135,11 @@ def environment(work):
             "TEMP": str(work),
         }
     )
+    if os.name == "nt":
+        # Win32-OpenSSH initializes ProgramData before its stdio wrappers.
+        # A missing value can exit255 without diagnostics, even for -V. Its
+        # private replacement grants no access to the host's global SSH config.
+        value["PROGRAMDATA"] = str(work)
     return value
 
 
