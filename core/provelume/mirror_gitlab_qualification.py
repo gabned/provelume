@@ -271,7 +271,7 @@ def qualify_native_vault_helper(root):
         instance = ProvelumeInstance.initialise(root / "Synthetic Instance")
         mirrors = Mirrors(instance.store)
         mirrors.set_access(
-            enabled=True, gitlab=True, rsync=False, expected_revision=0, confirmed=True
+            enabled=True, github=False, rsync=False, expected_revision=0, confirmed=True
         )
         engine = GitLabMirrors(
             instance.store,
