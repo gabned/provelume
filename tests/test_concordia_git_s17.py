@@ -720,3 +720,53 @@ def test_native_windows_job_kills_descendant_after_parent_exit(tmp_path):
             process.close()
             if child:
                 kernel.CloseHandle(child)
+
+
+@pytest.mark.parametrize("kind", ["other_instance", "other_control", "registered_backup"])
+def test_enrolment_refuses_foreign_canonical_control_and_registered_backup_inventory(
+    tmp_path, kind
+):
+    from provelume.maintenance_targets import LocalTargetRegistry
+    from provelume.mirror_git import GitMirrors
+    from provelume.mirrors import Mirrors
+    from provelume.service import ProvelumeInstance
+    from provelume.tududi_qualification import SyntheticVault
+
+    instance = ProvelumeInstance.initialise(tmp_path / "Synthetic owner")
+    other = ProvelumeInstance.initialise(tmp_path / "Other synthetic Instance")
+    if kind == "other_instance":
+        selected = other.root / "knowledge" / "forbidden.git"
+    elif kind == "other_control":
+        parent = tmp_path / ".Other synthetic Instance.provelume"
+        parent.mkdir(exist_ok=True)
+        selected = parent / "forbidden.git"
+    else:
+        backup = instance.backup(destination=tmp_path / "Synthetic backup inventory")
+        LocalTargetRegistry(instance.store).register_archive(Path(backup["archive"]))
+        selected = tmp_path / "Synthetic backup inventory" / "forbidden.git"
+    mirrors = Mirrors(instance.store, vault=SyntheticVault())
+    mirrors.set_access(enabled=True, github=False, rsync=False, expected_revision=0, confirmed=True)
+    identity = mirrors.create_identity(
+        name="Synthetic", profile="git", credential={"reference": ""}, confirmed=True
+    )
+    row = mirrors.configure(
+        identity_id=identity["id"],
+        name="Synthetic target",
+        target={
+            "transport": "local",
+            "repository": str(selected),
+            "branch": "concordia",
+            "path": "knowledge",
+            "commit_name": "Synthetic",
+            "commit_email": "x@example.invalid",
+        },
+        scope={"kind": "instance", "id": instance.store.read_config()["instance"]["id"]},
+        include_rules={"originals": [], "attachments": [], "ai_receipts": []},
+        mode="manual",
+        confirmed=True,
+    )
+    with pytest.raises(MirrorError, match="unsafe_git_target"):
+        GitMirrors(instance.store, mirrors=mirrors).initialize_local(
+            row["id"], expected_destination_sha256=row["destination_sha256"], confirmed=True
+        )
+    assert not selected.exists()

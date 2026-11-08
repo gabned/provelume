@@ -180,3 +180,23 @@ Actual pinned-image CI, each other supported Git
 binary and the exact resulting candidate still need their own complete checks.
 No unsupported version is accepted by a range, no limit or required check changes,
 and no original result or head identity is replaced.
+## Local target boundary correction
+
+S21's independent native-folder work exposed an inherited admission defect:
+`exclude_instance_tree` excluded the active Instance but did not recognise a
+different Instance's canonical/control tree. Controlled fresh synthetic checks on
+S17 `a40624a` and S21 `aa3f3da` both enrolled a new target inside the other
+Instance's knowledge directory. Their original failure evidence is retained;
+the old exact-head CI success does not resolve this finding.
+
+The shared native local-target guard now rejects fixed Instance/backup markers
+on already admitted physical ancestors, every reserved `.name.provelume` control
+ancestor, and the parent inventories of archives explicitly registered with the
+current Instance. It neither opens foreign document/backup contents nor resolves
+offline Source/archive locators. It reads an existing private maintenance
+registry only during an explicit admission; it creates no registry/global lock
+and adds no passive GET activity. Refusal precedes target creation and every Git
+probe. New native negative cases cover the other Instance, its control tree and
+registered external backup inventory. Existing path/handle/source/limit checks
+remain. The corrected candidate requires fresh native/browser/CI/review evidence;
+no success from the superseded head is transferred.
