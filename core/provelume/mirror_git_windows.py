@@ -153,9 +153,9 @@ class WindowsGitProcess:
         self.returncode = int(code.value)
         return self.returncode
 
-    def close(self):
+    def close(self, *, deadline=None):
         kernel, *_ = libraries()
-        stop = time.monotonic() + 2
+        stop = min(deadline if deadline is not None else float("inf"), time.monotonic() + 2)
         try:
             if self.job:
                 # Closing a Job also terminates descendants after a parent has exited.

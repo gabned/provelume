@@ -36,8 +36,9 @@ and a complete manifest/hash reread. Transfer uses an SSH-protected stdin rsync
 receiver confined to one operation's staging, without a daemon listener or
 arbitrary remote command. The owned adapter checks the exact server arguments
 observed from the signed upstream3.5.2 sender; the helper selects its own receiver
-executable and stage path independently. Windows converts the local source drive
-through the qualified MSYS2 mapping, so its colon cannot become a remote source.
+executable and stage path independently. Windows uses the fixed `./payload/`
+child of the native process's private working directory. The minimal MSYS2 input
+has no admitted drive-mount table; no drive conversion or colon is needed.
 Activation is a separate exact
 expected-pointer operation using the independently qualified native filesystem
 primitive. Earlier active generations and destination-only history remain.
@@ -79,6 +80,15 @@ native SSH or rsync. Native Windows/frozen, complete native transport, rendered
 browser/installer/CI/review and acceptance still require their own exact-candidate
 evidence. The initial remote helper filesystem profile is Linux local renameat2;
 Windows native client qualification stays separate.
+
+The source-native diagnostic on `375271e`, run42459181922/a1/job128664583728,
+records rsync exit11: its assumed `/d/...` source/destination mapping cannot find
+the freshly created Windows directories. This is a concrete path refusal, not
+proof of the cause of older sharing violations. The local-copy fixture now uses
+fixed relative children under its exact native cwd, matching the transport's
+fixed payload child. Actual copy/hash, frozen execution and full Windows wire
+qualification remain separate mandatory gates; no component/version is admitted
+by this correction alone.
 
 `rsync-mirror-qualify` uses an exact-source, credential-free Linux fixture image,
 fresh internal-only Docker network and native Secret Service. It performs actual

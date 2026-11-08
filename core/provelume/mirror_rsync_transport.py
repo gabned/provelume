@@ -196,9 +196,10 @@ class RsyncTransport:
             rsh = " ".join('"' + argument.replace('"', '""') + '"' for argument in adapter)
             source_path = str(work / "payload")
             if os.name == "nt":
-                from .mirror_rsync_windows import native_path
-
-                source_path = native_path(source_path)
+                # NativeSession fixes cwd to this exact private work directory.
+                # The minimal MSYS2 input has no admitted drive-mount table;
+                # this fixed relative child needs neither a mount nor a colon.
+                source_path = "./payload"
             arguments = [
                 self.components["rsync"]["path"],
                 "--recursive",

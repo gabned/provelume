@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import re
 from pathlib import Path
 
 from .maintenance_local_files import open_local_file, pinned_parent
@@ -37,14 +36,3 @@ def admit(binary):
             json.dumps(records, sort_keys=True).encode()
         ).hexdigest(),
     }
-
-
-def native_path(value):
-    # The qualified external input is MSYS2, not a generic Cygwin installation.
-    # A drive colon would otherwise be interpreted by rsync as a remote source.
-    path = str(value).replace("\\", "/")
-    require(
-        re.fullmatch(r"[A-Za-z]:/[^\x00\r\n]+", path) and ".." not in path.split("/"),
-        "rsync_source_path",
-    )
-    return "/" + path[0].lower() + path[2:]
