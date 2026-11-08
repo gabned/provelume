@@ -19,11 +19,19 @@ def test_native_failure_exposes_phase_and_type_without_exception_message(kind):
     ):
         raise kind("synthetic-private-path-and-secret")
     assert caught.value.code == "rsync_windows_qualification"
-    assert caught.value.evidence == {
-        "schema": "concordia-rsync-windows-components-failure/v1",
-        "phase": "native_version",
-        "exception": kind.__name__,
-    }
+    evidence = caught.value.evidence
+    assert evidence["schema"] == "concordia-rsync-windows-components-failure/v1"
+    assert evidence["phase"] == "native_version" and evidence["exception"] == kind.__name__
+    assert evidence["temporary_role"] == "not_transport_temporary"
+    assert all(set(frame) == {"module", "function", "line"} for frame in evidence["frames"])
+    assert "private" not in json.dumps(caught.value.evidence)
+
+
+def test_native_sharing_failure_identifies_temporary_role_without_its_path():
+    failure = PermissionError(13, "synthetic-private-error", "/synthetic-private/session.err")
+    with pytest.raises(WindowsComponentsFailure) as caught, qualification_phase("native_local_copy"):
+        raise failure
+    assert caught.value.evidence["temporary_role"] == "stderr"
     assert "private" not in json.dumps(caught.value.evidence)
 
 

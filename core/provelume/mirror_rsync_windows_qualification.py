@@ -3,6 +3,7 @@
 import hashlib
 import os
 import re
+import traceback
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -28,7 +29,16 @@ def qualification_phase(phase):
             "schema": "concordia-rsync-windows-components-failure/v1",
             "phase": phase,
             "exception": type(exc).__name__,
+            "frames": [
+                {"module": Path(frame.f_code.co_filename).name,
+                 "function": frame.f_code.co_name, "line": line}
+                for frame, line in list(traceback.walk_tb(exc.__traceback__))[-6:]
+            ],
         }
+        suffix = Path(exc.filename).suffix if isinstance(getattr(exc, "filename", None), str) else ""
+        failure.evidence["temporary_role"] = {
+            ".in": "stdin", ".out": "stdout", ".err": "stderr"
+        }.get(suffix, "not_transport_temporary")
         if type(getattr(exc, "winerror", None)) is int:
             failure.evidence["native_error"] = exc.winerror
         if hasattr(exc, "containment_evidence"):

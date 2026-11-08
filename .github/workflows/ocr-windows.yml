@@ -45,6 +45,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Qualification harness install failed." }
           python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/ocr-windows-py312-x86_64.requirements.txt
           if ($LASTEXITCODE -ne 0) { throw "OCR locked fixture dependencies failed." }
+      - name: Acquire the pinned external Windows rsync qualification input
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/ocr-output" | Out-Null
+          python scripts/acquire_concordia_rsync_fixture.py --output "$env:RUNNER_TEMP/rsync-fixture" > "$env:RUNNER_TEMP/ocr-output/rsync-input.json"
+          if ($LASTEXITCODE -ne 0) { throw "Rsync fixture acquisition failed." }
+      - name: Qualify the source native rsync primitive before expensive package preparation
+        shell: pwsh
+        run: |
+          python -c "import sys; from pathlib import Path; from provelume.ocr_desktop import run_ocr_command; sys.exit(run_ocr_command(['rsync-windows-components-qualify', sys.argv[1], '--fixture-directory', sys.argv[2]], Path(sys.argv[3])))" "$env:RUNNER_TEMP/Source native Windows rsync" "$env:RUNNER_TEMP/rsync-fixture" "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
+          Get-Content "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
+          if ($LASTEXITCODE -ne 0) { throw "Source native rsync primitive failed; frozen qualification remains unperformed." }
       - name: Download the caller's exact qualified wheel and installer
         if: inputs.candidate_artifact != ''
         env:
@@ -83,11 +95,6 @@ jobs:
         run: |
           python scripts/acquire_concordia_gitea_fixture.py --output "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" > "$env:RUNNER_TEMP/ocr-output/gitea-input.json"
           if ($LASTEXITCODE -ne 0) { throw "Gitea fixture acquisition failed." }
-      - name: Acquire the pinned external Windows rsync qualification input
-        shell: pwsh
-        run: |
-          python scripts/acquire_concordia_rsync_fixture.py --output "$env:RUNNER_TEMP/rsync-fixture" > "$env:RUNNER_TEMP/ocr-output/rsync-input.json"
-          if ($LASTEXITCODE -ne 0) { throw "Rsync fixture acquisition failed." }
       - name: Install that exact package, exercise offline kit and remove disposable installation
         shell: pwsh
         run: |
