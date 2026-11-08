@@ -198,6 +198,7 @@ def main():
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--include-productivity", action="store_true")
+    parser.add_argument("--zoom", type=int, choices=(1, 2), default=1)
     options = parser.parse_args()
     # Resolving the venv interpreter symlink would silently drop its environment.
     runtime, work = options.runtime.absolute(), options.work.resolve()
@@ -248,9 +249,23 @@ def main():
                         raise RuntimeError("Candidate server did not become available") from None
                     time.sleep(.1)
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(executable_path=str(options.chromium))
+                context = playwright.chromium.launch_persistent_context(
+                    str(work / "browser-profile"), executable_path=str(options.chromium),
+                    service_workers="block")
+                browser = context.browser
                 report["browser"] = browser.version
-                context = browser.new_context(service_workers="block")
+                settings = context.new_page()
+                settings.goto("chrome://settings/appearance")
+                settings.evaluate("factor => chrome.settingsPrivate.setDefaultZoom(factor)",
+                                  options.zoom)
+
+                def actual_zoom():
+                    return settings.evaluate("() => new Promise(resolve => "
+                                             "chrome.settingsPrivate.getDefaultZoom(resolve))")
+
+                report["zoom"] = {"requested": options.zoom, "observed": actual_zoom(),
+                                  "method": "NATIVE_CHROMIUM_PROFILE_DEFAULT_ZOOM"}
+                assert report["zoom"]["observed"] == options.zoom
 
                 def route(request):
                     if urlsplit(request.request.url).netloc == f"127.0.0.1:{port}":
@@ -265,9 +280,11 @@ def main():
                     subprocess.run([str(runtime), "-c", MODE, str(root), mode], check=True,
                                    capture_output=True, timeout=15, env=environment)
                     for language in ("en", "it", "de", "es", "fr", "pt", "ro"):
-                        for width in (1280, 320):
+                        # 320 CSS px is qualified at 100%; the independent 200%
+                        # journey retains the actual 1280px desktop viewport.
+                        for width in ((1280, 320) if options.zoom == 1 else (1280,)):
                             cell = {"mode": mode, "language": language, "width": width,
-                                    "result": "UNKNOWN"}
+                                    "zoom": options.zoom, "result": "UNKNOWN"}
                             report["cells"].append(cell)
                             try:
                                 page.set_viewport_size({"width": width, "height": 900})
@@ -275,6 +292,11 @@ def main():
                                           "media_type": "text/plain"}
                                 response = page.goto(origin + "/search?" + urlencode(params))
                                 assert response.status == 200
+                                cell["observed_zoom"] = actual_zoom()
+                                cell["geometry"] = page.evaluate("({innerWidth, outerWidth, "
+                                                                   "devicePixelRatio})")
+                                assert cell["observed_zoom"] == options.zoom
+                                assert cell["geometry"]["innerWidth"] == width / options.zoom
                                 page.locator("#search-edit").click()
                                 assert page.evaluate("document.activeElement.id") == "search-query"
                                 page.locator("#search-remove-filters").click()
@@ -455,11 +477,12 @@ def main():
                                 cell["failure_screenshot"] = failed_image.name
                                 cell["failure_screenshot_sha256"] = hashlib.sha256(
                                     failed_image.read_bytes()).hexdigest()
-                browser.close()
+                context.close()
         report["canonical_unchanged"] = all(
             path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == before[str(path)]
             for path in paths)
-        report["result"] = ("PASS" if len(report["cells"]) == 28 and all(
+        expected_cells = 28 if options.zoom == 1 else 14
+        report["result"] = ("PASS" if len(report["cells"]) == expected_cells and all(
             row["result"] == "PASS" for row in report["cells"])
             and not report["external_requests"] and report["canonical_unchanged"] else "FAIL")
     finally:

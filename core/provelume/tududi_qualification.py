@@ -107,13 +107,14 @@ class SyntheticTududi:
         return json.dumps(value).encode()
 
 
-def seed_tududi(instance):
+def seed_tududi(instance, *, subject="user1"):
     config = instance.store.read_config()
     enabled = deepcopy(config)
     enabled["network"]["external_access"] = True
     instance.store.write_config(enabled)
     try:
         vault, provider = SyntheticVault(), SyntheticTududi()
+        provider.user = subject
         manager = TududiConnection(instance.store, vault=vault, http=provider)
         identity = manager.connect(
             {

@@ -28,8 +28,9 @@ class _SyntheticVault:
 
 
 class _SyntheticAsana:
-    def __init__(self):
+    def __init__(self, subject="synthetic-user"):
         self.calls = 0
+        self.subject = subject
 
     def request(self, url, **_options):
         self.calls += 1
@@ -40,7 +41,7 @@ class _SyntheticAsana:
         elif path == "/-/token_info":
             value = {"active": True, "scope": " ".join(SCOPES)}
         elif path == "/api/1.0/users/me":
-            value = {"data": {"gid": "synthetic-user"}}
+            value = {"data": {"gid": self.subject}}
         elif path == "/api/1.0/projects/synthetic-project":
             value = {"data": {"gid": "synthetic-project", "workspace": {"gid": "synthetic-space"}}}
         elif path == "/api/1.0/tasks":
@@ -61,20 +62,20 @@ class _SyntheticAsana:
         return json.dumps(value).encode()
 
 
-def seed_asana(instance):
+def seed_asana(instance, *, subject="synthetic-user"):
     """Synthetic qualification seam only; preserve the selected Instance network policy."""
     config = instance.store.read_config()
     enabled = deepcopy(config)
     enabled["network"]["external_access"] = True
     instance.store.write_config(enabled)
     try:
-        return _seed_asana_enabled(instance)
+        return _seed_asana_enabled(instance, subject=subject)
     finally:
         instance.store.write_config(config)
 
 
-def _seed_asana_enabled(instance):
-    vault, provider = _SyntheticVault(), _SyntheticAsana()
+def _seed_asana_enabled(instance, *, subject="synthetic-user"):
+    vault, provider = _SyntheticVault(), _SyntheticAsana(subject)
     manager = AsanaConnection(instance.store, vault=vault, http=provider)
     manager.configure({"client_id": "synthetic-client", "client_secret": "synthetic-client-secret"})
     redirect = "http://127.0.0.1:18765/asana/oauth/callback"
