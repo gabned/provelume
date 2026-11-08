@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "La chiave host è diversa da quella della destinazione autorizzata. Verifica l’host prima di cambiare la configurazione.",
   "mirror.rsync_credential_unavailable": "La credenziale SSH non è disponibile o è revocata. Sblocca l’archivio sicuro o ricollega l’identità.",
   "mirror.rsync_outside_window": "Fuori dalla finestra UTC configurata. Invia entro quella finestra.",
-  "mirror.rsync_unresolved": "L’esito resta da chiarire. Controlla la destinazione prima di richiedere una ripresa sicura."
+  "mirror.rsync_unresolved": "L’esito resta da chiarire. Controlla la destinazione prima di richiedere una ripresa sicura.",
+  "desktop.startup_copy": "Copia diagnosi",
+  "desktop.startup_copied": "Diagnosi copiata.",
+  "desktop.startup_copy_failed": "Impossibile accedere agli appunti. I dettagli restano disponibili."
 }

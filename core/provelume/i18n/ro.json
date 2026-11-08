@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "Cheia gazdei diferă de cea a destinației autorizate. Verifică gazda înainte de a-i schimba configurația.",
   "mirror.rsync_credential_unavailable": "Credențialul SSH nu este disponibil sau este revocat. Deblochează depozitul securizat ori reconectează identitatea.",
   "mirror.rsync_outside_window": "În afara intervalului UTC configurat. Trimite în acel interval.",
-  "mirror.rsync_unresolved": "Rezultatul rămâne neclarificat. Verifică destinația înainte de a solicita o reluare sigură."
+  "mirror.rsync_unresolved": "Rezultatul rămâne neclarificat. Verifică destinația înainte de a solicita o reluare sigură.",
+  "desktop.startup_copy": "Copiază diagnosticul",
+  "desktop.startup_copied": "Diagnostic copiat.",
+  "desktop.startup_copy_failed": "Nu se poate accesa clipboardul. Detaliile rămân disponibile."
 }

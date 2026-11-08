@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "La clave del host difiere del destino autorizado. Verifique el host antes de cambiar la configuración.",
   "mirror.rsync_credential_unavailable": "La credencial SSH no está disponible o se ha revocado. Desbloquee el almacén seguro o vuelva a conectar la identidad.",
   "mirror.rsync_outside_window": "Fuera de la ventana UTC configurada. Envíe dentro de esa ventana.",
-  "mirror.rsync_unresolved": "El resultado sigue sin resolverse. Compruebe el destino antes de solicitar una reanudación segura."
+  "mirror.rsync_unresolved": "El resultado sigue sin resolverse. Compruebe el destino antes de solicitar una reanudación segura.",
+  "desktop.startup_copy": "Copiar diagnóstico",
+  "desktop.startup_copied": "Diagnóstico copiado.",
+  "desktop.startup_copy_failed": "No se pudo acceder al portapapeles. Los detalles siguen disponibles."
 }

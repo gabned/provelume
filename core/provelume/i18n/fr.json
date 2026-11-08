@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "La clé de l’hôte diffère de la destination autorisée. Vérifiez l’hôte avant de modifier sa configuration.",
   "mirror.rsync_credential_unavailable": "L’identifiant SSH est indisponible ou révoqué. Déverrouillez le coffre sécurisé ou reconnectez l’identité.",
   "mirror.rsync_outside_window": "En dehors du créneau UTC configuré. Envoyez pendant ce créneau.",
-  "mirror.rsync_unresolved": "Le résultat reste non résolu. Vérifiez la destination avant de demander une reprise sûre."
+  "mirror.rsync_unresolved": "Le résultat reste non résolu. Vérifiez la destination avant de demander une reprise sûre.",
+  "desktop.startup_copy": "Copier le diagnostic",
+  "desktop.startup_copied": "Diagnostic copié.",
+  "desktop.startup_copy_failed": "Impossible d’accéder au presse-papiers. Les détails restent disponibles."
 }

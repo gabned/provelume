@@ -597,7 +597,10 @@
         "startup_error_protocol",
         "startup_error_configuration",
         "startup_error_integrity",
-        "startup_error_initialization"
+        "startup_error_initialization",
+        "startup_copy",
+        "startup_copied",
+        "startup_copy_failed"
       ],
       "namespace": "desktop"
     },
@@ -18448,6 +18451,21 @@
       "linguistic_review": "UNVERIFIED",
       "rendering": "text",
       "sensitive_review_required": true
+    },
+    "desktop.startup_copy": {
+      "context": "Explicit local clipboard copy of the redacted last-startup report; no checks or upload.",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "desktop.startup_copied": {
+      "context": "Explicit local clipboard copy of the redacted last-startup report; no checks or upload.",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "desktop.startup_copy_failed": {
+      "context": "Explicit local clipboard copy of the redacted last-startup report; no checks or upload.",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,

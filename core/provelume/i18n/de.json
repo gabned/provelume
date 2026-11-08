@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "Der Hostschlüssel weicht vom freigegebenen Ziel ab. Prüfen Sie den Host, bevor Sie die Konfiguration ändern.",
   "mirror.rsync_credential_unavailable": "Die SSH-Anmeldedaten sind nicht verfügbar oder wurden widerrufen. Entsperren Sie den sicheren Speicher oder verbinden Sie die Identität erneut.",
   "mirror.rsync_outside_window": "Außerhalb des eingestellten UTC-Zeitfensters. Senden Sie innerhalb dieses Zeitfensters.",
-  "mirror.rsync_unresolved": "Das Ergebnis bleibt ungeklärt. Prüfen Sie das Ziel, bevor Sie eine sichere Fortsetzung anfordern."
+  "mirror.rsync_unresolved": "Das Ergebnis bleibt ungeklärt. Prüfen Sie das Ziel, bevor Sie eine sichere Fortsetzung anfordern.",
+  "desktop.startup_copy": "Diagnose kopieren",
+  "desktop.startup_copied": "Diagnose kopiert.",
+  "desktop.startup_copy_failed": "Kein Zugriff auf die Zwischenablage. Die Details bleiben verfügbar."
 }

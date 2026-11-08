@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "A chave do anfitrião difere do destino autorizado. Verifique o anfitrião antes de alterar a configuração.",
   "mirror.rsync_credential_unavailable": "A credencial SSH está indisponível ou revogada. Desbloqueie o armazenamento seguro ou volte a ligar a identidade.",
   "mirror.rsync_outside_window": "Fora da janela UTC configurada. Envie dentro dessa janela.",
-  "mirror.rsync_unresolved": "O resultado continua por esclarecer. Verifique o destino antes de pedir uma retoma segura."
+  "mirror.rsync_unresolved": "O resultado continua por esclarecer. Verifique o destino antes de pedir uma retoma segura.",
+  "desktop.startup_copy": "Copiar diagnóstico",
+  "desktop.startup_copied": "Diagnóstico copiado.",
+  "desktop.startup_copy_failed": "Não foi possível aceder à área de transferência. Os detalhes continuam disponíveis."
 }

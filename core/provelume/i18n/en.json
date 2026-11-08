@@ -2789,5 +2789,8 @@
   "mirror.rsync_host_refused": "The host key differs from the approved destination. Verify the host before changing its configuration.",
   "mirror.rsync_credential_unavailable": "The SSH credential is unavailable or revoked. Unlock the secure store or reconnect the identity.",
   "mirror.rsync_outside_window": "Outside the configured UTC window. Send within that window.",
-  "mirror.rsync_unresolved": "The outcome remains unresolved. Check the destination before requesting a safe resume."
+  "mirror.rsync_unresolved": "The outcome remains unresolved. Check the destination before requesting a safe resume.",
+  "desktop.startup_copy": "Copy diagnostics",
+  "desktop.startup_copied": "Diagnostics copied.",
+  "desktop.startup_copy_failed": "Could not access the clipboard. The details remain available."
 }
