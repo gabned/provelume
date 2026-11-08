@@ -387,6 +387,8 @@ class EmailJobManager:
         return True
 
     def _manifests(self) -> list[dict[str, Any]]:
+        from .email_acquisition import manifest_acquisition_matches
+
         result: list[dict[str, Any]] = []
         for artifact in self.store.list_derived_artifacts():
             if (
@@ -411,7 +413,10 @@ class EmailJobManager:
                 and value.get("status") == "complete"
                 and value.get("complete") is True
                 and value.get("active_content_executed") is False
-                and value.get("network_used") is False
+                and isinstance(value.get("message"), dict)
+                and (message := self.store.read_canonical(
+                    "email-messages", str(value.get("message", {}).get("id")))) is not None
+                and manifest_acquisition_matches(self.store, value, message)
             ):
                 result.append(value)
         return result
@@ -1514,6 +1519,16 @@ class EmailJobManager:
                 selected = EmailLimits.from_mapping(request["limits"])
                 if settings_fingerprint(selected) == message.get("settings_sha256"):
                     return selected
+        # Only the two historical default profiles are reconstructible without
+        # a retained request/removal. Unknown settings never acquire defaults.
+        defaults = EmailLimits()
+        accepted = {settings_fingerprint(defaults)}
+        if message.get("adapter_id") == "provelume.google":
+            accepted.add(hashlib.sha256(json.dumps(
+                defaults.as_record(), sort_keys=True, separators=(",", ":")
+            ).encode()).hexdigest())
+        if message.get("settings_sha256") in accepted:
+            return defaults
         raise EmailContractError(
             "email_derived_invalid",
             "email derivation settings are unavailable for verified rebuild",
@@ -1550,6 +1565,9 @@ class EmailJobManager:
         limits: EmailLimits,
         attachment_rows: Sequence[Mapping[str, Any]],
     ) -> EmailDerivedPlan:
+        from .email_acquisition import acquisition_profile, provider_observation
+
+        profile = acquisition_profile(observation["adapter_id"])
         job_id = _rebuild_job_id(str(message["id"]), str(message["settings_sha256"]))
         arguments = {
             "parsed": parsed,
@@ -1571,10 +1589,13 @@ class EmailJobManager:
             "adapter": {
                 "adapter_id": observation["adapter_id"],
                 "adapter_version": observation["adapter_version"],
-                "network_access": "none",
+                "network_access": profile["network_access"],
             },
-            "settings_sha256": settings_fingerprint(limits),
+            "settings_sha256": message["settings_sha256"],
             "attachments": attachment_rows,
+            "provider_observation": provider_observation(self.store, message, observation),
+            "network_used": profile["network_used"],
+            "remote_fetch": profile["remote_fetch"],
         }
         preliminary = build_email_bundle(**arguments)
         manifests = [
@@ -1589,7 +1610,7 @@ class EmailJobManager:
             thread_observation=thread,
         )
 
-    def rebuild_derived(self, message_id: str) -> dict[str, Any]:
+    def rebuild_derived(self, message_id: str, *, refresh_index: bool = True) -> dict[str, Any]:
         message = self.store.read_canonical("email-messages", message_id)
         if message is None:
             raise EmailContractError("email_derived_invalid", "email message was not found")
@@ -1692,7 +1713,8 @@ class EmailJobManager:
                     "rebuilt_at": utc_now(),
                 },
             )
-        self._refresh_index_after_derived_change(str(message["document_id"]))
+        if refresh_index:
+            self._refresh_index_after_derived_change(str(message["document_id"]))
         return {
             "schema_version": EMAIL_JOB_SCHEMA_VERSION,
             "message_id": message_id,

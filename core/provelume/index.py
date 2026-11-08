@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 from .derived import materialize_extracted_text
 from .domain import as_record
+from .email_acquisition import manifest_acquisition_matches
 from .extractors import ExtractionError, extract_web_readable_text, extractor_for
 from .instance_lifecycle import lifecycle_writer
 from .paths import safe_instance_path
@@ -122,8 +123,7 @@ def verified_email_text_artifact(
         or manifest.get("status") != "complete"
         or manifest.get("complete") is not True
         or manifest.get("active_content_executed") is not False
-        or manifest.get("remote_fetch") is not False
-        or manifest.get("network_used") is not False
+        or not manifest_acquisition_matches(store, manifest, message)
         or not isinstance(binding, dict)
         or binding.get("id") != message.get("id")
         or binding.get("version_id") != version_id
@@ -161,8 +161,13 @@ def _ensure_extracted(
     *,
     recover_missing_derived: bool,
 ) -> dict[str, Any] | None:
-    if _email_message_for_version(store, str(version["id"])) is not None:
+    if (message := _email_message_for_version(store, str(version["id"]))) is not None:
         verified = verified_email_text_artifact(store, str(version["id"]))
+        if verified is None and recover_missing_derived:
+            from .email_jobs import EmailJobManager
+
+            EmailJobManager(store).rebuild_derived(message["id"], refresh_index=False)
+            verified = verified_email_text_artifact(store, str(version["id"]))
         return verified[0] if verified is not None else None
     artifact = store.derived_artifact_for_version(version["id"])
     if artifact is not None:
@@ -417,6 +422,9 @@ def _insert_document(
         return False
     email_text = verified_email_text_artifact(store, str(version["id"]))
     if _email_message_for_version(store, str(version["id"])) is not None:
+        if email_text is None and recover_missing_derived:
+            _ensure_extracted(store, version, document["locator"], recover_missing_derived=True)
+            email_text = verified_email_text_artifact(store, str(version["id"]))
         if email_text is None:
             return False
         _artifact, text = email_text
