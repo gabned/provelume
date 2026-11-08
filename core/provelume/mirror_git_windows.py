@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes as c
 import os
 import subprocess
+import time
 from contextlib import ExitStack
 
 from .ai_windows_api import (
@@ -18,6 +19,12 @@ from .ai_windows_api import (
     libraries,
 )
 from .mirror_contract import MirrorError, require
+
+
+class JobAccounting(c.Structure):
+    _fields_ = [("user", c.c_int64), ("kernel", c.c_int64),
+                ("period_user", c.c_int64), ("period_kernel", c.c_int64),
+                ("faults", D), ("total", D), ("active", D), ("terminated", D)]
 
 
 def require_native(result, operation):
@@ -148,12 +155,27 @@ class WindowsGitProcess:
 
     def close(self):
         kernel, *_ = libraries()
+        stop = time.monotonic() + 2
         try:
             if self.job:
                 # Closing a Job also terminates descendants after a parent has exited.
                 require(kernel.TerminateJobObject(self.job, 1), "git_containment")
             if self.handle:
-                require(kernel.WaitForSingleObject(self.handle, 2000) == 0, "git_containment")
+                require(kernel.WaitForSingleObject(
+                    self.handle, max(0, int((stop - time.monotonic()) * 1000))) == 0,
+                    "git_containment")
+            if self.job:
+                # Termination is asynchronous. Parent exit alone does not release
+                # inherited output handles held by MSYS2 rsync descendants.
+                while True:
+                    info = JobAccounting()
+                    require_native(kernel.QueryInformationJobObject(
+                        self.job, 1, c.byref(info), c.sizeof(info), None),
+                        "QueryInformationJobObject.accounting")
+                    if info.active == 0:
+                        break
+                    require(time.monotonic() < stop, "git_containment")
+                    time.sleep(0.01)
         except (OSError, ValueError):
             raise MirrorError("git_containment") from None
         finally:

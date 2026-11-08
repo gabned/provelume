@@ -37,3 +37,36 @@ def test_native_failure_preserves_original_closed_code_and_containment_evidence(
         raise original
     assert caught.value.code == "git_containment"
     assert caught.value.evidence["containment"] == original.containment_evidence
+
+
+def test_windows_cleanup_waits_for_all_descendants_before_releasing_job(monkeypatch):
+    import ctypes
+    from contextlib import ExitStack
+
+    from provelume import mirror_git_windows as native
+
+    class Kernel:
+        observations = 0
+
+        def TerminateJobObject(self, _job, _code):
+            return True
+
+        def WaitForSingleObject(self, _process, timeout):
+            assert 0 <= timeout <= 2000
+            return 0  # Parent already exited; descendants still own output handles.
+
+        def QueryInformationJobObject(self, _job, kind, output, size, _returned):
+            assert kind == 1 and size == 48
+            self.observations += 1
+            ctypes.cast(output, ctypes.POINTER(native.JobAccounting)).contents.active = (
+                1 if self.observations < 3 else 0)
+            return True
+
+    kernel = Kernel()
+    monkeypatch.setattr(native, "libraries", lambda: (kernel,))
+    process = native.WindowsGitProcess.__new__(native.WindowsGitProcess)
+    process.handle, process.job, process.resources = 1, 2, ExitStack()
+    released = []
+    process.resources.callback(lambda: released.append(kernel.observations))
+    process.close()
+    assert released == [3] and process.handle is process.job is None
