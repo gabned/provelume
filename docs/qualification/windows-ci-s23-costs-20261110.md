@@ -1,12 +1,57 @@
 # S23 Windows allocation observations, 10 November 2026
 
-This PRODUCT correction updates two relative module weights. The allocator,
+This PRODUCT correction refreshes relative weights from 285 completed modules.
+The allocator,
 fallback, complete test membership, four workers, two runner groups, native
 540-second deadline, ten-minute job cap and all checks remain unchanged.
 Removing the `_MODULE_COST_HINTS` assignment makes the before/after Python AST
 identical. No Protocol implementation, fixture, pin or workflow changes.
 
 ## Source and retained failure
+
+The final data source is the complete four-shard execution of
+[42855973908/a1](https://github.com/gabned/provelume/actions/runs/42855973908),
+source `eca220c91da649a4d5867e2874d1128b73f6aa9a`, test merge
+`702ed6eb2ad0bfa65c90f99b9fe81a74510d47cf` with ordered parents main
+`2918c3968168e426986bd8fcd7d485f102c11f7b` and that source, matching tree
+`9e5e77c4d5197398feb42f9bd55d2a102faae042`.
+
+All four shard executions finish successfully (322.55 / 341.22 / 506.38 /
+465.21 seconds), with 6,016 distinct collected node IDs. The decoded logs supply
+285 complete non-failing module records. Each has matching selected/completed
+counts and no failed phase; no interrupted record supplies a weight. Existing
+weights for unmeasured modules and the original count fallback are preserved.
+
+[Group 0 / 129968966573](https://github.com/gabned/provelume/actions/runs/42855973908/job/129968966573)
+succeeds. [Group 1 / 129968966904](https://github.com/gabned/provelume/actions/runs/42855973908/job/129968966904)
+retains GitHub conclusion CANCELLED. Its test step succeeds in the native bound,
+artifact upload succeeds, and cleanup ends at 16:46:34 UTC after job start
+16:36:30 UTC; the original annotation reports the unchanged 10m0s cap. No step
+or job outcome is renamed to override this refusal. The aggregator remains
+blocked; complete native test execution alone does not qualify that run.
+
+Replaying this complete measured work with the unchanged allocator gives:
+
+| Shard | Two-weight allocation measured subtotal (s) | Refreshed data subtotal (s) |
+| --- | ---: | ---: |
+| 0 | 271.173 | 373.283 |
+| 1 | 285.489 | 389.280 |
+| 2 | 502.104 | 387.280 |
+| 3 | 453.357 | 362.281 |
+
+The largest measured subtotal falls by 112.825 seconds. This is a replay of
+the same measured work, not a prediction across different hosts or a claim
+that allocation alone explains all historical wall-clock variation. Source,
+native gates, full Windows execution, aggregator and all other workflows must
+be qualified again on the refreshed head. No execution budget changes.
+
+Artifact metadata only (no independent download): group 0 ID `13784305495`,
+4,837,197 bytes, SHA-256
+`e9c87c8807679c2fad71c591fab68acc9077607f59e043c2ef805aa0800c6965`;
+group 1 ID `13782034844`, 4,817,285 bytes, SHA-256
+`81fba241863e73a8ca830a1a5a75f2d5ebb3162bc48c814e6e3ce25357755fb2`.
+
+## Preserved initial two-weight correction
 
 [Run 42852003038, attempt 1](https://github.com/gabned/provelume/actions/runs/42852003038)
 executes source `30113f09875829da7dff78adb4f8f3fea3d8a84b`. GitHub test merge
