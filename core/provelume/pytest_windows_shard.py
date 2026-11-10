@@ -445,6 +445,18 @@ class _ModuleTimings:
         module = self.modules[source]
         key = (report.nodeid, report.when)
         setup = module["seen"].get((report.nodeid, "setup"))
+        if (type(report).__module__ == "_pytest.subtests"
+                and type(report).__name__ in {"SubtestReport", "SubTestReport"}):
+            # The outer call duration includes its subtests. Recognize the same
+            # native reports as the unchanged CI recorder, without counting a
+            # child as a second parent phase or using failed children as costs.
+            if (report.when != "call" or setup != "passed"
+                    or (report.nodeid, "call") in module["seen"]
+                    or (report.nodeid, "teardown") in module["seen"]
+                    or report.outcome not in {"passed", "skipped"}
+                    or not math.isfinite(report.duration) or report.duration < 0):
+                module["invalid"] = True
+            return
         if (
             module["invalid"] or key in module["seen"]
             or report.when not in module["durations"]

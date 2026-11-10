@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
 import os
@@ -110,3 +111,41 @@ def test_interrupted_module_has_no_cost_but_completed_same_child_is_flushed():
         assert "windows-shards completed=True count=4" in output
         for index in range(4):
             assert f"windows-shard index={index}/4" in output
+
+
+def test_native_subtests_keep_parent_cost_and_reject_failed_child_costs():
+    with tempfile.TemporaryDirectory(prefix="provelume-timings-", dir=ROOT) as temporary:
+        directory = Path(temporary)
+        sources = _modules(directory, [
+            "import unittest\nclass Native(unittest.TestCase):\n"
+            "    def test_values(self):\n"
+            "        for value in range(3):\n"
+            "            with self.subTest(value=value):\n"
+            "                if value == 1: self.skipTest('PRIVATE_SKIP')\n"
+            "                self.assertLess(value, 3)\n",
+            "import unittest\nclass Native(unittest.TestCase):\n"
+            "    def test_values(self):\n"
+            "        for value in range(3):\n"
+            "            with self.subTest(value=value):\n"
+            "                self.assertLess(value, 2, 'PRIVATE_FAILURE')\n",
+        ])
+        code, output, records = _run(directory)
+        assert code == 1, output  # The failing subtest remains a real failure.
+        if importlib.util.find_spec("_pytest.subtests") is None:
+            # Older pytest reports a single failed outer call instead.
+            assert {row["module"] for row in records} == set(sources)
+            failed = next(row for row in records if row["module"] == sources[1])
+            assert failed["phase_outcomes"]["call"]["failed"] == 1
+        else:
+            assert len(records) == 1, output
+            assert records[0]["module"] == sources[0]
+        successful = next(row for row in records if row["module"] == sources[0])
+        assert successful["selected"] == successful["completed"] == 1
+        assert successful["phase_outcomes"]["call"] == {
+            "passed": 1, "failed": 0, "skipped": 0,
+        }
+        assert successful["complete"]
+        assert math.isclose(successful["duration_seconds"]["total"], sum(
+            successful["duration_seconds"][phase] for phase in ("setup", "call", "teardown")))
+        assert not any(value in json.dumps(successful) for value in (
+            "PRIVATE_", "test_values", str(ROOT)))

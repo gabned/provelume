@@ -4,8 +4,44 @@ This PRODUCT correction refreshes relative weights from 285 completed modules.
 The allocator,
 fallback, complete test membership, four workers, two runner groups, native
 540-second deadline, ten-minute job cap and all checks remain unchanged.
-Removing the `_MODULE_COST_HINTS` assignment makes the before/after Python AST
-identical. No Protocol implementation, fixture, pin or workflow changes.
+The data-only predecessor has identical Python AST after removing the hint
+assignment. A subsequent observer correction recognizes native subtest reports
+for timing completeness, as detailed below. Allocation, execution, native CI
+recorder/verifier, Protocol implementation, fixtures, pin and workflows are unchanged.
+
+## Native subtest timing completeness
+
+Source `715a9c91eb40e4faa95e7be967b14e48a7b30bac` retains a group-1 timeout
+in [129979291836](https://github.com/gabned/provelume/actions/runs/42858833101/job/129979291836).
+Shard 2 ends at 83%, while shard 3 completes in 476.63 seconds. Group 0
+[129979292536](https://github.com/gabned/provelume/actions/runs/42858833101/job/129979292536)
+succeeds. This is not a full timeout resolution or a qualified Windows run.
+
+Five native-subtest modules have no eligible timing record, so they retain the
+count fallback: `test_agent_protocol_transfer.py`, `test_agent_protocol_v1_4_7.py`,
+`test_agent_protocol_v1_4_9.py`, `test_agent_protocol_work_check.py`, and
+`test_agent_protocol_work_recovery.py`. The transfer module (38 parent tests)
+is assigned to the interrupted shard. These missing costs are not imputed.
+
+The timing observer treated legitimate `_pytest.subtests` reports as duplicate
+parent call phases, invalidating the whole module's timing. The native CI
+recorder already distinguishes these reports and remains unchanged. The observer
+now recognizes the same exact report types, using only the outer call duration
+(which includes its children), so subtests are not counted twice. A failed,
+unexpected or nonfinite child still invalidates the module's cost. Normal pytest
+results and all native parent/subtest outcome and coverage controls remain intact.
+
+A real subprocess regression includes a successful parent with passed/skipped
+subtests and a parent with a failed subtest. It fails on the old observer
+(identical at `28ed865` and `715a9c9`), passes on the correction, retains process
+exit 1 for the failing fixture, and emits an eligible cost only for the successful
+module. Older pytest's outer-call failure behavior is also retained. Existing
+failure, interruption, targeted invocation and process cleanup checks remain.
+
+This fixes missing diagnostic data, not the underlying Protocol fixtures or
+execution deadline. A fresh ordinary Windows execution must supply complete
+measurements before any additional allocation correction; this source is not
+declared timeout-resolved merely because its observer is repaired.
 
 ## Source and retained failure
 
