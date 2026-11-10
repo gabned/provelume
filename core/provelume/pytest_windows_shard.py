@@ -23,13 +23,13 @@ CHILD_ENV = "PROVELUME_WINDOWS_SHARD_CHILD"
 FORCE_ENV = "PROVELUME_WINDOWS_SHARD_FORCE"
 DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 
-# Relative allocation hints from all four completed Windows shards in
-# 42855973908/a1, source eca220c91da649a4d5867e2874d1128b73f6aa9a.
-# Round setup/call/teardown milliseconds for 285 complete non-failing modules.
-# All 6,016 node IDs retain native full/disjoint coverage verification. Preserve
-# earlier hints for unmeasured modules; new/count-mismatched modules use fallback.
-# Group 1 retained CANCELLED despite completed test and artifact upload steps:
-# the run is NOT qualified. Independent Actions artifact reads remain blocked.
+# Relative allocation hints: 285 complete non-failing modules from 42855973908/a1
+# (eca220c), plus the five newly observable native-subtest modules and the changed
+# timing-test module from 42862418198/a1 (74b76b0). Rounded setup/call/teardown
+# milliseconds; 290 measured modules. The latter source collects 6,017 node IDs.
+# New/count-mismatched modules retain the count fallback. Actual complete/disjoint
+# native parent/subtest coverage remains mandatory. These source runs retained
+# CANCELLED jobs and are NOT qualified; independent artifact reads remain blocked.
 # No failed/interrupted module, execution budget or CPU causal finding is used.
 # Exact sources and retained prior data: windows-ci-s23-costs-20261110.md under
 # docs/qualification; older literal versions remain in Git history.
@@ -41,12 +41,17 @@ _MODULE_COST_HINTS = (
     ('tests/test_action_notifications.py', 65, 732),
     ('tests/test_agent_protocol_consumer.py', 60, 60222),
     ('tests/test_agent_protocol_consumer_scope.py', 37, 33),
+    ('tests/test_agent_protocol_transfer.py', 38, 56062),
     ('tests/test_agent_protocol_v1_2.py', 15, 101278),
     ('tests/test_agent_protocol_v1_2_1.py', 47, 165),
     ('tests/test_agent_protocol_v1_4.py', 21, 8),
     ('tests/test_agent_protocol_v1_4_1.py', 65, 1202),
     ('tests/test_agent_protocol_v1_4_1_slice_issue_transition.py', 16, 73),
     ('tests/test_agent_protocol_v1_4_2_ops.py', 247, 6364),
+    ('tests/test_agent_protocol_v1_4_7.py', 63, 473),
+    ('tests/test_agent_protocol_v1_4_9.py', 14, 1887),
+    ('tests/test_agent_protocol_work_check.py', 36, 7077),
+    ('tests/test_agent_protocol_work_recovery.py', 38, 70010),
     ('tests/test_agent_protocol_work_source.py', 37, 6),
     ('tests/test_ai_classification_evaluation.py', 60, 342),
     ('tests/test_ai_classification_proposals.py', 39, 20329),
@@ -319,7 +324,7 @@ _MODULE_COST_HINTS = (
     ('tests/test_windows_public_baselines.py', 3, 2),
     ('tests/test_windows_pytest_sharding.py', 6, 3287),
     ('tests/test_windows_shard_costs.py', 18, 15),
-    ('tests/test_windows_shard_timings.py', 2, 3357),
+    ('tests/test_windows_shard_timings.py', 3, 2511),
 )
 
 

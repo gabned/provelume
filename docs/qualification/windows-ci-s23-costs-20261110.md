@@ -1,6 +1,7 @@
 # S23 Windows allocation observations, 10 November 2026
 
-This PRODUCT correction refreshes relative weights from 285 completed modules.
+This PRODUCT correction refreshes relative weights for 290 measured modules,
+including five previously unobservable native-subtest modules.
 The allocator,
 fallback, complete test membership, four workers, two runner groups, native
 540-second deadline, ten-minute job cap and all checks remain unchanged.
@@ -8,6 +9,48 @@ The data-only predecessor has identical Python AST after removing the hint
 assignment. A subsequent observer correction recognizes native subtest reports
 for timing completeness, as detailed below. Allocation, execution, native CI
 recorder/verifier, Protocol implementation, fixtures, pin and workflows are unchanged.
+
+## Completed native-subtest measurements
+
+The corrected observer runs on source
+`74b76b041885456d3c1264442ee44aac68d12e79`,
+[42862418198/a1](https://github.com/gabned/provelume/actions/runs/42862418198).
+Group 1 [129991771447](https://github.com/gabned/provelume/actions/runs/42862418198/job/129991771447)
+succeeds. Group 0 [129991771089](https://github.com/gabned/provelume/actions/runs/42862418198/job/129991771089)
+retains CANCELLED and the aggregator remains blocked. Every record below is
+complete, has the exact selected/completed parent count, and has no failed phase.
+No interrupted module supplies a cost:
+
+| Module | Parents | Previous count fallback (ms) | Observed total (ms) / new rounded weight |
+| --- | ---: | ---: | ---: |
+| `test_agent_protocol_transfer.py` | 38 | 38,000 | 56,061.9328 / 56,062 |
+| `test_agent_protocol_v1_4_7.py` | 63 | 63,000 | 473.1313 / 473 |
+| `test_agent_protocol_v1_4_9.py` | 14 | 14,000 | 1,886.5470 / 1,887 |
+| `test_agent_protocol_work_check.py` | 36 | 36,000 | 7,076.7102 / 7,077 |
+| `test_agent_protocol_work_recovery.py` | 38 | 38,000 | 70,010.2503 / 70,010 |
+
+The changed timing-test module also has a complete three-parent record,
+2,511 ms rounded, replacing its count-mismatched fallback. The other 284 existing
+weights remain unchanged. All values are observed setup/call/teardown totals;
+no multiplication, timeout change or cost for missing work is introduced.
+
+Both independent collections contain 6,017 distinct raw node IDs with identical
+module counts. Some volatile parameter display labels differ, so byte equality
+of raw labels is not claimed. Allocation uses only the matching module counts;
+the unchanged native descriptor-based CI verifier retains responsibility for
+actual case identity, disjointness and full coverage. Independent artifact
+verification is still blocked, not replaced by this log analysis.
+
+The 271 eligible complete module records in these logs are replayed as the same
+measured subset: 500.851 / 476.144 / 329.734 / 275.378 seconds before, and
+430.943 / 403.997 / 382.064 / 365.102 seconds with the six data updates. This
+excludes interrupted/unstarted work and is not a total-runtime prediction.
+
+The new subprocess regression also runs on pytest 8.4.2: its skipped subtest is
+reported as a skipped outer call there, while pytest 9 reports a passed parent
+with native child reports. Both explicit behaviors are asserted; the failed
+fixture still exits 1 in both versions. Product development continues to use
+the runtime declared in `pyproject.toml`.
 
 ## Native subtest timing completeness
 

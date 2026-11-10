@@ -131,7 +131,8 @@ def test_native_subtests_keep_parent_cost_and_reject_failed_child_costs():
         ])
         code, output, records = _run(directory)
         assert code == 1, output  # The failing subtest remains a real failure.
-        if importlib.util.find_spec("_pytest.subtests") is None:
+        native_subtests = importlib.util.find_spec("_pytest.subtests") is not None
+        if not native_subtests:
             # Older pytest reports a single failed outer call instead.
             assert {row["module"] for row in records} == set(sources)
             failed = next(row for row in records if row["module"] == sources[1])
@@ -141,9 +142,10 @@ def test_native_subtests_keep_parent_cost_and_reject_failed_child_costs():
             assert records[0]["module"] == sources[0]
         successful = next(row for row in records if row["module"] == sources[0])
         assert successful["selected"] == successful["completed"] == 1
-        assert successful["phase_outcomes"]["call"] == {
-            "passed": 1, "failed": 0, "skipped": 0,
-        }
+        assert successful["phase_outcomes"]["call"] == (
+            {"passed": 1, "failed": 0, "skipped": 0} if native_subtests else
+            {"passed": 0, "failed": 0, "skipped": 1}
+        )
         assert successful["complete"]
         assert math.isclose(successful["duration_seconds"]["total"], sum(
             successful["duration_seconds"][phase] for phase in ("setup", "call", "teardown")))
