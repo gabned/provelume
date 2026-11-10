@@ -31,6 +31,10 @@ DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 # No failed/interrupted module, execution budget or CPU causal finding is used.
 # Original artifacts and exact-source proof: windows-ci-concordia-costs-20261108.md
 # under docs/qualification. Original accepted-main hints remain in Git history.
+# Two weights below use complete, non-failing module observations from
+# 42852003038/a1 (30113f0). The incomplete group/run is NOT qualification;
+# interrupted/unstarted modules supply no new weight. See
+# docs/qualification/windows-ci-s23-costs-20261110.md.
 _COUNT_COST = 1000
 _MODULE_COST_HINTS = (
     ('tests/test_action_center_adapters.py', 43, 10689),
@@ -39,7 +43,7 @@ _MODULE_COST_HINTS = (
     ('tests/test_action_notifications.py', 65, 982),
     ('tests/test_agent_protocol_consumer.py', 60, 71730),
     ('tests/test_agent_protocol_consumer_scope.py', 37, 42),
-    ('tests/test_agent_protocol_v1_2.py', 15, 121588),
+    ('tests/test_agent_protocol_v1_2.py', 15, 158551),
     ('tests/test_agent_protocol_v1_2_1.py', 47, 209),
     ('tests/test_agent_protocol_v1_4.py', 21, 10),
     ('tests/test_agent_protocol_v1_4_1.py', 65, 964),
@@ -109,6 +113,7 @@ _MODULE_COST_HINTS = (
     ('tests/test_concordia_google_calendar_s11.py', 11, 14855),
     ('tests/test_concordia_icalendar_s12.py', 30, 10197),
     ('tests/test_concordia_inbox_transit.py', 51, 16823),
+    ('tests/test_concordia_integrated_s23.py', 1, 56310),
     ('tests/test_concordia_journal_comparison.py', 8, 4),
     ('tests/test_concordia_kernel_native.py', 8, 32),
     ('tests/test_concordia_kernel_observer.py', 19, 74),
