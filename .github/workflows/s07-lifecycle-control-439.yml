@@ -1,0 +1,201 @@
+name: S07 lifecycle window controls for PR 439
+on:
+  push:
+    branches: ['codex/s07-lifecycle-control-439-20261111']
+    paths: ['.github/workflows/s07-lifecycle-control-439.yml']
+permissions:
+  contents: read
+jobs:
+  model-free:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: '19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2'
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12.14'
+      - name: Bind original S07 source and dependencies
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2'
+          test "$(git rev-parse HEAD:core/provelume/instance_lifecycle.py)" = c23d792d946a806f0156e38f69ae5b1617537110
+          test "$(git rev-parse HEAD:scripts/ai_runtime_report.py)" = 67f72f2e493779daa38a1d97c263e60c5126cb45
+          test -z "$(git status --porcelain)"
+          git show -s --format='%H %T'
+          python -m pip install -e '.[dev]'
+      - name: Verify actual Capture phase discrimination without a model
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)"
+          cat > "$fixture/s07_lifecycle_window.py" <<'PY'
+          """Observer prototype for the #439 lifecycle-entry hypothesis.
+
+          Apply only in a disposable diagnostic process. No evaluator, wait policy,
+          transaction, or underlying function is replaced by a substitute implementation.
+          """
+
+          from contextlib import contextmanager
+          from contextvars import ContextVar
+          from dataclasses import dataclass
+          from threading import get_ident
+          from time import monotonic_ns, thread_time_ns
+          from unittest.mock import patch
+
+
+          PURPOSES = {"capture-submit", "capture-acquire"}
+
+
+          @dataclass
+          class Window:
+              purpose: str
+              caller: int
+              entered: tuple[int, int]
+              lock_acquired: tuple[int, int] | None = None
+              ready: tuple[int, int] | None = None
+              body_done: tuple[int, int] | None = None
+              exited: tuple[int, int] | None = None
+              lock_calls: int = 0
+
+              def complete(self):
+                  marks = (self.entered, self.lock_acquired, self.ready, self.body_done, self.exited)
+                  return self.lock_calls == 1 and all(mark is not None for mark in marks) and all(
+                      first[0] <= second[0] and first[1] <= second[1]
+                      for first, second in zip(marks, marks[1:])
+                  )
+
+
+          @contextmanager
+          def observe(lifecycle, *, clock=None):
+              """Scope the observer to a caller running one declared original probe."""
+              if clock is None:
+                  def clock():
+                      return monotonic_ns(), thread_time_ns()
+
+              owner = get_ident()
+              active = ContextVar("s07_lifecycle_window", default=None)
+              rows = []
+              acquire = lifecycle._acquire_os_lock
+              hold = lifecycle.InstanceLifecycleManager._hold
+
+              def observed_acquire(descriptor):
+                  row = active.get()
+                  if row is None or row.caller != get_ident():
+                      return acquire(descriptor)
+                  row.lock_calls += 1
+                  result = acquire(descriptor)
+                  row.lock_acquired = clock()
+                  return result
+
+              @contextmanager
+              def observed_hold(manager, *, purpose, wait_seconds=0):
+                  if get_ident() != owner or purpose not in PURPOSES or active.get() is not None:
+                      with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
+                          yield value
+                      return
+                  row = Window(purpose=purpose, caller=owner, entered=clock())
+                  token = active.set(row)
+                  rows.append(row)
+                  try:
+                      with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
+                          row.ready = clock()
+                          # Do not count a lock acquired by the application body as entry.
+                          active.reset(token)
+                          token = None
+                          try:
+                              yield value
+                          finally:
+                              row.body_done = clock()
+                  finally:
+                      row.exited = clock()
+                      if token is not None:
+                          active.reset(token)
+
+              with patch.object(lifecycle, "_acquire_os_lock", observed_acquire):
+                  with patch.object(lifecycle.InstanceLifecycleManager, "_hold", observed_hold):
+                      yield rows
+
+
+          def pre_body_bound(rows, capture_start_ns, capture_end_ns):
+              """Reject incomplete or overlapping windows before aggregating durations."""
+              if [row.purpose for row in rows] != ["capture-submit", "capture-acquire"]:
+                  raise ValueError("unexpected Capture lifecycle calls")
+              previous = capture_start_ns
+              totals = {"pre_yield_wall_ns": 0, "pre_yield_thread_cpu_ns": 0}
+              for row in rows:
+                  if not row.complete() or not previous <= row.entered[0] <= row.exited[0] <= capture_end_ns:
+                      raise ValueError("incomplete, overlapping, or unbound lifecycle window")
+                  totals["pre_yield_wall_ns"] += row.ready[0] - row.lock_acquired[0]
+                  totals["pre_yield_thread_cpu_ns"] += row.ready[1] - row.lock_acquired[1]
+                  previous = row.exited[0]
+              return totals
+          PY
+          cat > "$fixture/control.py" <<'PY'
+          import json
+          import os
+          import tempfile
+          import time
+          from pathlib import Path
+          from unittest.mock import patch
+
+          from provelume import capture_journal, instance_lifecycle
+          from provelume.capture_adapter import CaptureAdapter
+          from provelume.service import ProvelumeInstance
+          from scripts.ai_runtime_report import deterministic_probe
+          from s07_lifecycle_window import observe, pre_body_bound
+
+          delay = 0.120
+          records = []
+          with tempfile.TemporaryDirectory(dir=os.environ["RUNNER_TEMP"]) as temporary:
+              for number, mode in enumerate(("unmodified", "recovery_delay", "body_delay")):
+                  root = Path(temporary) / f"fixture-{number}"
+                  instance = ProvelumeInstance.initialise(root / "Synthetic Space")
+                  original_recovery = capture_journal.recover_capture_transactions_locked
+                  original_body = CaptureAdapter._acquire_locked
+                  injection = []
+
+                  def hold_delay():
+                      start = time.monotonic_ns()
+                      time.sleep(delay)
+                      injection.append((start, time.monotonic_ns()))
+
+                  recovery_calls = []
+                  def recovery(*args, **kwargs):
+                      recovery_calls.append(1)
+                      if mode == "recovery_delay" and len(recovery_calls) == 2:
+                          hold_delay()
+                      return original_recovery(*args, **kwargs)
+
+                  def body(*args, **kwargs):
+                      if mode == "body_delay":
+                          hold_delay()
+                      return original_body(*args, **kwargs)
+
+                  with patch.object(capture_journal, "recover_capture_transactions_locked", recovery):
+                      with patch.object(CaptureAdapter, "_acquire_locked", body):
+                          with observe(instance_lifecycle) as rows:
+                              start = time.monotonic_ns()
+                              result = deterministic_probe(instance, number)
+                              end = time.monotonic_ns()
+                  summary = pre_body_bound(rows, start, end)
+                  assert result["preserved"] and result["search_found"] and result["product_dispatch_blocked"]
+                  assert len(recovery_calls) == 2
+                  if mode == "unmodified":
+                      assert not injection
+                  else:
+                      assert len(injection) == 1
+                      left, right = injection[0]
+                      assert right - left >= int(delay * 1e9)
+                      process = rows[1]
+                      if mode == "recovery_delay":
+                          assert process.lock_acquired[0] <= left <= right <= process.ready[0]
+                      else:
+                          assert process.ready[0] <= left <= right <= process.body_done[0]
+                      summary["injected_ns"] = right - left
+                  records.append({"mode": mode, **summary})
+          print(json.dumps({"status": "MODEL_FREE_WINDOW_CONTROLS_PASS", "rows": records}, sort_keys=True))
+          PY
+          PYTHONPATH="$PWD:$fixture" python -B "$fixture/control.py"
+          test -z "$(git status --porcelain)"
