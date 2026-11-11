@@ -27,6 +27,7 @@ PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
 LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
 NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
 TRACE_PREFIX_CORRECTION = "5202c4085ed8f6ae58be28996eecdc4c90810821"
+METHOD_CORRECTION = "c72b80260c6f633ed45d910df8e6bc7040141edf"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -68,7 +69,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != TRACE_PREFIX_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != METHOD_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", METHOD_CORRECTION) != TRACE_PREFIX_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", TRACE_PREFIX_CORRECTION) != NETWORK_DIAGNOSTIC
         or git(ROOT, "show", "-s", "--format=%P", NETWORK_DIAGNOSTIC) != LINT_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", LINT_CORRECTION) != PREPARATION
@@ -240,6 +242,14 @@ def kernel_binding(native, output, targets, host):
     data = json.loads((output / "frames.json").read_text())
     if (data["host"] != host or [tuple(row["key"]) for row in data["frames"]] != targets):
         raise ValueError("missing frame or worker placement drift")
+    stdout, stderr = output / "kernel.stdout", output / "kernel.stderr"
+    print("S07_KERNEL_STREAM=" + json.dumps({
+        "stage": output.name, "stdout_bytes": stdout.stat().st_size,
+        "stderr_bytes": stderr.stat().st_size, "limit_bytes": native.kernel.MAX_BYTES,
+    }), flush=True)
+    if stderr.stat().st_size:
+        with stderr.open("rb") as stream:
+            print("S07_KERNEL_STDERR=" + stream.read(4096).decode(errors="replace"), flush=True)
     events = native.read_records(output)
     markers = [event for event in events if event[0] == "M"]
     tid = data["tid"]
