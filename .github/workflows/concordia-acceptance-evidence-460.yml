@@ -1,0 +1,91 @@
+name: Concordia S08 and provider evidence for PR 460
+on:
+  push:
+    branches: ['codex/concordia-acceptance-evidence-460-20261111']
+    paths: ['.github/workflows/concordia-acceptance-evidence-460.yml']
+permissions:
+  contents: read
+jobs:
+  source-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: '03aa36dd6cd1668174e860225a7a8a35cb40cb1e'
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12.14'
+      - name: Bind clean candidate and install declared test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '03aa36dd6cd1668174e860225a7a8a35cb40cb1e'
+          test -z "$(git status --porcelain)"
+          git show -s --format='%H %T'
+          python -m pip install -e '.[dev]'
+      - name: S08 search contract
+        run: python -m pytest -q tests/test_concordia_search_s08.py
+      - name: Provider and integrated synthetic contracts
+        if: ${{ !cancelled() }}
+        run: >-
+          python -m pytest -q
+          tests/test_concordia_google_calendar_s11.py
+          tests/test_concordia_icalendar_s12.py
+          tests/test_concordia_asana_s13.py
+          tests/test_concordia_tududi_s14.py
+          tests/test_concordia_task_writeback_s15.py
+          tests/test_concordia_integrated_s23.py
+          tests/test_concordia_gmail_recovery_s23.py
+  native-tududi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: '03aa36dd6cd1668174e860225a7a8a35cb40cb1e'
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12.14'
+      - name: Bind clean candidate and install declared test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '03aa36dd6cd1668174e860225a7a8a35cb40cb1e'
+          test -z "$(git status --porcelain)"
+          git show -s --format='%H %T'
+          python -m pip install -e '.[dev]'
+      - name: Prepare pinned isolated provider fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get -o APT::Update::Error-Mode=any update
+          sudo apt-get install -y --no-install-recommends gnome-keyring libsecret-tools dbus
+          docker pull --platform linux/amd64 chrisvel/tududi@sha256:0787ac438d460d89e669cdae5ab2b205c7a6424c98fba50bf1209623c50cf3ee
+          docker pull --platform linux/amd64 postgres@sha256:ac838714b7d794185a866e5a6b479b954e7d8a070568aa0acac6fe07c3070bf5
+      - name: Run existing native HTTPS read driver with synthetic accounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          session="$(mktemp -d)"
+          export XDG_RUNTIME_DIR="$session/runtime"
+          export XDG_DATA_HOME="$session/data"
+          export XDG_CONFIG_HOME="$session/config"
+          export TUDUDI_FIXTURE_DIR="$session/fixture"
+          mkdir -m 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"
+          dbus-run-session -- bash -eu -c '
+            set -o pipefail
+            head -c 32 /dev/urandom | base64 | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            python scripts/qualify_tududi_native.py --directory "$TUDUDI_FIXTURE_DIR" --allow-synthetic-fixtures
+          '
+          python - <<'PY'
+          import json, os, pathlib
+          report = json.loads((pathlib.Path(os.environ["TUDUDI_FIXTURE_DIR"]) / "result.json").read_bytes())
+          assert report["result"] == "PASS_DECLARED_NATIVE_READ_SCOPE"
+          assert report["source"]["commit"] == "03aa36dd6cd1668174e860225a7a8a35cb40cb1e"
+          assert len(report["cases"]) == 2
+          keys = ("result", "source", "product_native_http_worker", "offline_portable", "image", "network")
+          print(json.dumps({key: report[key] for key in keys} | {"cases": len(report["cases"])}, sort_keys=True))
+          PY
