@@ -175,6 +175,11 @@ class GiteaMirrorQualificationFailure(MirrorError):
             ),
             "raw_credential_output": "EXCLUDED",
         }
+        from .mirror_git_diagnostics import git_failure_evidence
+
+        git_context = git_failure_evidence(error)
+        if git_context is not None:
+            self.evidence["git_runtime"] = git_context
 
 
 def qualify_gitea_mirror(root):

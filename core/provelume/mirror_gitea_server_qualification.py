@@ -472,6 +472,11 @@ def qualify_gitea_server(root, server_binary, *, api_only=False):
         }
         if hasattr(error, "containment_evidence"):
             evidence["native_process"] = error.containment_evidence
+        from .mirror_git_diagnostics import git_failure_evidence
+
+        git_context = git_failure_evidence(error)
+        if git_context is not None:
+            evidence["git_runtime"] = git_context
         if code == "gitea_fixture_interruption":
             phase = (
                 "interrupted_publication_error" if error.__context__ is not None
