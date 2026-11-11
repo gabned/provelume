@@ -199,3 +199,5 @@ jobs:
           PY
           PYTHONPATH="$PWD:$fixture" python -B "$fixture/control.py"
           test -z "$(git status --porcelain)"
+
+# One replacement requested for run 43097438275, which had no assigned job.
