@@ -35,7 +35,7 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/s07-original" 19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2
           git worktree add --detach "$RUNNER_TEMP/s07-reviewed-observer" efc915815bd5a1dcad3246c135043b6111394f47
           python tools/agent_protocol_v2.py verify
-          git diff --check HEAD^ HEAD
+          git diff --check 2918c3968168e426986bd8fcd7d485f102c11f7b HEAD
       - name: Set up the bounded observer on the ephemeral Linux runner
         shell: bash
         run: |

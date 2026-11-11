@@ -15,7 +15,7 @@ from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_lifecycle_window import observe, summarize
+from s07_lifecycle_window import entry_purpose, observe, summarize
 
 BASE = "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2"
 TREE = "e5c104cf0b753d4da5326eda691703506f37d83b"
@@ -23,6 +23,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
+PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -64,7 +65,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != MAIN
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != PREPARATION
+        or git(ROOT, "show", "-s", "--format=%P", PREPARATION) != MAIN
         or git(ROOT, "rev-parse", "refs/remotes/origin/main") != MAIN
         or set(git(ROOT, "diff", "--name-only", MAIN, "HEAD").splitlines()) != CHANGED
         or git(SOURCE, "rev-parse", "HEAD", "HEAD^{tree}").splitlines() != [BASE, TREE]
@@ -174,8 +176,6 @@ def worker(native, mode, output, inputs=None):
         if mode == "control":
             from provelume import capture_journal
             from provelume.service import ProvelumeInstance
-
-            from s07_lifecycle_window import entry_purpose
 
             probe = wrap(qualifier.deterministic_probe, "control", set(range(4)))
             recovery = capture_journal.recover_capture_transactions_locked
@@ -329,8 +329,14 @@ def admit(native, output):
         raise ValueError("actual worker startup placement differs")
     containment = native.containment_control(SOURCE, output)
     control = output / "control"
-    if native.collect(SOURCE, control, worker_args("control", control), 45):
-        raise ValueError("four-frame kernel control failed")
+    try:
+        if native.collect(SOURCE, control, worker_args("control", control), 45):
+            raise ValueError("four-frame kernel control failed")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        for path in (control / "kernel.stderr", control / "execution.log"):
+            if path.is_file():
+                print(f"S07_CONTROL_{path.name}=" + path.read_text()[-4096:], flush=True)
+        raise
     clean_network(control, "network")
     frames = kernel_binding(native, control, CONTROL, host)
     positive, negative = (frames[i]["summary"]["by_purpose"]["capture-acquire"] for i in (1, 2))

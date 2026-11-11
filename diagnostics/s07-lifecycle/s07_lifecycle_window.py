@@ -7,10 +7,10 @@ transaction, or underlying function is replaced by a substitute implementation.
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from itertools import pairwise
 from threading import get_ident
 from time import monotonic_ns, thread_time_ns
 from unittest.mock import patch
-
 
 CAPTURE_PURPOSES = ("capture-submit", "capture-acquire")
 INDEX_PURPOSE = "search-index-refresh"
@@ -39,7 +39,7 @@ class Window:
         marks = (self.entered, self.lock_acquired, self.ready, self.body_done, self.exited)
         return self.lock_calls == 1 and all(mark is not None for mark in marks) and all(
             first[0] <= second[0] and first[1] <= second[1]
-            for first, second in zip(marks, marks[1:])
+            for first, second in pairwise(marks)
         )
 
 

@@ -1,6 +1,6 @@
 # S07 lifecycle CPU diagnostic
 
-This branch owns one diagnostic under the maintainer's isolated-branch instruction. It references [the original #439 BIND](https://github.com/gabned/provelume/pull/439#issuecomment-6654096835) and [the corrected model-free control](https://github.com/gabned/provelume/actions/runs/43109183453/job/130820361576). The diagnostic has no qualification effect. The workflow can run once per attempt-1 push changing its own file on the named branch. Its source check also requires one direct commit on the recorded main and an exact path allowlist.
+This branch owns one diagnostic under the maintainer's isolated-branch instruction. It references [the original #439 BIND](https://github.com/gabned/provelume/pull/439#issuecomment-6654096835) and [the corrected model-free control](https://github.com/gabned/provelume/actions/runs/43109183453/job/130820361576). The diagnostic has no qualification effect. The workflow can run once per attempt-1 push changing its own file on the named branch. Its source check requires the exact diagnostic history on the recorded main and an exact path allowlist. [Initial preparation](https://github.com/gabned/provelume/actions/runs/43111976421/job/130830090204) stopped at Ruff before the model-free controls. The corrective commit fixes the reported lint issues. No native sequence started in that preparation.
 
 | Finding | Original job | Observed Capture / own limit (s) |
 | --- | --- | --- |
