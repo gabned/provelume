@@ -11,13 +11,25 @@ from .mirror_ssh_agent import AgentProtocol
 from .mirror_ssh_agent_server import OwnedAgent
 
 
-def publish(path, value):
+def publish(path, value, *, deadline=None):
+    # Keep the parent's existing one-second completion window and the original
+    # protocol deadline. Windows readers may briefly deny deletion of the
+    # prepared metadata file; retry only that rename, never the signing request.
+    end = min(time.monotonic() + 1, deadline if deadline is not None else float("inf"))
     temporary = path.with_name(path.name + ".tmp")
     with temporary.open("xb") as stream:
         stream.write(raw(value))
         stream.flush()
         os.fsync(stream.fileno())
-    os.replace(temporary, path)
+    while True:
+        require(time.monotonic() < end, "ssh_agent_deadline")
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError as error:
+            if getattr(error, "winerror", None) not in {32, 33} or time.monotonic() >= end:
+                raise
+            time.sleep(min(0.01, max(0, end - time.monotonic())))
 
 
 def main():
@@ -57,6 +69,7 @@ def main():
                     "pid": os.getpid(),
                     "endpoint": owned.endpoint,
                 },
+                deadline=protocol.deadline,
             )
             while owned.worker.is_alive() and time.monotonic() < protocol.deadline:
                 time.sleep(0.05)
@@ -70,6 +83,7 @@ def main():
                 "host_bound": protocol.session is not None,
                 "private_key_logged": False,
             },
+            deadline=protocol.deadline,
         )
         return 0 if protocol.signatures == 1 else 2
     except Exception:
