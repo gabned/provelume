@@ -101,3 +101,19 @@ def test_recovered_sharing_cannot_publish_after_deadline(tmp_path, monkeypatch):
         worker.publish(output, {"schema": "synthetic-metadata"}, deadline=1.0)
     assert attempts == [True]
     assert not output.exists()
+
+
+def test_uncontended_first_publication_keeps_original_behavior(tmp_path, monkeypatch):
+    output = tmp_path / "ready.json"
+    clock = [0.0]
+    fsync = worker.os.fsync
+
+    def slow_flush(descriptor):
+        fsync(descriptor)
+        clock[0] = 2.0
+
+    monkeypatch.setattr(worker, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(worker.os, "fsync", slow_flush)
+    report = {"schema": "provelume-ssh-agent-ready/v1", "pid": 123, "endpoint": "SYNTHETIC"}
+    worker.publish(output, report)
+    assert json.loads(output.read_bytes()) == report

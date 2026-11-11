@@ -21,14 +21,17 @@ def publish(path, value, *, deadline=None):
         stream.write(raw(value))
         stream.flush()
         os.fsync(stream.fileno())
+    retrying = False
     while True:
-        require(time.monotonic() < end, "ssh_agent_deadline")
+        if retrying:
+            require(time.monotonic() < end, "ssh_agent_deadline")
         try:
             os.replace(temporary, path)
             return
         except PermissionError as error:
             if getattr(error, "winerror", None) not in {32, 33} or time.monotonic() >= end:
                 raise
+            retrying = True
             time.sleep(min(0.01, max(0, end - time.monotonic())))
 
 

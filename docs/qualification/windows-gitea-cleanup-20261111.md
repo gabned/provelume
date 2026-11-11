@@ -50,7 +50,9 @@ Parent admission/completion, the30-second worker limit, IPC restrictions, privat
 DACL, one host-bound signature, seed/file inspection and containment checks are
 unchanged. The parent still requires the same full report before accepting a
 session. Transient-fault, permanent-failure and late-recovery regressions retain
-these controls; the original native IPC/cleanup test remains unchanged.
+these controls; uncontended first publication keeps its original behavior, with
+no new limit on a successful first write. The original native IPC/cleanup test
+remains unchanged.
 
 No test, fixture, matrix, worker, allocator or gate is removed or reduced; native
 540s/job10m, Ubuntu15m and workspace20m stay unchanged. Complete exact-head native
