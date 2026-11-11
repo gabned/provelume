@@ -1,0 +1,18 @@
+# S07 lifecycle CPU diagnostic
+
+This branch owns one diagnostic under the maintainer's isolated-branch instruction. It references [the original #439 BIND](https://github.com/gabned/provelume/pull/439#issuecomment-6654096835) and [the corrected model-free control](https://github.com/gabned/provelume/actions/runs/43109183453/job/130820361576). The diagnostic has no qualification effect. The workflow can run once per attempt-1 push changing its own file on the named branch. Its source check also requires one direct commit on the recorded main and an exact path allowlist.
+
+| Finding | Original job | Observed Capture / own limit (s) |
+| --- | --- | --- |
+| Deterministic 1 | [126918981396](https://github.com/gabned/provelume/actions/runs/41928461608/job/126918981396) | 0.467447869 / 0.409724258 |
+| S06 1 and 5 | [127531293383](https://github.com/gabned/provelume/actions/runs/42109002130/job/127531293383) | 0.441381141 and 0.560081222 / 0.364834536 |
+| S06 2 | [127552733141](https://github.com/gabned/provelume/actions/runs/42115157949/job/127552733141) | 0.479963418 / 0.422237996 |
+| S06 5 | [127569128458](https://github.com/gabned/provelume/actions/runs/42119880008/job/127569128458) | 0.433143564 / 0.400895138 |
+
+PRODUCT executes from immutable `19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`, tree `e5c104cf0b753d4da5326eda691703506f37d83b`. Main `2918c3968168e426986bd8fcd7d485f102c11f7b` and owner head `efc915815bd5a1dcad3246c135043b6111394f47` are checked separately. Reviewed observer helpers come from the owner head. The source, pin, qualifier, network observer, fixtures and dependencies are pinned. Ordinary CPU CI has no matching trigger on this branch.
+
+The admission uses the original kernel collector, 2 MiB stream cap, exact event counters, 5 ms marker bound, fork/exit inventory and benign startup environment. Four fresh model-free frames verify complete TID/clock binding on the actual runner, plus a known delay after acquiring the capture lock and a negative control with the same delay in the transaction body. Admission is valid only on the same boot and placement and for the existing 900-second freshness window. The unchanged locked native inputs are acquired after admission and verified before execution. The observer uses its existing 1200-second execution and 60-second network validation bounds.
+
+One original full sequence observes deterministic slot 1 and S06 slots 1, 2 and 5. The probe times and original gates are recorded without subtracting observer cost. For each selected sample the three lock purposes are distinct, and the full index refresh is measured independently. An exceedance larger than the combined Capture pre-yield windows rules out those windows as a sufficient direct explanation for that observed sample. A compatible window reports caller CPU, blocked time and ready time. The outcome leaves historical causality open. A sample within its own original limit reports NON_REPRODUCTION. Missing binding, network failure or another failed non-Capture check stops the analysis.
+
+The four findings remain CURRENT / NOT_DEMONSTRATED. Independent artifact verification remains BLOCKED_BY_MAINTAINER / NOT_WAIVED.

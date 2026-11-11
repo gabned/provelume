@@ -1,0 +1,79 @@
+name: S07 lifecycle CPU diagnostic
+on:
+  push:
+    branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
+    paths: ['.github/workflows/s07-lifecycle-diagnostic.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DRIVER: diagnostics/s07-lifecycle/s07_cpu.py
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Reconcile the isolated commit, source trees and pin
+        shell: bash
+        run: |
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery
+          test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
+          test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git worktree add --detach "$RUNNER_TEMP/s07-original" 19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2
+          git worktree add --detach "$RUNNER_TEMP/s07-reviewed-observer" efc915815bd5a1dcad3246c135043b6111394f47
+          python tools/agent_protocol_v2.py verify
+          git diff --check HEAD^ HEAD
+      - name: Set up the bounded observer on the ephemeral Linux runner
+        shell: bash
+        run: |
+          python scripts/bootstrap.py
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache diagnostics/s07-lifecycle
+          sudo apt-get update -qq
+          sudo apt-get install -y bpftrace strace
+          sudo sysctl kernel.sched_schedstats=1
+          if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
+            sudo mount -t tracefs tracefs /sys/kernel/tracing
+          fi
+      - name: Check actual startup, containment and four frame controls without model
+        run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
+      - name: Acquire locked inputs after admission
+        shell: bash
+        run: |
+          test -f "$RUNNER_TEMP/s07-admission/admission.json"
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery
+          test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
+          test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
+          .venv/bin/python "$RUNNER_TEMP/s07-original/scripts/ai_runtime_acquire.py" --directory "$RUNNER_TEMP/s07-inputs" --accept-licenses --include-model
+      - name: Execute one original sequence with the selected observations
+        shell: bash
+        run: |
+          .venv/bin/python "$DRIVER" run "$RUNNER_TEMP/s07-admission" \
+            "$RUNNER_TEMP/s07-inputs" "$RUNNER_TEMP/s07-sequence"
+      - name: Record preparation and execution state
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/s07-sequence/analysis.json"; then
+            echo 'COMPLETE_DIAGNOSTIC_ONLY'
+          elif test -f "$RUNNER_TEMP/s07-admission/started.json"; then
+            echo 'STOPPED / UNKNOWN'
+          elif test -f "$RUNNER_TEMP/s07-admission/admission.json"; then
+            echo 'ADMITTED / NOT_RUN'
+          else
+            echo 'NOT_ADMITTED / NOT_RUN'
+          fi
