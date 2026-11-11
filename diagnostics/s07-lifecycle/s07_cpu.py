@@ -25,6 +25,7 @@ BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
 PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
 LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
+NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -66,7 +67,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != LINT_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != NETWORK_DIAGNOSTIC
+        or git(ROOT, "show", "-s", "--format=%P", NETWORK_DIAGNOSTIC) != LINT_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", LINT_CORRECTION) != PREPARATION
         or git(ROOT, "show", "-s", "--format=%P", PREPARATION) != MAIN
         or git(ROOT, "rev-parse", "refs/remotes/origin/main") != MAIN
@@ -338,11 +340,11 @@ def admit(native, output):
         ):
             raise ValueError("unreviewed kernel scheduler state encoding")
     subprocess.run(
-        ["strace", "-ff", "-tt", "-e", "trace=network", "-o", str(output / "startup"),
+        ["strace", "-ff", "-tt", "-e", "trace=network", "-o", str(output / "startup-network"),
          sys.executable, *worker_args("startup", output)],
         check=True, timeout=45, cwd=SOURCE, env=native.child_environment(),
     )
-    clean_network(output, "startup", "actual-worker-startup")
+    clean_network(output, "startup-network", "actual-worker-startup")
     if json.loads((output / "startup.json").read_text())["host"] != host:
         raise ValueError("actual worker startup placement differs")
     containment = native.containment_control(SOURCE, output)
