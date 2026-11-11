@@ -11,7 +11,7 @@ import sys
 import tempfile
 import threading
 import time
-from functools import partial
+from functools import partial, partialmethod
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,6 +26,7 @@ BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
 PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
 LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
 NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
+TRACE_PREFIX_CORRECTION = "5202c4085ed8f6ae58be28996eecdc4c90810821"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -67,7 +68,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != NETWORK_DIAGNOSTIC
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != TRACE_PREFIX_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", TRACE_PREFIX_CORRECTION) != NETWORK_DIAGNOSTIC
         or git(ROOT, "show", "-s", "--format=%P", NETWORK_DIAGNOSTIC) != LINT_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", LINT_CORRECTION) != PREPARATION
         or git(ROOT, "show", "-s", "--format=%P", PREPARATION) != MAIN
@@ -196,10 +198,10 @@ def worker(native, mode, output, inputs=None):
                     inject(number)
                 return recovery(*args, **kwargs)
 
-            def body_control(number, *args, **kwargs):
+            def body_control(adapter_instance, number, *args, **kwargs):
                 if number == 2:
                     inject(number)
-                return acquire(*args, **kwargs)
+                return acquire(adapter_instance, *args, **kwargs)
 
             for number in range(4):
                 with (
@@ -207,7 +209,7 @@ def worker(native, mode, output, inputs=None):
                     patch.object(capture_journal, "recover_capture_transactions_locked",
                                  partial(recovery_control, number)),
                     patch.object(adapter.CaptureAdapter, "_acquire_locked",
-                                 partial(body_control, number)),
+                                 partialmethod(body_control, number)),
                 ):
                     probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
                 if number in injections:
