@@ -1,0 +1,57 @@
+name: Ubuntu 24.04 APT recovery probe for PR 460
+
+on:
+  push:
+    branches: ['codex/ubuntu-apt-probe-460-20261111']
+    paths: ['.github/workflows/ubuntu-apt-probe-460.yml']
+
+permissions: {}
+
+jobs:
+  apt-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Azure mirror and Tesseract packages (OCR)
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F azure.archive.ubuntu.com /etc/apt/apt-mirrors.txt
+          getent ahostsv4 azure.archive.ubuntu.com
+          sudo apt-get clean
+          sudo apt-get -o APT::Update::Error-Mode=any update
+          sudo apt-get install --yes --no-install-recommends --reinstall tesseract-ocr tesseract-ocr-eng
+          tesseract --list-langs | grep -x eng
+
+      - name: Azure mirror and ffmpeg package (video fixtures)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F azure.archive.ubuntu.com /etc/apt/apt-mirrors.txt
+          getent ahostsv4 azure.archive.ubuntu.com
+          sudo apt-get clean
+          sudo apt-get -o APT::Update::Error-Mode=any update
+          sudo apt-get install --yes --no-install-recommends --reinstall ffmpeg
+          /usr/bin/ffmpeg -version | sed -n '1p'
+
+      - name: Pinned Ubuntu snapshot and native packages inside BuildKit
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          context="$(mktemp -d)"
+          cat > "$context/Dockerfile" <<'EOF'
+          FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae
+          SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+          RUN getent ahostsv4 snapshot.ubuntu.com \
+              && apt-get -o APT::Update::Error-Mode=any update --snapshot 20260928T000000Z | tee /tmp/snapshot-apt.log \
+              && grep -F 'snapshot.ubuntu.com/ubuntu/20260928T000000Z' /tmp/snapshot-apt.log \
+              && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                 --snapshot 20260928T000000Z python3 python3-venv nodejs \
+              && dpkg-query -W python3 python3-venv nodejs
+          EOF
+          docker build --no-cache --progress=plain "$context"
