@@ -213,8 +213,9 @@ def test_source_frozen_operator_and_default_off_passive_cli_status(tmp_path, mon
     from provelume.ocr_desktop import run_ocr_command
 
     output = tmp_path / "result.json"
-    assert run_ocr_command(["gitea-mirror-qualify", str(tmp_path / "Fresh Gitea")], output) == 0
+    code = run_ocr_command(["gitea-mirror-qualify", str(tmp_path / "Fresh Gitea")], output)
     report = json.loads(output.read_bytes())
+    assert code == 0, report.get("qualification_evidence", {"diagnostic": "NOT_AVAILABLE"})
     assert report["result"] == "PASS" and report["real_gitea"] == "NOT_RUN"
     assert report["http_worker_refusal"] == "PASS" and not report["network_used"]
 
@@ -224,6 +225,60 @@ def test_source_frozen_operator_and_default_off_passive_cli_status(tmp_path, mon
     monkeypatch.setattr(GitSession, "run", forbidden)
     assert main(["mirror-gitea-status", str(tmp_path / "Fresh Gitea" / "Instance")]) == 0
     assert json.loads(capsys.readouterr().out)["result"]["profile"] == PROFILE
+
+
+def test_operator_failure_keeps_safe_stage_code_and_refuses_success(tmp_path, monkeypatch, capsys):
+    import json
+
+    from provelume.ocr_desktop import run_ocr_command
+
+    secret = "SYNTHETIC_PRIVATE_CREDENTIAL_NOT_FOR_OUTPUT"
+
+    def fail_probe(_session):
+        error = MirrorError("git_command_failed")
+        error.add_note(secret)
+        raise error
+
+    monkeypatch.setattr(GitSession, "probe", fail_probe)
+    output = tmp_path / "failure.json"
+    assert run_ocr_command(["gitea-mirror-qualify", str(tmp_path / "Fresh")], output) == 2
+    data = output.read_text()
+    report = json.loads(data)
+    assert report["status"] == "unavailable" and report["code"] == "git_command_failed"
+    assert report["qualification_evidence"] == {
+        "schema": "concordia-gitea-mirror-failure/v1",
+        "result": "UNKNOWN",
+        "phase": "publication_and_noop",
+        "error_code": "git_command_failed",
+        "prior_error_code": "OTHER",
+        "raw_credential_output": "EXCLUDED",
+    }
+    assert secret not in data and str(tmp_path) not in data
+    captured = capsys.readouterr()
+    assert not captured.out and not captured.err
+
+
+def test_unknown_failure_context_excludes_private_messages_and_locators(tmp_path, monkeypatch):
+    import json
+
+    from provelume import mirror_gitea_qualification as qualification
+    from provelume.ocr_desktop import run_ocr_command
+
+    secret = "SYNTHETIC_PRIVATE_CREDENTIAL_NOT_FOR_OUTPUT"
+
+    def fail(_root, phase):
+        phase[0] = secret
+        raise OSError(secret + str(tmp_path))
+
+    monkeypatch.setattr(qualification, "_qualify_gitea_mirror", fail)
+    output = tmp_path / "failure.json"
+    assert run_ocr_command(["gitea-mirror-qualify", str(tmp_path / "Fresh")], output) == 2
+    data = output.read_text()
+    report = json.loads(data)
+    assert report["code"] == "invalid_kit" and report["status"] == "unavailable"
+    assert report["qualification_evidence"]["phase"] == "OTHER"
+    assert report["qualification_evidence"]["result"] == "UNKNOWN"
+    assert secret not in data and str(tmp_path) not in data
 
 
 def test_local_csrf_ui_uses_gitea_backend_and_passive_get_has_no_transport(tmp_path, monkeypatch):

@@ -130,7 +130,54 @@ def synthetic_fixture(root, *, public=False):
     return instance, mirrors, engine, destination, api
 
 
+class GiteaMirrorQualificationFailure(MirrorError):
+    """Closed diagnostic context; no credential, path or subprocess output."""
+
+    def __init__(self, error, phase):
+        # Keep the existing operator code; only the additional public context
+        # uses closed vocabularies, never exception messages or private paths.
+        code = getattr(error, "code", "invalid_kit")
+        super().__init__(code)
+        safe_codes = {
+            "qualification", "target_not_fresh", "authorization_required", "local_only",
+            "credential_context", "deadline", "git_unavailable", "git_command_failed",
+            "git_containment", "git_output_limit", "git_version_unsupported",
+            "gitea_credential_changed", "gitea_identity_changed", "gitea_credential_query",
+            "secure_store_unavailable", "invalid_kit",
+            "stale", "destination_changed", "outcome_unknown", "gitea_transfer_changed",
+            "gitea_access_changed", "git_incomplete", "git_version_changed",
+        }
+        phases = {
+            "initialization", "publication_and_noop", "second_generation",
+            "interrupted_publication", "restore_and_readonly_recovery",
+            "credential_protocol", "http_worker_refusal", "native_vault_helper",
+            "interrupted_publication_error", "interrupted_publication_missing_error",
+            "vault_initialization", "vault_connection", "vault_destination",
+            "vault_read", "vault_git_probe", "vault_credential_reply", "vault_revocation",
+        }
+        self.evidence = {
+            "schema": "concordia-gitea-mirror-failure/v1",
+            "result": "UNKNOWN",
+            "phase": phase if phase in phases else "OTHER",
+            "error_code": code if code in safe_codes else "OTHER",
+            "prior_error_code": (
+                error.__context__.code
+                if isinstance(error.__context__, MirrorError)
+                and error.__context__.code in safe_codes else "OTHER"
+            ),
+            "raw_credential_output": "EXCLUDED",
+        }
+
+
 def qualify_gitea_mirror(root):
+    phase = ["initialization"]
+    try:
+        return _qualify_gitea_mirror(root, phase)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise GiteaMirrorQualificationFailure(error, phase[0]) from None
+
+
+def _qualify_gitea_mirror(root, phase):
     """Permanent source/frozen test using no real account, credential or remote."""
     import os
     import subprocess
@@ -158,6 +205,7 @@ def qualify_gitea_mirror(root):
             confirmed=True,
         )
 
+    phase[0] = "publication_and_noop"
     first = publish(prepare())["receipt"]
     repeat = publish(prepare())["receipt"]
     require(
@@ -165,6 +213,7 @@ def qualify_gitea_mirror(root):
         and not repeat["transport_proof"]["commit_written"],
         "qualification",
     )
+    phase[0] = "second_generation"
     (root / "Inputs" / "two.md").write_text("# Synthetic second generation\n\nNew content.\n")
     instance.ingest_run(root / "Inputs")
     before = mirrors.snapshots.source_fingerprint()
@@ -179,13 +228,17 @@ def qualify_gitea_mirror(root):
             raise MirrorError("deadline")
         return result
 
+    phase[0] = "interrupted_publication"
     with patch.object(GitSession, "run", interrupted):
         try:
             publish(plan)
         except MirrorError as error:
+            phase[0] = "interrupted_publication_error"
             require(error.code == "deadline", "qualification")
         else:
+            phase[0] = "interrupted_publication_missing_error"
             require(False, "qualification")
+    phase[0] = "restore_and_readonly_recovery"
     require(instance.restore(backup["archive"])["status"] == "restored", "qualification")
     probes = api.remote_writes
     receipt = engine.reconcile(plan["id"], confirmed=True)["receipt"]
@@ -196,6 +249,7 @@ def qualify_gitea_mirror(root):
         and mirrors.snapshots.source_fingerprint() == before,
         "qualification",
     )
+    phase[0] = "credential_protocol"
     require(
         credential_response(
             b"protocol=https\nhost=127.0.0.1:30443\npath=synthetic/qualification.git\n\n",
@@ -208,6 +262,7 @@ def qualify_gitea_mirror(root):
         == b"username=synthetic\npassword=synthetic-pipe-only\n\n",
         "qualification",
     )
+    phase[0] = "http_worker_refusal"
     environment = {
         key: value
         for key, value in os.environ.items()
@@ -233,6 +288,7 @@ def qualify_gitea_mirror(root):
         result.returncode == 2 and not result.stdout and not result.stderr and not output.exists(),
         "qualification",
     )
+    phase[0] = "native_vault_helper"
     return {
         "schema": "provelume-gitea-synthetic-qualification/v1",
         "result": "PASS",
@@ -241,7 +297,9 @@ def qualify_gitea_mirror(root):
         "api": "SYNTHETIC_RESPONSES",
         "git_transport": "NATIVE_FILE",
         "credential_protocol": "SYNTHETIC_PIPE",
-        "native_vault_helper": qualify_native_vault_helper(root / "Native Vault Trial"),
+        "native_vault_helper": qualify_native_vault_helper(
+            root / "Native Vault Trial", _phase=phase,
+        ),
         "http_worker_refusal": "PASS",
         "interruption_restore_readonly_recovery": "PASS",
         "resends": 0,
@@ -252,7 +310,7 @@ def qualify_gitea_mirror(root):
     }
 
 
-def qualify_native_vault_helper(root, *, native_secret_service=False):
+def qualify_native_vault_helper(root, *, native_secret_service=False, _phase=None):
     """Native OS vault -> Git -> actual owned source/frozen helper, synthetic only.
 
     All slots and values are newly synthetic, under an isolated LOCALAPPDATA.
@@ -267,6 +325,8 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
 
     if os.name != "nt" and not native_secret_service:
         return {"result": "NOT_RUN", "reason": "NATIVE_WINDOWS_ONLY"}
+    if _phase is not None:
+        _phase[0] = "vault_initialization"
     root = Path(root).absolute()
     require(not root.exists(), "target_not_fresh")
     root.mkdir()
@@ -282,6 +342,8 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
             mirrors=mirrors,
             credentials=GiteaCredentials(mirrors, http=SyntheticApi()),
         )
+        if _phase is not None:
+            _phase[0] = "vault_connection"
         connection = engine.connect(
             name="Synthetic native vault",
             target=target(),
@@ -290,6 +352,8 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
             confirmed=True,
         )
         identity = connection["identity"]
+        if _phase is not None:
+            _phase[0] = "vault_destination"
         destination = mirrors.configure(
             identity_id=identity["id"],
             name="Synthetic credential pipe",
@@ -300,8 +364,12 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
             confirmed=True,
         )
         reference = mirrors._grant(identity)["credential"]["reference"]
+        if _phase is not None:
+            _phase[0] = "vault_read"
         credential = engine.credentials.read(reference)
         with git_work() as session:
+            if _phase is not None:
+                _phase[0] = "vault_git_probe"
             version = session.probe()
             configure_session(
                 session,
@@ -310,6 +378,8 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
                 reference=reference,
                 binding={"credential_epoch": credential["epoch"]},
             )
+            if _phase is not None:
+                _phase[0] = "vault_credential_reply"
             response = session.run(
                 ["credential", "fill"],
                 input_bytes=(
@@ -322,6 +392,8 @@ def qualify_native_vault_helper(root, *, native_secret_service=False):
                 and fields.get(b"password") == b"synthetic-native-vault-only",
                 "qualification",
             )
+        if _phase is not None:
+            _phase[0] = "vault_revocation"
         engine.disconnect(identity["id"], expected_revision=1, confirmed=True)
     return {
         "result": "PASS",

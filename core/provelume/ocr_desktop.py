@@ -223,6 +223,11 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
 
                     if isinstance(exc, WindowsComponentsFailure):
                         failure["qualification_evidence"] = exc.evidence
+                if options.command == "gitea-mirror-qualify":
+                    from .mirror_gitea_qualification import GiteaMirrorQualificationFailure
+
+                    if isinstance(exc, GiteaMirrorQualificationFailure):
+                        failure["qualification_evidence"] = exc.evidence
                 if options.command == "gitea-server-qualify":
                     from .mirror_gitea_server_qualification import GiteaQualificationFailure
 
