@@ -24,6 +24,7 @@ OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
 PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
+LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -65,7 +66,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != PREPARATION
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != LINT_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", LINT_CORRECTION) != PREPARATION
         or git(ROOT, "show", "-s", "--format=%P", PREPARATION) != MAIN
         or git(ROOT, "rev-parse", "refs/remotes/origin/main") != MAIN
         or set(git(ROOT, "diff", "--name-only", MAIN, "HEAD").splitlines()) != CHANGED
@@ -288,14 +290,30 @@ def kernel_binding(native, output, targets, host):
     return data["frames"]
 
 
-def clean_network(path, prefix):
-    traces = list(path.glob(f"{prefix}.*"))
-    if not traces or any(
-        re.search(r"\b(socket|connect|sendto|sendmsg|sendmmsg)\(", trace.read_text())
-        or "+++ exited with 0 +++" not in trace.read_text()
-        for trace in traces
-    ):
-        raise ValueError("model-free process startup/network/exit check failed")
+def clean_network(path, prefix, stage):
+    traces = sorted(path.glob(f"{prefix}.*"))
+    calls, exits = {}, {}
+    for trace in traces:
+        content = trace.read_text()
+        for line in content.splitlines():
+            call = re.search(r"\b(socket|connect|sendto|sendmsg|sendmmsg)\(", line)
+            if call:
+                # Keep syscall, address family and result. Drop addresses and arguments.
+                family = re.search(r"\bAF_[A-Z0-9_]+\b", line)
+                errno = re.search(r"= -1 ([A-Z0-9_]+)\b", line)
+                key = ":".join((
+                    call[1], family[0] if family else "-", errno[1] if errno else "-",
+                ))
+                calls[key] = calls.get(key, 0) + 1
+        ending = re.search(r"\+\+\+ (exited with \d+|killed by SIG[A-Z0-9]+) \+\+\+", content)
+        key = ending[1] if ending else "no exit marker"
+        exits[key] = exits.get(key, 0) + 1
+    clean = bool(traces) and not calls and exits == {"exited with 0": len(traces)}
+    print("S07_NETWORK_CONTROL=" + json.dumps({
+        "stage": stage, "traces": len(traces), "calls": calls, "exits": exits, "pass": clean,
+    }), flush=True)
+    if not clean:
+        raise ValueError(f"{stage}: model-free network/exit check failed")
 
 
 def worker_args(mode, output, *extra):
@@ -324,7 +342,7 @@ def admit(native, output):
          sys.executable, *worker_args("startup", output)],
         check=True, timeout=45, cwd=SOURCE, env=native.child_environment(),
     )
-    clean_network(output, "startup")
+    clean_network(output, "startup", "actual-worker-startup")
     if json.loads((output / "startup.json").read_text())["host"] != host:
         raise ValueError("actual worker startup placement differs")
     containment = native.containment_control(SOURCE, output)
@@ -337,7 +355,7 @@ def admit(native, output):
             if path.is_file():
                 print(f"S07_CONTROL_{path.name}=" + path.read_text()[-4096:], flush=True)
         raise
-    clean_network(control, "network")
+    clean_network(control, "network", "four-frame-capture-control")
     frames = kernel_binding(native, control, CONTROL, host)
     positive, negative = (frames[i]["summary"]["by_purpose"]["capture-acquire"] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]

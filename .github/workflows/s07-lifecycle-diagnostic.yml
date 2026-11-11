@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Check actual startup, containment and four frame controls without model
+      - name: Check startup and four Capture frames with separate network diagnostics
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
