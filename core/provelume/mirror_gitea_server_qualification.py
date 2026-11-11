@@ -28,6 +28,7 @@ from .mirror_gitea import GiteaMirrors
 from .mirror_gitea_contract import VERSION, tls_context
 from .mirror_gitea_credentials import GiteaCredentials
 from .mirror_gitea_http import GiteaHttp
+from .mirror_gitea_qualification import GiteaMirrorQualificationFailure
 from .mirror_gitea_qualification import target as synthetic_target
 from .mirrors import Mirrors
 from .ocr_process import _terminate_process_tree, run_bounded_process
@@ -471,6 +472,12 @@ def qualify_gitea_server(root, server_binary, *, api_only=False):
         }
         if hasattr(error, "containment_evidence"):
             evidence["native_process"] = error.containment_evidence
+        if code == "gitea_fixture_interruption":
+            phase = (
+                "interrupted_publication_error" if error.__context__ is not None
+                else "interrupted_publication_missing_error"
+            )
+            evidence["interruption"] = GiteaMirrorQualificationFailure(error, phase).evidence
         raise GiteaQualificationFailure(code, evidence) from None
     finally:
         COMMAND_SECRETS.reset(secret_token)

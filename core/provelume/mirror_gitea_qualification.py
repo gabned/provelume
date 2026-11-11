@@ -146,6 +146,15 @@ class GiteaMirrorQualificationFailure(MirrorError):
             "secure_store_unavailable", "invalid_kit",
             "stale", "destination_changed", "outcome_unknown", "gitea_transfer_changed",
             "gitea_access_changed", "git_incomplete", "git_version_changed",
+            "invalid", "limit", "integrity", "source_changed", "disabled", "expired",
+            "consent_required", "public_consent_required", "destination", "destination_incomplete",
+            "git_active_unknown", "git_generation_changed", "git_local_credentials",
+            "git_not_fast_forward", "git_object_format", "git_path", "git_plan",
+            "git_profile_not_qualified", "git_ref", "git_storage_limit", "git_target_exists",
+            "git_target_not_empty", "git_target_privacy", "git_tree", "unsafe_git_storage",
+            "gitea_certificate", "gitea_endpoint", "gitea_profile_not_qualified", "gitea_response",
+            "identity", "in_use", "plan_limit", "secret_pattern", "sensitive_pattern",
+            "transport_not_qualified", "visibility_unknown",
         }
         phases = {
             "initialization", "publication_and_noop", "second_generation",
@@ -155,15 +164,14 @@ class GiteaMirrorQualificationFailure(MirrorError):
             "vault_initialization", "vault_connection", "vault_destination",
             "vault_read", "vault_git_probe", "vault_credential_reply", "vault_revocation",
         }
+        prior_code = error.__context__.code if isinstance(error.__context__, MirrorError) else None
         self.evidence = {
             "schema": "concordia-gitea-mirror-failure/v1",
             "result": "UNKNOWN",
             "phase": phase if phase in phases else "OTHER",
             "error_code": code if code in safe_codes else "OTHER",
             "prior_error_code": (
-                error.__context__.code
-                if isinstance(error.__context__, MirrorError)
-                and error.__context__.code in safe_codes else "OTHER"
+                prior_code if type(prior_code) is str and prior_code in safe_codes else "OTHER"
             ),
             "raw_credential_output": "EXCLUDED",
         }
