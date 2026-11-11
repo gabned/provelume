@@ -13,6 +13,30 @@ on:
         description: 'Nonqualifying S01 operation-boundary and observer-cost study'
         type: boolean
         default: false
+      concordia_observer_source:
+        description: 'Old main SHA, capture-binding, native-admission-only, or native-cold-810'
+        type: string
+        default: ''
+      concordia_pool_prefix:
+        description: 'With observer study and exact main: one nonqualifying directly timed prefix'
+        type: boolean
+        default: false
+      concordia_caller_spans:
+        description: 'With observer study and exact main: one full nonqualifying caller-span sequence'
+        type: boolean
+        default: false
+      concordia_clock_bundle:
+        description: 'With observer study and exact main: one fixed nonqualifying light/rich pair'
+        type: boolean
+        default: false
+      concordia_capture_guard:
+        description: 'With observer study and exact main: one nonqualifying fixed Capture guard A/B/B/A'
+        type: boolean
+        default: false
+      concordia_kernel_control:
+        description: 'With observer study: explicit kernel admission or one native-cold-810 sequence'
+        type: boolean
+        default: false
       concordia_tracer_study:
         description: 'Nonqualifying S01 tracer CPU placement on the original EPYC 9V74 profile'
         type: boolean
@@ -25,7 +49,7 @@ permissions:
   contents: read
 jobs:
   measure:
-    if: ${{ inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     strategy:
       fail-fast: false
       matrix:
@@ -71,7 +95,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     # Four diagnostic arms, capped at 20 minutes each; qualification job stays unchanged.
     timeout-minutes: 85
@@ -100,7 +124,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-observer-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_observer_study == true && inputs.concordia_capture_guard != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -113,22 +137,196 @@ jobs:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
+      - name: Admit the selected main observer control before acquisition
+        if: inputs.concordia_observer_source != ''
+        env:
+          CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+        shell: bash
+        run: |
+          sudo sysctl kernel.sched_schedstats=1
+          .venv/bin/python scripts/diagnose_concordia_cpu.py observer-admission --repository "$GITHUB_WORKSPACE" --source "$CONCORDIA_OBSERVER_SOURCE" --output .agent/concordia-observer-admission.json
+          .venv/bin/python -m pytest -q tests/test_concordia_cpu_diagnostic.py tests/test_concordia_cpu_topology.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
         run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/concordia-inputs" --accept-licenses --include-model
       - name: Enable diagnostic scheduler counters
         run: sudo sysctl kernel.sched_schedstats=1
       - name: Boundary counters and observer contrast (DIAGNOSTIC_ONLY)
-        run: .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study
+        env:
+          CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+          CONCORDIA_POOL_PREFIX: ${{ inputs.concordia_pool_prefix }}
+          CONCORDIA_CALLER_SPANS: ${{ inputs.concordia_caller_spans }}
+          CONCORDIA_CLOCK_BUNDLE: ${{ inputs.concordia_clock_bundle }}
+        shell: bash
+        run: |
+          selected=()
+          if test -n "$CONCORDIA_OBSERVER_SOURCE"; then selected=(--observer-source "$CONCORDIA_OBSERVER_SOURCE"); fi
+          if test "$CONCORDIA_POOL_PREFIX" = true; then
+            test -n "$CONCORDIA_OBSERVER_SOURCE"
+            selected+=(--pool-prefix)
+          fi
+          if test "$CONCORDIA_CALLER_SPANS" = true; then
+            test -n "$CONCORDIA_OBSERVER_SOURCE"
+            test "$CONCORDIA_POOL_PREFIX" != true
+            selected+=(--caller-spans)
+          fi
+          if test "$CONCORDIA_CLOCK_BUNDLE" = true; then
+            test -n "$CONCORDIA_OBSERVER_SOURCE"
+            test "$CONCORDIA_POOL_PREFIX" != true
+            test "$CONCORDIA_CALLER_SPANS" != true
+            selected+=(--clock-bundle)
+          fi
+          .venv/bin/python scripts/diagnose_concordia_cpu.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/concordia-inputs" --output "$GITHUB_WORKSPACE/.agent/concordia-observer-study" --observer-study "${selected[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: concordia-observer-study
-          path: .agent/concordia-observer-study
+          path: |
+            .agent/concordia-observer-study
+            .agent/concordia-observer-admission*.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-kernel-control:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && inputs.concordia_observer_source != 'native-cold-810' && inputs.concordia_observer_source != 'native-admission-only' && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Bootstrap diagnostic controls without model acquisition
+        run: |
+          python scripts/bootstrap.py
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_concordia_kernel_observer.py
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Prepare only reviewed ephemeral kernel observation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bpftrace strace
+          mkdir -p .agent/kernel-control-environment
+          dpkg-query -W bpftrace strace > .agent/kernel-control-environment/packages.txt
+          uname -a > .agent/kernel-control-environment/kernel.txt
+          if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
+            sudo mount -t tracefs tracefs /sys/kernel/tracing
+          fi
+          for event in sched/sched_switch sched/sched_wakeup raw_syscalls/sys_enter syscalls/sys_enter_write; do
+            sudo cat "/sys/kernel/tracing/events/$event/format" > ".agent/kernel-control-environment/${event##*/}.txt"
+          done
+      - name: One model-free control or Capture-window binding; no inference
+        env:
+          CONTROL_MODE: ${{ inputs.concordia_observer_source }}
+        run: |
+          selected=control
+          if test "$CONTROL_MODE" = capture-binding; then
+            selected=capture-binding
+          else
+            test -z "$CONTROL_MODE"
+          fi
+          sudo env -i PATH=/usr/bin:/bin LANG=C.UTF-8 "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/concordia_kernel_observer.py" "$selected" --output "$GITHUB_WORKSPACE/.agent/concordia-kernel-control"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: concordia-kernel-control
+          path: |
+            .agent/concordia-kernel-control
+            .agent/kernel-control-environment
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-kernel-native:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/product/0.15-s07-cpu-recovery' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true && (inputs.concordia_observer_source == 'native-cold-810' || inputs.concordia_observer_source == 'native-admission-only') && inputs.concordia_capture_guard != true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true }}
+    runs-on: ubuntu-24.04
+    # Acquisition is outside the unchanged 1200s execution / 60s observation bounds.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Verify the committed driver and native contracts before admission
+        run: |
+          python scripts/bootstrap.py
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_concordia_kernel_native.py tests/test_concordia_kernel_observer.py tests/test_concordia_capture_marker_fixture.py
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Prepare the same bounded ephemeral kernel observation capability
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bpftrace strace
+          sudo sysctl kernel.sched_schedstats=1
+          if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
+            sudo mount -t tracefs tracefs /sys/kernel/tracing
+          fi
+      - name: Fresh host, source, containment, clock and Capture-marker admission without inference
+        run: .venv/bin/python scripts/concordia_kernel_native.py admit --output .agent/kernel-native-admission
+      - name: Explicit acquisition of the unchanged locked native inputs
+        if: inputs.concordia_observer_source == 'native-cold-810'
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/kernel-native-inputs" --accept-licenses --include-model
+      - name: One complete original baseline sequence, no retry or second arm
+        if: inputs.concordia_observer_source == 'native-cold-810'
+        run: .venv/bin/python scripts/concordia_kernel_native.py run --inputs "${{ runner.temp }}/kernel-native-inputs" --admission .agent/kernel-native-admission/admission.json --output .agent/kernel-native-sequence
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: concordia-kernel-native
+          path: |
+            .agent/kernel-native-admission
+            .agent/kernel-native-sequence
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  concordia-capture-guard:
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && inputs.concordia_observer_study == true && inputs.concordia_capture_guard == true && inputs.concordia_pool_prefix != true && inputs.concordia_caller_spans != true && inputs.concordia_clock_bundle != true && inputs.concordia_diagnostic != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Canonical dependency bootstrap
+        run: python scripts/bootstrap.py
+      - name: Admit one unchanged-observer source-factor block before acquisition
+        env:
+          CONCORDIA_OBSERVER_SOURCE: ${{ inputs.concordia_observer_source }}
+        shell: bash
+        run: |
+          test "$CONCORDIA_OBSERVER_SOURCE" = 1711f037b1467d84eb5e145466dad6a6171643fc
+          git fetch origin main
+          sudo sysctl kernel.sched_schedstats=1
+          .venv/bin/python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          .venv/bin/python -m pytest -q tests/test_capture_path_guard.py tests/test_capture_guard_comparison.py tests/test_concordia_journal_comparison.py
+          .venv/bin/python scripts/compare_capture_path_guard.py admit --repository "$GITHUB_WORKSPACE" --output .agent/capture-guard-admission.json
+      - name: Explicit locked acquisition
+        run: .venv/bin/python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/capture-guard-inputs" --accept-licenses --include-model
+      - name: One complete original A/B/B/A sequence (DIAGNOSTIC_ONLY)
+        run: .venv/bin/python scripts/compare_capture_path_guard.py run --repository "$GITHUB_WORKSPACE" --inputs "${{ runner.temp }}/capture-guard-inputs" --admission .agent/capture-guard-admission.json --output .agent/capture-guard-comparison
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: concordia-capture-guard
+          path: |
+            .agent/capture-guard-admission*.json
+            .agent/capture-guard-comparison
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
   concordia-smt-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_smt_study == true && inputs.concordia_tracer_study != true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:
@@ -160,7 +358,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   concordia-tracer-study:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true }}
+    if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_tracer_study == true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     steps:

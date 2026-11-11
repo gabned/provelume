@@ -177,6 +177,14 @@ TRANSCRIPT_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
     ),
 )
 
+PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
+    key="productivity-intake", kind="productivity.intake",
+    owner_id_pattern=r"productivity_[0-9a-f]{32}\Z",
+    limits=AtomicCommitLimits(max_entries=16, max_entry_bytes=2 * 1024 * 1024,
+        max_candidate_bytes=8 * 1024 * 1024, max_preimage_bytes=2 * 1024 * 1024,
+        max_journal_payload_bytes=10 * 1024 * 1024),
+)
+
 _ErrorType = type[Exception]
 _Replace = Callable[[Path, Path], None]
 _InterruptedHandler = Callable[[InstanceStore, str], None]
@@ -323,6 +331,10 @@ class AtomicInstanceCommit:
         return self._PreparePoolScope(self)
 
     def _shutdown_pool(self, pool, primary):
+        # Keep the cleanup/observation boundary even when lone I/O required no
+        # executor. There is no asynchronous work to drain in that case.
+        if pool is None:
+            return
         try:
             pool.shutdown(wait=True)
         except BaseException as drain:
@@ -338,8 +350,7 @@ class AtomicInstanceCommit:
         if self._transaction_pool_state == "failed":
             raise self._transaction_pool_failure
         try:
-            if self._transaction_pool is not None:
-                self._shutdown_pool(self._transaction_pool, primary)
+            self._shutdown_pool(self._transaction_pool, primary)
         except BaseException as failure:
             self._transaction_pool_state = "failed"
             self._transaction_pool_failure = failure
@@ -441,11 +452,17 @@ class AtomicInstanceCommit:
             # on failure, before a prepared manifest can authorize publication.
             for directory in sorted({path.parent for path, _data in payloads}, key=str):
                 directory.mkdir(mode=0o700, exist_ok=True)
-            with self._prepare_pool_scope() as writers:
-                pending = [writers.submit(_write_journal_payload, path, data)
-                           for path, data in payloads]
-                for write in pending:
-                    write.result()
+            if len(payloads) == 1:
+                # A single payload has no independent I/O to overlap. Complete
+                # the same exclusive write/flush/fsync in the owning thread;
+                # starting and joining a pool adds scheduling work only.
+                _write_journal_payload(*payloads[0])
+            elif payloads:
+                with self._prepare_pool_scope() as writers:
+                    pending = [writers.submit(_write_journal_payload, path, data)
+                               for path, data in payloads]
+                    for write in pending:
+                        write.result()
             for directory in (stage / "candidates", stage / "preimages"):
                 if directory.exists():
                     _fsync_directory(directory)
@@ -626,10 +643,14 @@ class AtomicInstanceCommit:
         # flushing it separately for each entry only repeats the same I/O.
         # Every future still completes before the committed marker, and the
         # enclosing pool joins on failure before rollback can restore preimages.
-        pending = [flushers.submit(_fsync_directory, directory)
-                   for directory in sorted(directories, key=str)]
-        for flush in pending:
-            flush.result()
+        if len(directories) == 1:
+            _fsync_directory(next(iter(directories)))
+        elif directories:
+            with self._prepare_pool_scope() as flushers:
+                pending = [flushers.submit(_fsync_directory, directory)
+                           for directory in sorted(directories, key=str)]
+                for flush in pending:
+                    flush.result()
 
 
 def _write_journal_payload(path: Path, data: bytes) -> None:
@@ -1252,6 +1273,7 @@ __all__ = [
     "ATOMIC_COMMIT_SCHEMA_VERSION",
     "EMAIL_INTAKE_TRANSACTION_PROFILE",
     "GOOGLE_INTAKE_TRANSACTION_PROFILE",
+    "PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE",
     "MANUAL_WEB_TRANSACTION_PROFILE",
     "REVIEW_TRANSACTION_PROFILE",
     "AtomicCommitError",

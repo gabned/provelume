@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -64,10 +65,10 @@ def replace_file(source: str | Path, target: str | Path) -> None:
             time.sleep(min(0.01, remaining))
 
 
-def _windows_snapshot_bytes(path: Path) -> bytes:
-    """Share existing DELETE access and close one snapshot before decoding."""
+@lru_cache(maxsize=1)
+def _windows_snapshot_api():
+    """Bind immutable OS entrypoints once; never retain a file or its contents."""
     import ctypes
-    import msvcrt
     from ctypes import wintypes
 
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -77,6 +78,15 @@ def _windows_snapshot_bytes(path: Path) -> bytes:
     kernel.CreateFileW.restype = wintypes.HANDLE
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.CloseHandle.restype = wintypes.BOOL
+    return kernel
+
+
+def _windows_snapshot_bytes(path: Path) -> bytes:
+    """Share existing DELETE access and close one snapshot before decoding."""
+    import ctypes
+    import msvcrt
+
+    kernel = _windows_snapshot_api()
     # GENERIC_READ; share READ/WRITE/DELETE, including an already-open writer's
     # DELETE access. MoveFileEx can still deny replacement until this closes;
     # the writer retains its existing bound and genuine errors propagate.

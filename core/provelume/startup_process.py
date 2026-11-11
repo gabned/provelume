@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import queue
+import re
 import secrets
 import subprocess
 import threading
@@ -12,6 +13,7 @@ from collections import deque
 from contextlib import ExitStack, suppress
 from pathlib import Path
 
+from . import __version__
 from .maintenance_local_files import DirectoryCloseUnconfirmed, open_local_directory
 from .service import ProvelumeInstance
 from .shell_settings import ShellSettingsError, ShellSettingsManager, probe_port
@@ -34,6 +36,50 @@ _DIAGNOSTIC_CODES = ERROR_CODES | {
     "cleanup_confirmed", "guard_close_failed", "endpoint_rolled_back",
     "endpoint_rollback_unconfirmed",
 }
+
+
+def startup_diagnostic_report(events, *, attempted, build):
+    """Package the existing bounded trace; perform no checks, I/O or network access."""
+    if (type(attempted) is not bool or type(events) is not list or len(events) > 32
+            or (not attempted and events)
+            or type(build) is not dict
+            or set(build) != {"version", "channel", "commit", "identity_status"}
+            or build["version"] != __version__
+            or (build["channel"] is not None and type(build["channel"]) is not str)
+            or build["channel"] not in {None, "development", "preview", "stable"}
+            or type(build["identity_status"]) is not str
+            or build["identity_status"] not in {
+                "development_build", "official_metadata_present", "identity_unavailable"}
+            or (build["commit"] is not None and (
+                type(build["commit"]) is not str
+                or re.fullmatch(r"[0-9a-f]{40}", build["commit"]) is None))):
+        raise ValueError("startup diagnostics unavailable")
+    selected = []
+    for event in events:
+        if (type(event) is not dict
+                or set(event) not in ({"phase", "code", "elapsed_ms"},
+                                     {"phase", "code", "elapsed_ms", "exit_code"})
+                or type(event["phase"]) is not str or event["phase"] not in _PHASES
+                or type(event["code"]) is not str or event["code"] not in _DIAGNOSTIC_CODES
+                or type(event["elapsed_ms"]) is not int
+                or not 0 <= event["elapsed_ms"] < 2**63
+                or ("exit_code" in event and (
+                    type(event["exit_code"]) is not int
+                    or not -(2**31) <= event["exit_code"] < 2**32))):
+            raise ValueError("startup diagnostics unavailable")
+        selected.append(dict(event))
+    return {
+        "schema_version": 1,
+        "kind": "provelume.startup-diagnostics",
+        "build": dict(build),
+        "scope": "last_attempt_in_current_launcher_session",
+        "attempt_present": attempted,
+        "trace_coverage": "bounded_tail" if attempted else "not_started",
+        "event_limit": 32,
+        "events": selected,
+        "collection_network_used": False,
+        "checks_executed": False,
+    }
 
 
 def _new_windows_control():
