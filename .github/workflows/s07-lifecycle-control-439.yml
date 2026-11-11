@@ -45,7 +45,16 @@ jobs:
           from unittest.mock import patch
 
 
-          PURPOSES = {"capture-submit", "capture-acquire"}
+          CAPTURE_PURPOSES = ("capture-submit", "capture-acquire")
+          INDEX_PURPOSE = "search-index-refresh"
+          PURPOSES = (*CAPTURE_PURPOSES, INDEX_PURPOSE)
+          _ACTIVE_ENTRY = ContextVar("s07_lifecycle_window", default=None)
+
+
+          def entry_purpose():
+              """Identify the caller's currently observed pre-yield entry, if any."""
+              row = _ACTIVE_ENTRY.get()
+              return row.purpose if row is not None and row.caller == get_ident() else None
 
 
           @dataclass
@@ -75,13 +84,12 @@ jobs:
                       return monotonic_ns(), thread_time_ns()
 
               owner = get_ident()
-              active = ContextVar("s07_lifecycle_window", default=None)
               rows = []
               acquire = lifecycle._acquire_os_lock
               hold = lifecycle.InstanceLifecycleManager._hold
 
               def observed_acquire(descriptor):
-                  row = active.get()
+                  row = _ACTIVE_ENTRY.get()
                   if row is None or row.caller != get_ident():
                       return acquire(descriptor)
                   row.lock_calls += 1
@@ -91,18 +99,22 @@ jobs:
 
               @contextmanager
               def observed_hold(manager, *, purpose, wait_seconds=0):
-                  if get_ident() != owner or purpose not in PURPOSES or active.get() is not None:
-                      with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
-                          yield value
+                  if get_ident() != owner or purpose not in PURPOSES or _ACTIVE_ENTRY.get() is not None:
+                      token = _ACTIVE_ENTRY.set(None)
+                      try:
+                          with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
+                              yield value
+                      finally:
+                          _ACTIVE_ENTRY.reset(token)
                       return
                   row = Window(purpose=purpose, caller=owner, entered=clock())
-                  token = active.set(row)
+                  token = _ACTIVE_ENTRY.set(row)
                   rows.append(row)
                   try:
                       with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
                           row.ready = clock()
                           # Do not count a lock acquired by the application body as entry.
-                          active.reset(token)
+                          _ACTIVE_ENTRY.reset(token)
                           token = None
                           try:
                               yield value
@@ -111,93 +123,150 @@ jobs:
                   finally:
                       row.exited = clock()
                       if token is not None:
-                          active.reset(token)
+                          _ACTIVE_ENTRY.reset(token)
 
               with patch.object(lifecycle, "_acquire_os_lock", observed_acquire):
                   with patch.object(lifecycle.InstanceLifecycleManager, "_hold", observed_hold):
                       yield rows
 
 
-          def pre_body_bound(rows, capture_start_ns, capture_end_ns):
-              """Reject incomplete or overlapping windows before aggregating durations."""
-              if [row.purpose for row in rows] != ["capture-submit", "capture-acquire"]:
+          def summarize(rows, probe_start_ns, probe_end_ns, index_span):
+              """Bind the three holds to the probe and the index hold to the index call."""
+              if tuple(row.purpose for row in rows) != PURPOSES:
                   raise ValueError("unexpected Capture lifecycle calls")
-              previous = capture_start_ns
-              totals = {"pre_yield_wall_ns": 0, "pre_yield_thread_cpu_ns": 0}
+              previous = probe_start_ns
+              by_purpose = {}
               for row in rows:
-                  if not row.complete() or not previous <= row.entered[0] <= row.exited[0] <= capture_end_ns:
+                  if not row.complete() or not previous <= row.entered[0] <= row.exited[0] <= probe_end_ns:
                       raise ValueError("incomplete, overlapping, or unbound lifecycle window")
-                  totals["pre_yield_wall_ns"] += row.ready[0] - row.lock_acquired[0]
-                  totals["pre_yield_thread_cpu_ns"] += row.ready[1] - row.lock_acquired[1]
+                  by_purpose[row.purpose] = {
+                      "hold_wall_ns": row.exited[0] - row.entered[0],
+                      "pre_yield_wall_ns": row.ready[0] - row.lock_acquired[0],
+                      "pre_yield_thread_cpu_ns": row.ready[1] - row.lock_acquired[1],
+                      "body_wall_ns": row.body_done[0] - row.ready[0],
+                  }
                   previous = row.exited[0]
-              return totals
+              index = rows[-1]
+              start, end = index_span
+              if not (
+                  rows[1].exited[0] <= start[0] <= index.entered[0] <= index.exited[0] <= end[0] <= probe_end_ns
+                  and start[1] <= index.entered[1] <= index.exited[1] <= end[1]
+              ):
+                  raise ValueError("search-index hold is not bound to its refresh call")
+              return {
+                  "by_purpose": by_purpose,
+                  "capture_pre_yield_wall_ns": sum(
+                      by_purpose[purpose]["pre_yield_wall_ns"] for purpose in CAPTURE_PURPOSES
+                  ),
+                  "search_index": {"wall_ns": end[0] - start[0], "thread_cpu_ns": end[1] - start[1]},
+              }
           PY
           cat > "$fixture/control.py" <<'PY'
+          """Model-free control for the lifecycle observer on the original Linux source."""
+
           import json
           import os
           import tempfile
           import time
+          from collections import Counter
           from pathlib import Path
           from unittest.mock import patch
 
-          from provelume import capture_journal, instance_lifecycle
-          from provelume.capture_adapter import CaptureAdapter
+          from provelume import capture_adapter, capture_journal, instance_lifecycle
           from provelume.service import ProvelumeInstance
           from scripts.ai_runtime_report import deterministic_probe
-          from s07_lifecycle_window import observe, pre_body_bound
+          from s07_lifecycle_window import PURPOSES, entry_purpose, observe, summarize
 
-          delay = 0.120
-          records = []
-          with tempfile.TemporaryDirectory(dir=os.environ["RUNNER_TEMP"]) as temporary:
-              for number, mode in enumerate(("unmodified", "recovery_delay", "body_delay")):
-                  root = Path(temporary) / f"fixture-{number}"
-                  instance = ProvelumeInstance.initialise(root / "Synthetic Space")
-                  original_recovery = capture_journal.recover_capture_transactions_locked
-                  original_body = CaptureAdapter._acquire_locked
-                  injection = []
 
-                  def hold_delay():
-                      start = time.monotonic_ns()
-                      time.sleep(delay)
-                      injection.append((start, time.monotonic_ns()))
+          DELAY_NS = 120_000_000
 
-                  recovery_calls = []
-                  def recovery(*args, **kwargs):
-                      recovery_calls.append(1)
-                      if mode == "recovery_delay" and len(recovery_calls) == 2:
-                          hold_delay()
-                      return original_recovery(*args, **kwargs)
 
-                  def body(*args, **kwargs):
-                      if mode == "body_delay":
-                          hold_delay()
-                      return original_body(*args, **kwargs)
+          def clock():
+              return time.monotonic_ns(), time.thread_time_ns()
 
-                  with patch.object(capture_journal, "recover_capture_transactions_locked", recovery):
-                      with patch.object(CaptureAdapter, "_acquire_locked", body):
-                          with observe(instance_lifecycle) as rows:
-                              start = time.monotonic_ns()
-                              result = deterministic_probe(instance, number)
-                              end = time.monotonic_ns()
-                  summary = pre_body_bound(rows, start, end)
-                  assert result["preserved"] and result["search_found"] and result["product_dispatch_blocked"]
-                  assert len(recovery_calls) == 2
-                  if mode == "unmodified":
-                      assert not injection
-                  else:
-                      assert len(injection) == 1
-                      left, right = injection[0]
-                      assert right - left >= int(delay * 1e9)
-                      process = rows[1]
-                      if mode == "recovery_delay":
-                          assert process.lock_acquired[0] <= left <= right <= process.ready[0]
-                      else:
-                          assert process.ready[0] <= left <= right <= process.body_done[0]
-                      summary["injected_ns"] = right - left
-                  records.append({"mode": mode, **summary})
-          print(json.dumps({"status": "MODEL_FREE_WINDOW_CONTROLS_PASS", "rows": records}, sort_keys=True))
+
+          def run_case(instance, number, mode):
+              original_recovery = capture_journal.recover_capture_transactions_locked
+              original_body = capture_adapter.CaptureAdapter._acquire_locked
+              original_index = capture_adapter.refresh_search_index
+              recoveries = Counter()
+              injected = []
+              index_spans = []
+
+              def inject():
+                  start = time.monotonic_ns()
+                  deadline = start + DELAY_NS
+                  end = start
+                  while end < deadline:
+                      time.sleep((deadline - end) / 1e9)
+                      end = time.monotonic_ns()
+                  injected.append((start, end))
+
+              def recovery(*args, **kwargs):
+                  purpose = entry_purpose()
+                  recoveries[purpose or "outside-observed-entry"] += 1
+                  if mode == "recovery_delay" and purpose == "capture-acquire":
+                      inject()
+                  return original_recovery(*args, **kwargs)
+
+              def body(*args, **kwargs):
+                  if mode == "body_delay":
+                      inject()
+                  return original_body(*args, **kwargs)
+
+              def index(*args, **kwargs):
+                  start = clock()
+                  try:
+                      return original_index(*args, **kwargs)
+                  finally:
+                      index_spans.append((start, clock()))
+
+              with (
+                  patch.object(capture_journal, "recover_capture_transactions_locked", recovery),
+                  patch.object(capture_adapter.CaptureAdapter, "_acquire_locked", body),
+                  patch.object(capture_adapter, "refresh_search_index", index),
+                  observe(instance_lifecycle, clock=clock) as rows,
+              ):
+                  start = time.monotonic_ns()
+                  result = deterministic_probe(instance, number)
+                  end = time.monotonic_ns()
+
+              if len(index_spans) != 1 or any(recoveries[purpose] != 1 for purpose in PURPOSES):
+                  raise ValueError(f"unexpected index or recovery calls: {len(index_spans)}, {dict(recoveries)}")
+              summary = summarize(rows, start, end, index_spans[0])
+              if not (result["preserved"] and result["search_found"] and result["product_dispatch_blocked"]):
+                  raise ValueError("original Capture invariants did not pass")
+
+              if mode == "unmodified":
+                  if injected:
+                      raise ValueError("the unmodified case injected a delay")
+              else:
+                  if len(injected) != 1:
+                      raise ValueError("expected exactly one fixture delay")
+                  left, right = injected[0]
+                  process = rows[1]
+                  lower, upper = (
+                      (process.lock_acquired[0], process.ready[0])
+                      if mode == "recovery_delay"
+                      else (process.ready[0], process.body_done[0])
+                  )
+                  if not lower <= left <= right <= upper or right - left < DELAY_NS:
+                      raise ValueError(f"{mode}: fixture delay was not isolated to the expected phase")
+                  summary["injected_ns"] = right - left
+              return {"mode": mode, "recovery_calls": dict(recoveries), **summary}
+
+
+          def main():
+              records = []
+              with tempfile.TemporaryDirectory(dir=os.environ["RUNNER_TEMP"]) as temporary:
+                  for number, mode in enumerate(("unmodified", "recovery_delay", "body_delay")):
+                      root = Path(temporary) / f"fixture-{number}" / "Synthetic Space"
+                      records.append(run_case(ProvelumeInstance.initialise(root), number, mode))
+              print(json.dumps({"status": "MODEL_FREE_WINDOW_CONTROLS_PASS", "rows": records}, sort_keys=True))
+
+
+          if __name__ == "__main__":
+              main()
           PY
           PYTHONPATH="$PWD:$fixture" python -B "$fixture/control.py"
           test -z "$(git status --porcelain)"
-
-# One replacement requested for run 43097438275, which had no assigned job.
