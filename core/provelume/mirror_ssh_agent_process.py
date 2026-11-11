@@ -14,8 +14,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from .migration_permissions import make_private
-from .mirror_contract import parse, raw, require
+from .mirror_contract import MirrorError, parse, raw, require
 from .mirror_git_runtime import child_environment
+from .mirror_ssh_agent_diagnostics import observe
 from .ocr_process import _terminate_process_tree
 
 
@@ -189,13 +190,33 @@ class AgentWorker:
                 and time.monotonic() < end
             ):
                 time.sleep(0.01)
+        evidence = None
+        if kind is None and self.output is not None:
+            code = self.process.poll() if self.process is not None else "STOPPED"
+            worker_state = {
+                None: "RUNNING", 0: "EXIT_0", 2: "EXIT_2", "STOPPED": "STOPPED"
+            }.get(code, "OTHER_EXIT")
+            completion = self.output.with_name(self.output.name + ".done")
+            evidence = {
+                "schema": "provelume-ssh-agent-completion-failure/v1",
+                "worker_state": worker_state,
+                "completion": "PRESENT" if completion.is_file() else "ABSENT",
+                "prepared_completion": completion.with_name(completion.name + ".tmp").is_file(),
+                "trace": observe(self.output.with_name("worker-errors.bin")),
+                "raw_worker_output": "EXCLUDED",
+            }
         self.close()
         if kind is None:
-            require(
-                type(self.report) is dict
-                and self.report.get("schema") == "provelume-ssh-agent-result/v1"
-                and self.report.get("signatures") == 1
-                and self.report.get("host_bound") is True
-                and self.report.get("private_key_logged") is False,
-                "ssh_credentials",
-            )
+            try:
+                require(
+                    type(self.report) is dict
+                    and self.report.get("schema") == "provelume-ssh-agent-result/v1"
+                    and self.report.get("signatures") == 1
+                    and self.report.get("host_bound") is True
+                    and self.report.get("private_key_logged") is False,
+                    "ssh_credentials",
+                )
+            except MirrorError as error:
+                error.agent_evidence = evidence
+                error.add_note("SSH_AGENT_COMPLETION=" + raw(evidence).decode("ascii").strip())
+                raise

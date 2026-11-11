@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .mirror_contract import parse, raw, require
 from .mirror_ssh_agent import AgentProtocol
+from .mirror_ssh_agent_diagnostics import emit
 from .mirror_ssh_agent_server import OwnedAgent
 
 
@@ -36,6 +37,8 @@ def publish(path, value, *, deadline=None):
 
 
 def main():
+    phase = "REQUEST"
+    emit(phase)
     try:
         arguments = sys.argv[1:]
         if arguments[:1] == ["--internal-rsync-agent-worker"]:
@@ -64,7 +67,11 @@ def main():
             username=value["username"],
             deadline=time.monotonic() + value["seconds"],
         )
+        phase = "START_AGENT"
+        emit(phase)
         with OwnedAgent(protocol) as owned:
+            phase = "PUBLISH_READY"
+            emit(phase)
             publish(
                 output,
                 {
@@ -74,8 +81,14 @@ def main():
                 },
                 deadline=protocol.deadline,
             )
+            phase = "SESSION"
+            emit(phase)
             while owned.worker.is_alive() and time.monotonic() < protocol.deadline:
                 time.sleep(0.05)
+            phase = "STOP_AGENT"
+            emit(phase)
+        phase = "PUBLISH_COMPLETION"
+        emit(phase)
         publish(
             output.with_name(output.name + ".done"),
             {
@@ -88,8 +101,11 @@ def main():
             },
             deadline=protocol.deadline,
         )
+        phase = "COMPLETE"
+        emit(phase)
         return 0 if protocol.signatures == 1 else 2
-    except Exception:
+    except Exception as error:
+        emit(phase, error)
         # Never render a backend exception, request body, seed or auth signature.
         return 2
 

@@ -54,6 +54,43 @@ these controls; uncontended first publication keeps its original behavior, with
 no new limit on a successful first write. The original native IPC/cleanup test
 remains unchanged.
 
+## Subsequent native observation and overlapped-I/O correction
+
+On `db63ea2fe156c6ad7da259512782f862e492ab22`, local native6041/67/419 in703.85s,
+Ruff/pin97 and browser42 PASS belong only to that source. Native Windows group0
+[130497243840](https://github.com/gabned/provelume/actions/runs/43013073932/job/130497243840)
+PASS includes all32 Gitea cases. Group1
+[130497243908](https://github.com/gabned/provelume/actions/runs/43013073932/job/130497243908)
+retains CANCELLED10m and the same SSH completion-proof failure; its two shards
+finished in438.58/510.88s. Aggregator130502394598 remains BLOCKED. The rename
+correction alone did not resolve the incident; that negative result is retained.
+
+`WindowsPipe.operation` also awaited `GetOverlappedResult(..., TRUE)` during
+cleanup when the initial Win32 call failed immediately or the client was already
+connected. [Microsoft's contract](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getoverlappedresult)
+identifies a pending operation by FALSE/ERROR_IO_PENDING; no pending operation
+owns an immediately failed request. Cleanup now cancels/drains only operations
+actually submitted as pending. Pending operations, including expiry, still drain
+before releasing their structure/event/buffer. Immediate read/write failures
+remain failures, and ERROR_PIPE_CONNECTED retains its original successful branch.
+Portable API-contract regressions fail on the previous code and pass after this
+correction. This controlled proof is not exclusive attribution of the CI cause.
+
+The worker emits only fixed internal phases and whitelisted error/native codes.
+The parent retains a closed completion observation in exception notes before
+teardown: running/exited state, presence of the completion/prepared report and
+the last recognized phase. Raw stderr, backend messages, paths, PIDs, key/session
+material and unknown fields are excluded. Existing error codes, final report
+predicate, cleanup and one-second/5-second/30-second limits are unchanged.
+Logging is optional for a frozen windowless process and never grants acceptance.
+The original native SSH test stays unchanged. New diagnostics permit a future
+failure to distinguish session shutdown from report publication.
+
+The separate [R10 timing record](windows-ci-s23-costs-r10-20261111.md) refreshes
+only291 complete/non-failing observed module hints. The failed SSH module is
+excluded and keeps its previous hint. Allocator/count fallback/control AST,
+test membership and all native coverage checks remain unchanged.
+
 No test, fixture, matrix, worker, allocator or gate is removed or reduced; native
 540s/job10m, Ubuntu15m and workspace20m stay unchanged. Complete exact-head native
 CI and automatic installer qualification remain mandatory. Earlier PASS and FAIL
