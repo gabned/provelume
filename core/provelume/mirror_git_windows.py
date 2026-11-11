@@ -153,6 +153,22 @@ class WindowsGitProcess:
         self.returncode = int(code.value)
         return self.returncode
 
+    def wait(self, *, timeout):
+        # Same bounded monitor interval as Popen.wait: wake as soon as this
+        # owned process exits instead of sleeping after it has already exited.
+        require(
+            self.handle is not None
+            and type(timeout) in {int, float}
+            and 0 <= timeout <= 30,
+            "git_containment",
+        )
+        kernel, *_ = libraries()
+        status = kernel.WaitForSingleObject(self.handle, int(timeout * 1000))
+        require(status in {0, 258}, "git_containment")
+        if status == 258:
+            raise subprocess.TimeoutExpired("contained-git", timeout)
+        return self.poll()
+
     def close(self, *, deadline=None):
         kernel, *_ = libraries()
         stop = min(deadline if deadline is not None else float("inf"), time.monotonic() + 2)

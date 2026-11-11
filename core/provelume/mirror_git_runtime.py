@@ -195,7 +195,8 @@ class GitSession:
                     if monitor_storage and time.monotonic() >= next_storage_check:
                         tree_storage_bound(self.repository / "objects")
                         next_storage_check = time.monotonic() + 0.25
-                    time.sleep(0.01)
+                    with suppress(subprocess.TimeoutExpired):
+                        process.wait(timeout=0.01)
             require(
                 stdout.stat().st_size <= payload_limit
                 and stderr.stat().st_size <= MAX_DIAGNOSTIC_BYTES,
