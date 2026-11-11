@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
 
@@ -40,11 +42,11 @@ def reject_client_installation_evidence(request: Request) -> None:
         )
 
 
-def build_api(
-    instance: ProvelumeInstance, *, router: APIRouter | None = None,
+def _register_api(
+    instance_for_request: Callable[[Request], ProvelumeInstance],
+    *,
+    router: APIRouter | None = None,
 ) -> APIRouter:
-    # Register directly on the application router when available. Including a
-    # temporary router rebuilds each API route's validation graph.
     if router is None:
         router = APIRouter()
 
@@ -57,22 +59,26 @@ def build_api(
         return current_about()
 
     @router.get("/api/v1/instance")
-    def get_instance() -> dict[str, Any]:
+    def get_instance(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.instance_summary()
 
     @router.get("/api/v1/connectors")
-    def get_connectors() -> dict[str, Any]:
+    def get_connectors(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.connector_inventory()
 
     @router.get("/api/v1/connectors/definitions/{definition_id}")
-    def get_connector_definition(definition_id: str) -> dict[str, Any]:
+    def get_connector_definition(definition_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_connector_definition(definition_id)
         if result is None:
             raise _not_found("connector definition", definition_id)
         return result
 
     @router.get("/api/v1/connectors/{connector_instance_id}")
-    def get_connector_instance(connector_instance_id: str) -> dict[str, Any]:
+    def get_connector_instance(connector_instance_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_connector_instance(connector_instance_id)
         if result is None:
             raise _not_found("connector instance", connector_instance_id)
@@ -82,7 +88,10 @@ def build_api(
     def get_connector_source(
         connector_instance_id: str,
         source_id: str,
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_connector_source(connector_instance_id, source_id)
         if result is None:
             raise _not_found("connector Source", source_id)
@@ -93,7 +102,10 @@ def build_api(
         connector_instance_id: str,
         source_id: str,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         if instance.get_connector_source(connector_instance_id, source_id) is None:
             raise _not_found("connector Source", source_id)
         return instance.list_manual_web_acquisitions(
@@ -109,7 +121,10 @@ def build_api(
         connector_instance_id: str,
         source_id: str,
         acquisition_id: str,
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_manual_web_acquisition(
             connector_instance_id,
             source_id,
@@ -120,11 +135,13 @@ def build_api(
         return result
 
     @router.get("/api/v1/sources")
-    def get_sources() -> list[dict[str, Any]]:
+    def get_sources(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_sources()
 
     @router.get("/api/v1/sources/{source_id}")
-    def get_source(source_id: str) -> dict[str, Any]:
+    def get_source(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         source = instance.get_source(source_id)
         if source is None:
             raise _not_found("source", source_id)
@@ -133,26 +150,33 @@ def build_api(
     @router.get("/api/v1/ingestion/runs")
     def get_ingestion_runs(
         limit: int = Query(default=50, ge=1, le=200),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_ingestion_runs(limit=limit)
 
     @router.get("/api/v1/ingestion/runs/{run_id}")
-    def get_ingestion_run(run_id: str) -> dict[str, Any]:
+    def get_ingestion_run(run_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_ingestion_run(run_id)
         if result is None:
             raise _not_found("ingestion run", run_id)
         return result
 
     @router.get("/api/v1/scheduler")
-    def get_scheduler_status() -> dict[str, Any]:
+    def get_scheduler_status(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.scheduler_status()
 
     @router.get("/api/v1/scheduler/policies")
-    def get_scheduler_policies() -> list[dict[str, Any]]:
+    def get_scheduler_policies(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_schedule_policies()
 
     @router.get("/api/v1/scheduler/policies/{policy_id}")
-    def get_scheduler_policy(policy_id: str) -> dict[str, Any]:
+    def get_scheduler_policy(policy_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_schedule_policy(policy_id)
         if result is None:
             raise _not_found("scheduler policy", policy_id)
@@ -166,7 +190,10 @@ def build_api(
         ),
         policy_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_scheduler_jobs(
             status=status,
             policy_id=policy_id,
@@ -174,7 +201,8 @@ def build_api(
         )
 
     @router.get("/api/v1/scheduler/jobs/{job_id}")
-    def get_scheduler_job(job_id: str) -> dict[str, Any]:
+    def get_scheduler_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_scheduler_job(job_id)
         if result is None:
             raise _not_found("scheduler job", job_id)
@@ -183,19 +211,25 @@ def build_api(
     @router.get("/api/v1/scheduler/receipts")
     def get_scheduler_receipts(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_scheduler_receipts(limit=limit)
 
     @router.get("/api/v1/qualification/matrix")
-    def get_qualification_matrix() -> dict[str, Any]:
+    def get_qualification_matrix(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.qualification_matrix()
 
     @router.get("/api/v1/qualification/limits")
-    def get_qualification_limits() -> dict[str, Any]:
+    def get_qualification_limits(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.qualification_limits()
 
     @router.get("/api/v1/qualification/sources/{source_id}/checkpoint")
-    def get_qualification_source_checkpoint(source_id: str) -> dict[str, Any]:
+    def get_qualification_source_checkpoint(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             return instance.qualification_source_checkpoint(source_id)
         except QualificationError as exc:
@@ -204,11 +238,15 @@ def build_api(
     @router.get("/api/v1/qualification/jobs")
     def get_qualification_jobs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_qualification_jobs(limit=limit)
 
     @router.get("/api/v1/qualification/jobs/{job_id}")
-    def get_qualification_job(job_id: str) -> dict[str, Any]:
+    def get_qualification_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             result = instance.get_qualification_job(job_id)
         except QualificationError as exc:
@@ -223,7 +261,10 @@ def build_api(
         finding_type: str | None = None,
         workflow_state: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         try:
             return instance.list_qualification_findings(
                 source_id=source_id,
@@ -235,7 +276,8 @@ def build_api(
             raise _qualification_http_error(exc) from exc
 
     @router.get("/api/v1/qualification/findings/{finding_id}")
-    def get_qualification_finding(finding_id: str) -> dict[str, Any]:
+    def get_qualification_finding(finding_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             result = instance.get_qualification_finding(finding_id)
         except QualificationError as exc:
@@ -245,7 +287,10 @@ def build_api(
         return result
 
     @router.get("/api/v1/qualification/findings/{finding_id}/decisions")
-    def get_qualification_finding_decisions(finding_id: str) -> list[dict[str, Any]]:
+    def get_qualification_finding_decisions(
+        finding_id: str, *, request: Request,
+    ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         try:
             if instance.get_qualification_finding(finding_id) is None:
                 raise _not_found("qualification finding", finding_id)
@@ -254,48 +299,60 @@ def build_api(
             raise _qualification_http_error(exc) from exc
 
     @router.get("/api/v1/qualification/decisions/{decision_id}")
-    def get_qualification_decision(decision_id: str) -> dict[str, Any]:
+    def get_qualification_decision(decision_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_qualification_decision(decision_id)
         if result is None:
             raise _not_found("qualification decision", decision_id)
         return result
 
     @router.get("/api/v1/ocr/capability")
-    def get_ocr_capability() -> dict[str, Any]:
+    def get_ocr_capability(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.ocr_capability()
 
     @router.get("/api/v1/ocr/jobs")
     def get_ocr_jobs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_ocr_jobs(limit=limit)
 
     @router.get("/api/v1/ocr/jobs/{job_id}")
-    def get_ocr_job(job_id: str) -> dict[str, Any]:
+    def get_ocr_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_ocr_job(job_id)
         if result is None:
             raise _not_found("OCR job", job_id)
         return result
 
     @router.get("/api/v1/ocr/bundles")
-    def get_ocr_bundles(version_id: str | None = None) -> list[dict[str, Any]]:
+    def get_ocr_bundles(version_id: str | None = None, *, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_ocr_bundles(version_id)
 
     @router.get("/api/v1/email/capability")
-    def get_email_capability(source_id: str | None = None) -> dict[str, Any]:
+    def get_email_capability(source_id: str | None = None, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.email_capability(source_id, local=False)
 
     @router.get("/api/v1/email/sources")
     def get_email_sources(
         include_removed: bool = True,
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_email_sources(
             local=False,
             include_removed=include_removed,
         )
 
     @router.get("/api/v1/email/sources/{source_id}")
-    def get_email_source(source_id: str) -> dict[str, Any]:
+    def get_email_source(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_email_source(source_id, local=False)
         if result is None:
             raise _not_found("email Source", source_id)
@@ -304,11 +361,15 @@ def build_api(
     @router.get("/api/v1/email/jobs")
     def get_email_jobs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_email_jobs(limit=limit)
 
     @router.get("/api/v1/email/jobs/{job_id}")
-    def get_email_job(job_id: str) -> dict[str, Any]:
+    def get_email_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_email_job(job_id)
         if result is None:
             raise _not_found("email job", job_id)
@@ -318,11 +379,15 @@ def build_api(
     def get_email_messages(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_email_messages(source_id=source_id, limit=limit)
 
     @router.get("/api/v1/email/messages/{message_id}")
-    def get_email_message(message_id: str) -> dict[str, Any]:
+    def get_email_message(message_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_email_message(message_id)
         if result is None:
             raise _not_found("email message", message_id)
@@ -332,11 +397,15 @@ def build_api(
     def get_email_threads(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_email_threads(source_id=source_id, limit=limit)
 
     @router.get("/api/v1/email/threads/{thread_id}")
-    def get_email_thread(thread_id: str) -> dict[str, Any]:
+    def get_email_thread(thread_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_email_thread(thread_id)
         if result is None:
             raise _not_found("observed email thread", thread_id)
@@ -346,11 +415,15 @@ def build_api(
     def get_email_attachments(
         message_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_email_attachments(message_id=message_id, limit=limit)
 
     @router.get("/api/v1/email/attachments/{attachment_id}")
-    def get_email_attachment(attachment_id: str) -> dict[str, Any]:
+    def get_email_attachment(attachment_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_email_attachment(attachment_id)
         if result is None:
             raise _not_found("email attachment", attachment_id)
@@ -359,26 +432,34 @@ def build_api(
     @router.get("/api/v1/transcripts/capability")
     def get_transcript_capability(
         source_id: str | None = None,
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.transcript_capability(source_id, local=False)
 
     @router.get("/api/v1/transcripts/sources")
     def get_transcript_sources(
         include_removed: bool = True,
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_transcript_sources(
             local=False, include_removed=include_removed
         )
 
     @router.get("/api/v1/transcripts/sources/{source_id}")
-    def get_transcript_source(source_id: str) -> dict[str, Any]:
+    def get_transcript_source(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_transcript_source(source_id, local=False)
         if result is None:
             raise _not_found("transcript Source", source_id)
         return result
 
     @router.get("/api/v1/transcripts/sources/{source_id}/checkpoint")
-    def get_transcript_source_checkpoint(source_id: str) -> dict[str, Any]:
+    def get_transcript_source_checkpoint(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         if instance.get_transcript_source(source_id, local=False) is None:
             raise _not_found("transcript Source", source_id)
         return instance.transcript_source_checkpoint(source_id)
@@ -386,11 +467,15 @@ def build_api(
     @router.get("/api/v1/transcripts/jobs")
     def get_transcript_jobs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_transcript_jobs(limit=limit)
 
     @router.get("/api/v1/transcripts/jobs/{job_id}")
-    def get_transcript_job(job_id: str) -> dict[str, Any]:
+    def get_transcript_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_transcript_job(job_id)
         if result is None:
             raise _not_found("transcript job", job_id)
@@ -400,14 +485,20 @@ def build_api(
     def get_transcript_revisions(
         source_id: str | None = None,
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_transcript_revisions(source_id=source_id, limit=limit)
 
     @router.get("/api/v1/transcripts/revisions/{revision_id}")
     def get_transcript_revision(
         revision_id: str,
         include_content: bool = False,
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_transcript_revision(
             revision_id, include_content=include_content
         )
@@ -416,7 +507,8 @@ def build_api(
         return result
 
     @router.get("/api/v1/transcripts/revisions/{revision_id}/original")
-    def get_transcript_original(revision_id: str) -> Response:
+    def get_transcript_original(revision_id: str, *, request: Request) -> Response:
+        instance = instance_for_request(request)
         try:
             original, data = instance.get_transcript_original(revision_id)
         except TranscriptContractError as exc:
@@ -445,22 +537,26 @@ def build_api(
         }
 
     @router.get("/api/v1/google/instances")
-    def get_google_instances() -> list[dict[str, Any]]:
+    def get_google_instances(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_google_instances()
 
     @router.get("/api/v1/google/instances/{connector_instance_id}")
-    def get_google_instance(connector_instance_id: str) -> dict[str, Any]:
+    def get_google_instance(connector_instance_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             return instance.get_google_instance(connector_instance_id)
         except ValueError as exc:
             raise _not_found("Google connector instance", connector_instance_id) from exc
 
     @router.get("/api/v1/google/sources")
-    def get_google_sources() -> list[dict[str, Any]]:
+    def get_google_sources(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_google_sources()
 
     @router.get("/api/v1/google/sources/{source_id}")
-    def get_google_source(source_id: str) -> dict[str, Any]:
+    def get_google_source(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             return instance.get_google_source(source_id)
         except ValueError as exc:
@@ -469,11 +565,15 @@ def build_api(
     @router.get("/api/v1/google/jobs")
     def get_google_jobs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_google_jobs(limit=limit)
 
     @router.get("/api/v1/google/jobs/{job_id}")
-    def get_google_job(job_id: str) -> dict[str, Any]:
+    def get_google_job(job_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_google_job(job_id)
         if result is None:
             raise _not_found("Google job", job_id)
@@ -482,28 +582,37 @@ def build_api(
     @router.get("/api/v1/google/gmail-observations")
     def get_google_gmail_observations(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_google_gmail_observations(limit=limit)
 
     @router.get("/api/v1/google/drive-revisions")
     def get_google_drive_revisions(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_google_drive_revisions(limit=limit)
 
     @router.get("/api/v1/maintenance")
-    def get_maintenance_catalog() -> list[dict[str, Any]]:
+    def get_maintenance_catalog(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.maintenance_catalog()
 
     @router.get("/api/v1/maintenance/actions/{action_id}")
-    def get_maintenance_action(action_id: str) -> dict[str, Any]:
+    def get_maintenance_action(action_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             return instance.get_maintenance_action(action_id)
         except MaintenanceNotFoundError as exc:
             raise _not_found("maintenance action", action_id) from exc
 
     @router.get("/api/v1/maintenance/plans/{action_id}")
-    def get_maintenance_plan(action_id: str) -> dict[str, Any]:
+    def get_maintenance_plan(action_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         try:
             return instance.plan_maintenance_action(action_id)
         except MaintenanceNotFoundError as exc:
@@ -514,22 +623,28 @@ def build_api(
     @router.get("/api/v1/maintenance/runs")
     def get_maintenance_runs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_maintenance_runs(limit=limit)
 
     @router.get("/api/v1/maintenance/runs/{run_id}")
-    def get_maintenance_run(run_id: str) -> dict[str, Any]:
+    def get_maintenance_run(run_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_maintenance_run(run_id)
         if result is None:
             raise _not_found("maintenance reindex run", run_id)
         return result
 
     @router.get("/api/v1/maintenance/source-cursors")
-    def get_source_reconciliation_cursors() -> list[dict[str, Any]]:
+    def get_source_reconciliation_cursors(*, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_source_reconciliation_cursors()
 
     @router.get("/api/v1/maintenance/source-cursors/{source_id}")
-    def get_source_reconciliation_cursor(source_id: str) -> dict[str, Any]:
+    def get_source_reconciliation_cursor(source_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         if not instance.folder_sources.is_managed(source_id):
             raise _not_found("Source reconciliation cursor", source_id)
         return instance.get_source_reconciliation_cursor(source_id)
@@ -537,11 +652,15 @@ def build_api(
     @router.get("/api/v1/maintenance/source-runs")
     def get_source_reconciliation_runs(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_source_reconciliation_runs(limit=limit)
 
     @router.get("/api/v1/maintenance/source-runs/{run_id}")
-    def get_source_reconciliation_run(run_id: str) -> dict[str, Any]:
+    def get_source_reconciliation_run(run_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_source_reconciliation_run(run_id)
         if result is None:
             raise _not_found("Source reconciliation run", run_id)
@@ -550,35 +669,45 @@ def build_api(
     @router.get("/api/v1/maintenance/resource-statistics")
     def get_resource_statistics(
         history_limit: int = Query(default=30, ge=1, le=500),
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.resource_statistics_status(history_limit=history_limit)
 
     @router.get("/api/v1/maintenance/resource-statistics/snapshots")
     def get_resource_snapshots(
         limit: int = Query(default=100, ge=1, le=500),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         return instance.list_resource_snapshots(limit=limit)
 
     @router.get("/api/v1/maintenance/resource-statistics/snapshots/{snapshot_id}")
-    def get_resource_snapshot(snapshot_id: str) -> dict[str, Any]:
+    def get_resource_snapshot(snapshot_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.get_resource_snapshot(snapshot_id)
         if result is None:
             raise _not_found("resource snapshot", snapshot_id)
         return result
 
     @router.get("/api/v1/hierarchy")
-    def get_hierarchy() -> dict[str, Any]:
+    def get_hierarchy(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.hierarchy_tree()
 
     @router.get("/api/v1/hierarchy/{node_id}")
-    def get_hierarchy_node(node_id: str) -> dict[str, Any]:
+    def get_hierarchy_node(node_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         node = instance.get_hierarchy_node(node_id)
         if node is None:
             raise _not_found("hierarchy node", node_id)
         return node
 
     @router.get("/api/v1/library")
-    def get_library_status() -> dict[str, Any]:
+    def get_library_status(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.library_status()
 
     @router.get("/api/v1/documents")
@@ -594,7 +723,10 @@ def build_api(
             default="active",
             pattern="^(active|archived|trashed|all)$",
         ),
+        *,
+        request: Request,
     ) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         if hierarchy_id and instance.get_hierarchy_node(hierarchy_id) is None:
             raise _not_found("hierarchy node", hierarchy_id)
         return instance.list_documents(
@@ -609,14 +741,16 @@ def build_api(
         )
 
     @router.get("/api/v1/documents/{document_id}")
-    def get_document(document_id: str) -> dict[str, Any]:
+    def get_document(document_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         document = instance.get_document(document_id)
         if document is None:
             raise _not_found("document", document_id)
         return document
 
     @router.get("/api/v1/documents/{document_id}/classification")
-    def get_document_classification(document_id: str) -> dict[str, Any]:
+    def get_document_classification(document_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         if instance.get_document(document_id) is None:
             raise _not_found("document", document_id)
         return {
@@ -625,7 +759,8 @@ def build_api(
         }
 
     @router.get("/api/v1/documents/{document_id}/disposition")
-    def get_document_disposition(document_id: str) -> dict[str, Any]:
+    def get_document_disposition(document_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         disposition = instance.document_disposition(document_id)
         if disposition is None:
             raise _not_found("document", document_id)
@@ -635,7 +770,10 @@ def build_api(
     def get_document_content(
         document_id: str,
         mode: str = Query(default="raw", pattern="^(raw|original)$"),
+        *,
+        request: Request,
     ) -> PlainTextResponse:
+        instance = instance_for_request(request)
         try:
             content = instance.document_content(document_id)
         except DocumentContentError as exc:
@@ -657,20 +795,23 @@ def build_api(
         )
 
     @router.get("/api/v1/documents/{document_id}/versions")
-    def get_versions(document_id: str) -> list[dict[str, Any]]:
+    def get_versions(document_id: str, *, request: Request) -> list[dict[str, Any]]:
+        instance = instance_for_request(request)
         if instance.get_document(document_id) is None:
             raise _not_found("document", document_id)
         return instance.versions(document_id)
 
     @router.get("/api/v1/documents/{document_id}/provenance")
-    def get_provenance(document_id: str) -> dict[str, Any]:
+    def get_provenance(document_id: str, *, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         result = instance.provenance(document_id)
         if result is None:
             raise _not_found("document", document_id)
         return result
 
     @router.get("/api/v1/documents/{document_id}/original")
-    def get_original(document_id: str) -> Response:
+    def get_original(document_id: str, *, request: Request) -> Response:
+        instance = instance_for_request(request)
         try:
             verified = instance.document_original(document_id)
         except DocumentContentError as exc:
@@ -698,7 +839,10 @@ def build_api(
         date_from: str | None = None,
         date_to: str | None = None,
         limit: int = Query(default=50, ge=1, le=200),
+        *,
+        request: Request,
     ) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return {
             "query": q,
             "results": instance.search(
@@ -712,14 +856,35 @@ def build_api(
         }
 
     @router.get("/api/v1/knowledge-health")
-    def get_knowledge_health() -> dict[str, Any]:
+    def get_knowledge_health(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.knowledge_health()
 
     @router.get("/api/v1/security/network")
-    def get_network_status() -> dict[str, Any]:
+    def get_network_status(*, request: Request) -> dict[str, Any]:
+        instance = instance_for_request(request)
         return instance.network_status()
 
     return router
+
+
+def build_api(
+    instance: ProvelumeInstance, *, router: APIRouter | None = None,
+) -> APIRouter:
+    # Standalone/custom routers keep their own dependencies and route settings.
+    return _register_api(lambda request: instance, router=router)
+
+
+def _instance_for_request(request: Request) -> ProvelumeInstance:
+    return request.app.state._provelume_api_instance
+
+
+@lru_cache(maxsize=1)
+def _shared_api_router() -> APIRouter:
+    # Only static handlers/validation graphs are shared. No instance, filesystem
+    # observations, installation evidence or authority is retained here. Build
+    # eagerly before the first application can become ready.
+    return _register_api(_instance_for_request)
 
 
 def attach_api(
@@ -727,6 +892,7 @@ def attach_api(
     instance: ProvelumeInstance,
     *,
     installation_verification: dict[str, Any],
+    _reuse_static_routes: bool = False,
 ) -> None:
     @app.get("/health")
     def health() -> dict[str, Any]:
@@ -741,7 +907,14 @@ def attach_api(
             "index_status": summary["index_status"],
         }
 
-    build_api(instance, router=app.router)
+    if _reuse_static_routes:
+        # Opt-in only from our standard application factory. Custom callers keep
+        # direct registration, including application-level dependencies/settings.
+        # Re-including a router would rebuild its validation graph per app.
+        app.state._provelume_api_instance = instance
+        app.router.routes.extend(_shared_api_router().routes)
+    else:
+        build_api(instance, router=app.router)
 
     @app.get("/api/v1/security/installation")
     def get_installation_verification(request: Request) -> dict[str, Any]:

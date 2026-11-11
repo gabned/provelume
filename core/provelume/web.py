@@ -598,6 +598,7 @@ def create_app(
         app,
         instance,
         installation_verification=installation_verification,
+        _reuse_static_routes=True,
     )
     from .ai_activity import attach_ai_routes
 
