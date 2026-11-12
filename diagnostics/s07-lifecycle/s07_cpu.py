@@ -1,4 +1,4 @@
-"""Single S07 committed-manifest experiment on the original S06 failure source."""
+"""Single S07 post-commit readback experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_manifest_window import PURPOSES, observe, summarize
+from s07_assure_window import PURPOSES, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "3a7c3a519e70eeb626c4e47c9431b77a246df86d"
+PREVIOUS = "6eb3f5069708b83ad323b95301cae98e48fb8d84"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
     HISTORICAL_S06_CPU,
@@ -37,7 +37,7 @@ WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
-    "s07_inventory_window.py", "s07_manifest_window.py",
+    "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
 ))}
 MATCHED_SLOTS = {5: 11}
 TARGETS = [("s06", n) for n in MATCHED_SLOTS]
@@ -117,12 +117,12 @@ def original_modules():
     import qualify_ai_jobs as jobs
     import qualify_ai_runtime as qualifier
 
-    from provelume import atomic_commit, capture_adapter, storage
+    from provelume import capture_adapter
 
-    for module in (jobs, qualifier, atomic_commit, capture_adapter, storage):
+    for module in (jobs, qualifier, capture_adapter):
         if not Path(module.__file__).resolve().is_relative_to(SOURCE):
             raise ValueError("module loaded outside the original PRODUCT source")
-    return jobs, qualifier, atomic_commit, capture_adapter, storage
+    return jobs, qualifier, capture_adapter
 
 
 def clock():
@@ -149,7 +149,7 @@ def worker(native, mode, output, inputs=None):
     if (git(SOURCE, "rev-parse", "HEAD", "HEAD^{tree}").splitlines() != [BASE, TREE]
             or git(SOURCE, "status", "--porcelain", "--untracked-files=all")):
         raise ValueError("worker source mismatch")
-    jobs, qualifier, atomic, adapter, storage = original_modules()
+    jobs, qualifier, adapter = original_modules()
     host = native.host()
     if mode == "startup":
         native.kernel.write(output / "startup.json", {"host": host, "native_inference": "NOT_RUN"})
@@ -168,7 +168,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected, *, manifest_control=None):
+    def wrap(original, group, selected, *, readback_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -186,7 +186,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                atomic, adapter, storage, clock=clock, control=manifest_control,
+                adapter, clock=clock, control=readback_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -197,9 +197,9 @@ def worker(native, mode, output, inputs=None):
             emit(10)
             if len(spans) != 1:
                 raise ValueError("exactly one index refresh required")
-            manifest_window, summary = summarize(rows, start, end, spans[0])
+            readback_window, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "manifest_window": manifest_window, "probe_interval": (start, end)})
+                           "readback_window": readback_window, "probe_interval": (start, end)})
             return result
 
         return probe
@@ -216,12 +216,12 @@ def worker(native, mode, output, inputs=None):
                 time.sleep(0.12)
                 injections[number] = (start, time.monotonic_ns())
 
-            def manifest_hook(number, fixture, phase):
+            def readback_hook(number, fixture, phase):
                 if (number, phase) in (
-                    (1, "before-manifest-write"), (2, "after-stage-sync"),
+                    (1, "before-readback"), (2, "after-readback"),
                 ):
                     inject(number)
-                elif number == 3 and phase == "before-manifest-write":
+                elif number == 3 and phase == "before-readback":
                     exercise_syscalls(fixture)
 
             for number in range(4):
@@ -231,7 +231,7 @@ def worker(native, mode, output, inputs=None):
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
-                        manifest_control=partial(manifest_hook, number, syscall_fixture),
+                        readback_control=partial(readback_hook, number, syscall_fixture),
                     )
                     probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
                 if number in injections:
@@ -366,22 +366,16 @@ def kernel_binding(native, output, targets, host):
         start, end = stamps[1], stamps[-2]
         for slot, purpose in enumerate(PURPOSES):
             opened, closed = stamps[2 + slot * 2:4 + slot * 2]
-            left, right = frame["manifest_window"][purpose]
+            left, right = frame["readback_window"][purpose]
             if not (
                 start <= left + low <= left + high <= opened < closed
                 <= right + low <= right + high <= end
             ):
-                raise ValueError("kernel markers do not bind the committed-manifest write")
+                raise ValueError("kernel markers do not bind the post-commit readback write")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
             account_window(native, scoped, tid, row, left + high, right + low)
-            fsync_pairs = sum(
-                event[0] == "D" and event[2:] == [tid, 0] for event in scoped
-            )
-            if fsync_pairs < 2:
-                raise ValueError("missing manifest-file or stage-directory fsync pair")
-            row["caller_fsync_pairs"] = fsync_pairs
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
@@ -394,7 +388,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the committed-manifest window")
+            raise ValueError("scheduler event outside the post-commit readback window")
     return data["frames"]
 
 
@@ -432,7 +426,7 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_MANIFEST_HOST=" + json.dumps(observed), flush=True)
+    print("S07_ASSURE_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
         raise ValueError("runner CPU profile differs from the declared same-runner comparison")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
@@ -461,7 +455,7 @@ def admit(native, output):
     control = output / "control"
     try:
         if native.collect(SOURCE, control, worker_args("control", control), 45):
-            raise ValueError("committed-manifest kernel controls failed")
+            raise ValueError("post-commit readback kernel controls failed")
     except (OSError, ValueError, subprocess.SubprocessError):
         for path in (control / "kernel.stderr", control / "execution.log"):
             if path.is_file():
@@ -472,8 +466,8 @@ def admit(native, output):
     positive, negative = (frames[i]["summary"]["by_purpose"][PURPOSES[0]] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]
     neg_start, neg_end = frames[2]["injection"]
-    pos_left, pos_right = frames[1]["manifest_window"][PURPOSES[0]]
-    _, neg_right = frames[2]["manifest_window"][PURPOSES[0]]
+    pos_left, pos_right = frames[1]["readback_window"][PURPOSES[0]]
+    _, neg_right = frames[2]["readback_window"][PURPOSES[0]]
     _, probe_end = frames[2]["probe_interval"]
     if not (
         pos_left <= pos_start <= pos_end <= pos_right
@@ -484,7 +478,7 @@ def admit(native, output):
         and positive["certain_blocked_ns"] > 0
         and negative["wall_ns"] < 120_000_000
     ):
-        raise ValueError("known delay was not localized at the committed-manifest boundary")
+        raise ValueError("known delay was not localized at the post-commit readback boundary")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -500,12 +494,12 @@ def admit(native, output):
     }), flush=True)
 
 
-def compare_manifest(frame, control, slot):
+def compare_readback(frame, control, slot):
     busy = frame["summary"]["by_purpose"][PURPOSES[0]]
     idle = control["summary"]["by_purpose"][PURPOSES[0]]
-    shape = ("manifest_bytes", "entries", "preimages")
+    shape = ("read_calls", "payload_bytes", "derived_checked")
     if any(busy[key] != idle[key] for key in shape):
-        raise ValueError("committed manifest shape differs from the matched control")
+        raise ValueError("post-commit readback shape differs from the matched control")
     metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
     return {
         "control_slot": slot,
@@ -568,15 +562,15 @@ def run(native, admission, inputs, output):
         duration = frame["summary"]["by_purpose"][PURPOSES[0]]["wall_ns"]
         slot = MATCHED_SLOTS[index]
         control = receipt["matched_idle"][str(slot)]
-        frame["matched_idle"] = compare_manifest(frame, control, slot)
+        frame["matched_idle"] = compare_readback(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "MANIFEST_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "MANIFEST_COMPATIBLE_IN_THIS_SAMPLE"
+            "READBACK_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "READBACK_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "capture-acquire committed manifest write and stage fsync",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_MANIFEST_SHAPE",
+              "factor": "CaptureAdapter._assure post-commit readback",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_READBACK_SHAPE",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],
