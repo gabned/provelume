@@ -1,4 +1,4 @@
-"""Single S07 lifecycle-entry experiment on the original PRODUCT source."""
+"""Single S07 Capture inventory experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -18,27 +18,23 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_lifecycle_window import PURPOSES, entry_purpose, observe, summarize
+from s07_inventory_window import PURPOSES, observe, summarize
 
-BASE = "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2"
-TREE = "e5c104cf0b753d4da5326eda691703506f37d83b"
+BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
+TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
 MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREPARATION = "619ffae7571b9bdaee21b7b80a6262c779bdbbe7"
-LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
-NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
-TRACE_PREFIX_CORRECTION = "5202c4085ed8f6ae58be28996eecdc4c90810821"
-METHOD_CORRECTION = "c72b80260c6f633ed45d910df8e6bc7040141edf"
-STREAM_LIMIT_PREPARATION = "f915ac8d22bc3faedaeaed48540fb0eb6f369ca3"
-WINDOWED_PREPARATION = "87ff66d3fab720c84093ecc78022377c26259a7b"
+PREVIOUS = "ed48e20b7e59e10ddf51624051665fb0089e231d"
+HISTORICAL_CPU = "AMD EPYC 9V45 96-Core Processor"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
+    "s07_inventory_window.py",
 ))}
-TARGETS = [("deterministic", 1), ("s06", 1), ("s06", 2), ("s06", 5)]
+TARGETS = [("s06", 1), ("s06", 5)]
 CONTROL = [("control", n) for n in range(4)]
 WINDOW_OPEN = 3
 WINDOW_CLOSE = 4
@@ -77,14 +73,7 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != WINDOWED_PREPARATION
-        or git(ROOT, "show", "-s", "--format=%P", WINDOWED_PREPARATION) != STREAM_LIMIT_PREPARATION
-        or git(ROOT, "show", "-s", "--format=%P", STREAM_LIMIT_PREPARATION) != METHOD_CORRECTION
-        or git(ROOT, "show", "-s", "--format=%P", METHOD_CORRECTION) != TRACE_PREFIX_CORRECTION
-        or git(ROOT, "show", "-s", "--format=%P", TRACE_PREFIX_CORRECTION) != NETWORK_DIAGNOSTIC
-        or git(ROOT, "show", "-s", "--format=%P", NETWORK_DIAGNOSTIC) != LINT_CORRECTION
-        or git(ROOT, "show", "-s", "--format=%P", LINT_CORRECTION) != PREPARATION
-        or git(ROOT, "show", "-s", "--format=%P", PREPARATION) != MAIN
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != PREVIOUS
         or git(ROOT, "rev-parse", "refs/remotes/origin/main") != MAIN
         or set(git(ROOT, "diff", "--name-only", MAIN, "HEAD").splitlines()) != CHANGED
         or git(SOURCE, "rev-parse", "HEAD", "HEAD^{tree}").splitlines() != [BASE, TREE]
@@ -120,12 +109,12 @@ def original_modules():
     import qualify_ai_jobs as jobs
     import qualify_ai_runtime as qualifier
 
-    from provelume import capture_adapter, instance_lifecycle
+    from provelume import capture_adapter, capture_journal
 
-    for module in (jobs, qualifier, capture_adapter, instance_lifecycle):
+    for module in (jobs, qualifier, capture_adapter, capture_journal):
         if not Path(module.__file__).resolve().is_relative_to(SOURCE):
             raise ValueError("module loaded outside the original PRODUCT source")
-    return jobs, qualifier, capture_adapter, instance_lifecycle
+    return jobs, qualifier, capture_adapter, capture_journal
 
 
 def clock():
@@ -152,7 +141,7 @@ def worker(native, mode, output, inputs=None):
     if (git(SOURCE, "rev-parse", "HEAD", "HEAD^{tree}").splitlines() != [BASE, TREE]
             or git(SOURCE, "status", "--porcelain", "--untracked-files=all")):
         raise ValueError("worker source mismatch")
-    jobs, qualifier, adapter, lifecycle = original_modules()
+    jobs, qualifier, adapter, journal = original_modules()
     host = native.host()
     if mode == "startup":
         native.kernel.write(output / "startup.json", {"host": host, "native_inference": "NOT_RUN"})
@@ -171,7 +160,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected):
+    def wrap(original, group, selected, *, inventory_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -189,7 +178,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                lifecycle, clock=clock,
+                journal, adapter, clock=clock, control=inventory_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -200,10 +189,9 @@ def worker(native, mode, output, inputs=None):
             emit(10)
             if len(spans) != 1:
                 raise ValueError("exactly one index refresh required")
-            summary = summarize(rows, start, end, spans[0])
+            inventory, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "pre_yield": {row.purpose: (row.lock_acquired[0], row.ready[0])
-                                         for row in rows}})
+                           "inventory": inventory, "probe_interval": (start, end)})
             return result
 
         return probe
@@ -211,11 +199,8 @@ def worker(native, mode, output, inputs=None):
     before = native.clock_pair()
     try:
         if mode == "control":
-            from provelume import capture_journal
             from provelume.service import ProvelumeInstance
 
-            probe = wrap(qualifier.deterministic_probe, "control", set(range(4)))
-            recovery = capture_journal.recover_capture_transactions_locked
             acquire = adapter.CaptureAdapter._acquire_locked
             injections = {}
 
@@ -224,13 +209,13 @@ def worker(native, mode, output, inputs=None):
                 time.sleep(0.12)
                 injections[number] = (start, time.monotonic_ns())
 
-            def recovery_control(number, syscall_fixture, *args, **kwargs):
-                if entry_purpose() == "capture-acquire":
-                    if number == 1:
-                        inject(number)
-                    elif number == 3:
-                        exercise_syscalls(syscall_fixture)
-                return recovery(*args, **kwargs)
+            def inventory_hook(number, fixture, purpose):
+                if purpose != "capture-acquire":
+                    return
+                if number == 1:
+                    inject(number)
+                elif number == 3:
+                    exercise_syscalls(fixture)
 
             def body_control(adapter_instance, number, *args, **kwargs):
                 if number == 2:
@@ -241,25 +226,20 @@ def worker(native, mode, output, inputs=None):
                 with (
                     tempfile.TemporaryDirectory(dir=output) as temp,
                     tempfile.TemporaryFile(dir=output) as syscall_fixture,
-                    patch.object(capture_journal, "recover_capture_transactions_locked",
-                                 partial(recovery_control, number, syscall_fixture)),
                     patch.object(adapter.CaptureAdapter, "_acquire_locked",
                                  partialmethod(body_control, number)),
                 ):
+                    probe = wrap(
+                        qualifier.deterministic_probe, "control", {number},
+                        inventory_control=partial(inventory_hook, number, syscall_fixture),
+                    )
                     probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
                 if number in injections:
                     frames[-1]["injection"] = injections[number]
         else:
-            # Patch the two actual call sites. Idle, S07 setup and S08 remain untouched.
-            original_busy = qualifier.measure_busy_probe
-
-            def busy(*args, **kwargs):
-                replacement = wrap(qualifier.deterministic_probe, "deterministic", {1})
-                with patch.object(qualifier, "deterministic_probe", replacement):
-                    return original_busy(*args, **kwargs)
-
-            with patch.object(qualifier, "measure_busy_probe", busy), patch.object(
-                jobs, "deterministic_probe", wrap(jobs.deterministic_probe, "s06", {1, 2, 5})
+            # Run the original full qualifier. Only the two selected S06 probes have hooks.
+            with patch.object(
+                jobs, "deterministic_probe", wrap(jobs.deterministic_probe, "s06", {1, 5}),
             ):
                 qualifier.measure(inputs, output / "report-before-network.json")
     finally:
@@ -304,7 +284,7 @@ def account_window(native, events, tid, row, left, right):
     switch_outs = sum(event[0] == "S" and event[2] == tid for event in events)
     if len(intervals) != switch_outs:
         raise ValueError("incomplete caller switch pairs")
-    if row["pre_yield_thread_cpu_ns"] > row["pre_yield_wall_ns"]:
+    if row["inventory_thread_cpu_ns"] > row["inventory_wall_ns"]:
         raise ValueError("thread CPU exceeds the wall-clock interval")
     totals = {"blocked": 0, "ready": 0}
     for item in intervals:
@@ -318,6 +298,22 @@ def account_window(native, events, tid, row, left, right):
         totals["ready"] += max(0, min(right, item["end"]) - max(left, wake))
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
+
+
+def validate_syscall_pairs(events):
+    pending = set()
+    for kind, _, tid, *payload in events:
+        if kind not in {"U", "D"}:
+            continue
+        key = (kind, tid)
+        if payload == [1] and key not in pending:
+            pending.add(key)
+        elif payload == [0] and key in pending:
+            pending.remove(key)
+        else:
+            raise ValueError("incomplete inventory syscall pairing")
+    if pending:
+        raise ValueError("incomplete inventory syscall pairing")
 
 
 def kernel_binding(native, output, targets, host):
@@ -341,7 +337,12 @@ def kernel_binding(native, output, targets, host):
     if low > high:
         raise ValueError("monotonic/boot clocks do not reconcile")
     native.inventory(events, list(output.glob("network.*")))
-    native.syscall_pairs(events, raw[0][1], raw[-1][1])
+    if targets == CONTROL:
+        native.syscall_pairs(events, raw[0][1], raw[-1][1])
+    else:
+        # Read-only inventories can have zero futex/fsync calls. Every actual
+        # syscall is still required to have both endpoints and balanced counters.
+        validate_syscall_pairs(events)
 
     windows = []
     for index, frame in enumerate(data["frames"]):
@@ -352,12 +353,12 @@ def kernel_binding(native, output, targets, host):
         start, end = stamps[1], stamps[-2]
         for slot, purpose in enumerate(PURPOSES):
             opened, closed = stamps[2 + slot * 2:4 + slot * 2]
-            left, right = frame["pre_yield"][purpose]
+            left, right = frame["inventory"][purpose]
             if not (
                 start <= left + low <= left + high <= opened < closed
                 <= right + low <= right + high <= end
             ):
-                raise ValueError("kernel entry markers do not bind the observed lock and yield")
+                raise ValueError("kernel markers do not bind the inventory call")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
@@ -374,7 +375,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the declared post-lock windows")
+            raise ValueError("scheduler event outside the declared inventory calls")
     return data["frames"]
 
 
@@ -411,6 +412,10 @@ def worker_args(mode, output, *extra):
 def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
+    if host["cpu_model"] != HISTORICAL_CPU or host["logical_cpus"] != 4:
+        observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
+        print("S07_INVENTORY_HOST=" + json.dumps(observed), flush=True)
+        raise ValueError("runner CPU profile differs from historical S06 1/5")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")
@@ -448,19 +453,19 @@ def admit(native, output):
     positive, negative = (frames[i]["summary"]["by_purpose"]["capture-acquire"] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]
     neg_start, neg_end = frames[2]["injection"]
-    pos_lock, pos_yield = frames[1]["pre_yield"]["capture-acquire"]
-    _, neg_yield = frames[2]["pre_yield"]["capture-acquire"]
+    pos_left, pos_right = frames[1]["inventory"]["capture-acquire"]
+    _, neg_right = frames[2]["inventory"]["capture-acquire"]
+    _, probe_end = frames[2]["probe_interval"]
     if not (
-        pos_lock <= pos_start <= pos_end <= pos_yield
+        pos_left <= pos_start <= pos_end <= pos_right
         and pos_end - pos_start >= 120_000_000
-        and neg_yield <= neg_start <= neg_end <= neg_yield + negative["body_wall_ns"]
+        and neg_right <= neg_start <= neg_end <= probe_end
         and neg_end - neg_start >= 120_000_000
-        and positive["pre_yield_wall_ns"] >= 120_000_000
+        and positive["inventory_wall_ns"] >= 120_000_000
         and positive["certain_blocked_ns"] > 0
-        and negative["pre_yield_wall_ns"] < 120_000_000
-        and negative["body_wall_ns"] >= 120_000_000
+        and negative["inventory_wall_ns"] < 120_000_000
     ):
-        raise ValueError("known delay was not localized on both sides of the first yield")
+        raise ValueError("known delay was not localized inside/outside the inventory call")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     receipt = {"status": "ADMITTED", "source": source, "host": host, "formats": formats,
@@ -514,24 +519,22 @@ def run(native, admission, inputs, output):
     frames = kernel_binding(native, output, TARGETS, receipt["host"])
     idle = report["deterministic_idle"]
     limit = min(1, 2 * statistics.median(row["capture_seconds"] for row in idle) + 0.1)
-    busy = {
-        "deterministic": report["deterministic_busy"],
-        "s06": report["s06"]["deterministic_busy"],
-    }
+    busy = report["s06"]["deterministic_busy"]
     for frame in frames:
-        group, index = frame["key"]
-        row = busy[group][index]
+        _, index = frame["key"]
+        row = busy[index]
         matches_probe = all(row[key] == value for key, value in frame["probe"].items())
         if row["sample"] != index or not matches_probe:
             raise ValueError("selected probe differs from the original report")
         excess = (row["capture_seconds"] - limit) * 1e9
-        duration = frame["summary"]["capture_pre_yield_wall_ns"]
+        duration = frame["summary"]["capture_inventory_wall_ns"]
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "CAPTURE_ENTRY_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "CAPTURE_ENTRY_COMPATIBLE_IN_THIS_SAMPLE"
+            "INVENTORY_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "INVENTORY_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
+              "factor": "CaptureJournal._inventory",
               "qualification_eligible": False, "original_status": report["status"],
               "original_gates": report["gates"], "frames": frames, "cost_deduction": "NONE"}
     native.kernel.write(output / "analysis.json", result)

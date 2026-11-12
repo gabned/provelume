@@ -1,4 +1,4 @@
-name: S07 lifecycle CPU diagnostic
+name: S07 Capture inventory diagnostic
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -32,7 +32,7 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
           test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          git worktree add --detach "$RUNNER_TEMP/s07-original" 19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2
+          git worktree add --detach "$RUNNER_TEMP/s07-original" a713f0141799fea60b7caa1a0e62826f3b373bf9
           git worktree add --detach "$RUNNER_TEMP/s07-reviewed-observer" efc915815bd5a1dcad3246c135043b6111394f47
           python tools/agent_protocol_v2.py verify
           git diff --check 2918c3968168e426986bd8fcd7d485f102c11f7b HEAD
@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit post-lock windows with kernel marker entry and completion
+      - name: Admit the original S06 host profile and inventory observation
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
@@ -59,7 +59,7 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
           test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
           .venv/bin/python "$RUNNER_TEMP/s07-original/scripts/ai_runtime_acquire.py" --directory "$RUNNER_TEMP/s07-inputs" --accept-licenses --include-model
-      - name: Execute one original sequence with the selected observations
+      - name: Execute one original sequence and observe S06 slots 1 and 5
         shell: bash
         run: |
           .venv/bin/python "$DRIVER" run "$RUNNER_TEMP/s07-admission" \
