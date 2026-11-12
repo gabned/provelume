@@ -26,10 +26,12 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "62a52e8ef7f821a078117cab8e681736bff94baf"
+PREVIOUS = "f20cbed04f1d178531cc73fa6a828979f0b26915"
+HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
-    "AMD EPYC 7763 64-Core Processor",
+    HISTORICAL_S06_CPU,
     "AMD EPYC 9V74 80-Core Processor",
+    "AMD EPYC 7763 64-Core Processor",
 }
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
@@ -589,7 +591,8 @@ def run(native, admission, inputs, output):
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
               "factor": "CaptureJournal._inventory",
               "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_JOURNAL_COUNTS",
-              "historical_hardware_matched": False,
+              "cpu_model": receipt["host"]["cpu_model"],
+              "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],
               "original_gates": report["gates"], "frames": frames, "cost_deduction": "NONE"}
     native.kernel.write(output / "analysis.json", result)

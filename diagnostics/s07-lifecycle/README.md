@@ -40,3 +40,7 @@ Run only one complete original native sequence after host and model-free admissi
 ## Admission of EPYC 9V74
 
 The [7763-only admission](https://github.com/gabned/provelume/actions/runs/43185714736/job/131072226312) observed a 9V74 with four logical CPUs and stopped before model acquisition. This authorized single attempt also admits that exact 9V74 profile, alongside the already admitted 7763 profile. A 9V74 was recorded in the original deterministic-slot-1 and S06-slot-2 findings. The S06 1/5 source and timing findings are still those from the historical 9V45. Compare only the observations from the same runner and boot. Host, model-free controls, journal cardinality, workload, threshold and stop rules remain as described above. There is no retry.
+
+## Admission of all three authorized CPU profiles
+
+The [9V74/7763 attempt](https://github.com/gabned/provelume/actions/runs/43186309363/job/131074213727) stopped before model acquisition when assigned a 9V45. This one-shot admits 9V45, 9V74 or 7763 with four logical CPUs. It keeps the same-host, same-boot and placement controls, including matched journal counts, before the single original native sequence. The native result records the assigned CPU and whether its model matches the historical S06 1/5 CPU. An equal model does not establish the same historical VM, load or a causal correction. The thresholds, evaluator, workload, deadlines and stop rules are unchanged.
