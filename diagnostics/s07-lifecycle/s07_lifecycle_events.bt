@@ -1,0 +1,126 @@
+// S07 post-lock entry chronology. cpid is the controlled strace child.
+// The reviewed observer's task inventory and syscall pairing span the run.
+// Scheduler events are enabled only by writes 3 (open) and 4 (close).
+// Syscalls intersecting a window retain both endpoints for pairing.
+// No paths, buffers, arguments, stacks, task names or environment are recorded.
+#ifndef CAPTURE_BINDING
+#define CAPTURE_BINDING 0
+#endif
+BEGIN { @owned[cpid] = 1; @active = (uint64)0; }
+
+tracepoint:sched:sched_process_fork
+/@owned[args.parent_pid]/
+{
+  @owned[args.child_pid] = 1;
+  @emitted[1] = count();
+  printf("F %llu %d %d\n", nsecs, args.parent_pid, args.child_pid);
+}
+
+tracepoint:sched:sched_switch
+/(!CAPTURE_BINDING || @active) && (@owned[args.prev_pid] || @owned[args.next_pid])/
+{
+  $stamp = nsecs;
+  $opened = @active;
+  if (!CAPTURE_BINDING || ($opened && $stamp >= $opened)) {
+    @emitted[2] = count();
+    printf("S %llu %d %d %d\n", $stamp,
+      @owned[args.prev_pid] ? args.prev_pid : 0,
+      @owned[args.next_pid] ? args.next_pid : 0, args.prev_state);
+  }
+}
+
+tracepoint:sched:sched_wakeup
+/(!CAPTURE_BINDING || @active) && @owned[args.pid]/
+{
+  $stamp = nsecs;
+  $opened = @active;
+  if (!CAPTURE_BINDING || ($opened && $stamp >= $opened)) {
+    @emitted[3] = count();
+    printf("W %llu %d\n", $stamp, args.pid);
+  }
+}
+
+tracepoint:syscalls:sys_enter_write
+/@owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
+{
+  @emitted[8] = count();
+  printf("T %llu %d %d\n", nsecs, tid, args.count);
+}
+
+// Independent raw register arguments: x86-64 __NR_write == 1.
+// No count-range predicate; exact marker identities are checked in userspace.
+tracepoint:raw_syscalls:sys_enter
+/@owned[tid] && args.id == 1 && args.args[0] == 198/
+{
+  if (CAPTURE_BINDING && args.args[2] == 4) { @active = (uint64)0; }
+  $stamp = nsecs;
+  if (CAPTURE_BINDING && args.args[2] == 3) { @active = $stamp; }
+  @emitted[4] = count();
+  printf("M %llu %d %llu\n", $stamp, tid, args.args[2]);
+}
+
+tracepoint:syscalls:sys_enter_futex
+/@owned[tid]/
+{
+  @futex_start[tid] = nsecs;
+  if (!CAPTURE_BINDING || @active) {
+    @futex_recorded[tid] = 1;
+    @emitted[5] = count();
+    printf("U %llu %d 1\n", @futex_start[tid], tid);
+  }
+}
+
+tracepoint:syscalls:sys_exit_futex
+/@owned[tid]/
+{
+  if (CAPTURE_BINDING && @active && !@futex_recorded[tid] && @futex_start[tid]) {
+    @emitted[5] = count();
+    printf("U %llu %d 1\n", @futex_start[tid], tid);
+  }
+  if (!CAPTURE_BINDING || @active || @futex_recorded[tid]) {
+    @emitted[5] = count();
+    printf("U %llu %d 0\n", nsecs, tid);
+  }
+  if (@futex_start[tid]) { delete(@futex_start[tid]); }
+  if (@futex_recorded[tid]) { delete(@futex_recorded[tid]); }
+}
+
+tracepoint:syscalls:sys_enter_fsync
+/@owned[tid]/
+{
+  @fsync_start[tid] = nsecs;
+  if (!CAPTURE_BINDING || @active) {
+    @fsync_recorded[tid] = 1;
+    @emitted[6] = count();
+    printf("D %llu %d 1\n", @fsync_start[tid], tid);
+  }
+}
+
+tracepoint:syscalls:sys_exit_fsync
+/@owned[tid]/
+{
+  if (CAPTURE_BINDING && @active && !@fsync_recorded[tid] && @fsync_start[tid]) {
+    @emitted[6] = count();
+    printf("D %llu %d 1\n", @fsync_start[tid], tid);
+  }
+  if (!CAPTURE_BINDING || @active || @fsync_recorded[tid]) {
+    @emitted[6] = count();
+    printf("D %llu %d 0\n", nsecs, tid);
+  }
+  if (@fsync_start[tid]) { delete(@fsync_start[tid]); }
+  if (@fsync_recorded[tid]) { delete(@fsync_recorded[tid]); }
+}
+
+tracepoint:sched:sched_process_exit
+/@owned[tid]/
+{
+  @emitted[7] = count();
+  printf("X %llu %d\n", nsecs, tid);
+  delete(@owned[tid]);
+}
+
+END {
+  clear(@owned); clear(@active);
+  clear(@futex_start); clear(@futex_recorded);
+  clear(@fsync_start); clear(@fsync_recorded);
+}

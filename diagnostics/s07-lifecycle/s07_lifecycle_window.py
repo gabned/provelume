@@ -44,7 +44,7 @@ class Window:
 
 
 @contextmanager
-def observe(lifecycle, *, clock=None):
+def observe(lifecycle, *, clock=None, begin_entry, end_entry):
     """Scope the observer to a caller running one declared original probe."""
     if clock is None:
         def clock():
@@ -62,6 +62,7 @@ def observe(lifecycle, *, clock=None):
         row.lock_calls += 1
         result = acquire(descriptor)
         row.lock_acquired = clock()
+        begin_entry()
         return result
 
     @contextmanager
@@ -79,6 +80,7 @@ def observe(lifecycle, *, clock=None):
         rows.append(row)
         try:
             with hold(manager, purpose=purpose, wait_seconds=wait_seconds) as value:
+                end_entry()
                 row.ready = clock()
                 # Do not count a lock acquired by the application body as entry.
                 _ACTIVE_ENTRY.reset(token)

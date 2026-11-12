@@ -1,5 +1,7 @@
 """Single S07 lifecycle-entry experiment on the original PRODUCT source."""
 
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -12,10 +14,11 @@ import tempfile
 import threading
 import time
 from functools import partial, partialmethod
+from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_lifecycle_window import entry_purpose, observe, summarize
+from s07_lifecycle_window import PURPOSES, entry_purpose, observe, summarize
 
 BASE = "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2"
 TREE = "e5c104cf0b753d4da5326eda691703506f37d83b"
@@ -28,14 +31,17 @@ LINT_CORRECTION = "5dc26bbdaa32d52c3730846ac5a98ee95639e2fb"
 NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
 TRACE_PREFIX_CORRECTION = "5202c4085ed8f6ae58be28996eecdc4c90810821"
 METHOD_CORRECTION = "c72b80260c6f633ed45d910df8e6bc7040141edf"
+STREAM_LIMIT_PREPARATION = "f915ac8d22bc3faedaeaed48540fb0eb6f369ca3"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
-    "README.md", "s07_cpu.py", "s07_lifecycle_window.py",
+    "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
 ))}
 TARGETS = [("deterministic", 1), ("s06", 1), ("s06", 2), ("s06", 5)]
 CONTROL = [("control", n) for n in range(4)]
-MARKERS = [9, 1, 2, 10]
+WINDOW_OPEN = 3
+WINDOW_CLOSE = 4
+MARKERS = [9, 1, *([WINDOW_OPEN, WINDOW_CLOSE] * len(PURPOSES)), 2, 10]
 KNOWN_STATES = {0, 1, 2, 4, 8, 16, 32, 64, 128, 256}
 FIXED = (
     ".github/agent-protocol/pin.json", "core/provelume/instance_lifecycle.py",
@@ -56,6 +62,7 @@ SOURCE = TEMP / "s07-original"
 HELPERS = TEMP / "s07-reviewed-observer"
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = Path(__file__).resolve()
+PROGRAM = SCRIPT.with_name("s07_lifecycle_events.bt")
 
 
 def git(root, *args):
@@ -69,7 +76,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != METHOD_CORRECTION
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != STREAM_LIMIT_PREPARATION
+        or git(ROOT, "show", "-s", "--format=%P", STREAM_LIMIT_PREPARATION) != METHOD_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", METHOD_CORRECTION) != TRACE_PREFIX_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", TRACE_PREFIX_CORRECTION) != NETWORK_DIAGNOSTIC
         or git(ROOT, "show", "-s", "--format=%P", NETWORK_DIAGNOSTIC) != LINT_CORRECTION
@@ -89,7 +97,8 @@ def source_proof():
         if len({git(ROOT, "rev-parse", f"{ref}:{path}") for ref in (BASE, MAIN, OWNER)}) != 1:
             raise ValueError(f"fixed input drift: {path}")
     return {"diagnostic": os.environ["GITHUB_SHA"], "baseline": BASE, "tree": TREE,
-            "main": MAIN, "owner": OWNER, "bind": BIND}
+            "main": MAIN, "owner": OWNER, "bind": BIND,
+            "kernel_program_sha256": hashlib.sha256(PROGRAM.read_bytes()).hexdigest()}
 
 
 def load_sources():
@@ -101,6 +110,7 @@ def load_sources():
     )]
     import scripts
     scripts.__path__ = [str(SOURCE / "scripts")]
+    native.kernel.PROGRAM = PROGRAM
     return native
 
 
@@ -118,6 +128,22 @@ def original_modules():
 
 def clock():
     return time.monotonic_ns(), time.thread_time_ns()
+
+
+def exercise_syscalls(fixture):
+    """Prove futex and fsync capture inside a synthetic post-lock window."""
+    # The pinned observer is Linux x86-64. FUTEX_WAIT_PRIVATE on a mismatched
+    # word returns EAGAIN without sleeping or involving another thread.
+    syscall = ctypes.CDLL(None, use_errno=True).syscall
+    syscall.restype = ctypes.c_long
+    word = ctypes.c_int(0)
+    if syscall(202, ctypes.byref(word), 128, 1, None, None, 0) != -1 or (
+        ctypes.get_errno() != errno.EAGAIN
+    ):
+        raise ValueError("synthetic futex did not return EAGAIN")
+    fixture.write(b"s07 fsync control\n")
+    fixture.flush()
+    os.fsync(fixture.fileno())
 
 
 def worker(native, mode, output, inputs=None):
@@ -161,7 +187,8 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                lifecycle, clock=clock
+                lifecycle, clock=clock,
+                begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
                 start = time.monotonic_ns()
@@ -195,9 +222,12 @@ def worker(native, mode, output, inputs=None):
                 time.sleep(0.12)
                 injections[number] = (start, time.monotonic_ns())
 
-            def recovery_control(number, *args, **kwargs):
-                if number == 1 and entry_purpose() == "capture-acquire":
-                    inject(number)
+            def recovery_control(number, syscall_fixture, *args, **kwargs):
+                if entry_purpose() == "capture-acquire":
+                    if number == 1:
+                        inject(number)
+                    elif number == 3:
+                        exercise_syscalls(syscall_fixture)
                 return recovery(*args, **kwargs)
 
             def body_control(adapter_instance, number, *args, **kwargs):
@@ -208,8 +238,9 @@ def worker(native, mode, output, inputs=None):
             for number in range(4):
                 with (
                     tempfile.TemporaryDirectory(dir=output) as temp,
+                    tempfile.TemporaryFile(dir=output) as syscall_fixture,
                     patch.object(capture_journal, "recover_capture_transactions_locked",
-                                 partial(recovery_control, number)),
+                                 partial(recovery_control, number, syscall_fixture)),
                     patch.object(adapter.CaptureAdapter, "_acquire_locked",
                                  partialmethod(body_control, number)),
                 ):
@@ -238,6 +269,47 @@ def worker(native, mode, output, inputs=None):
         })
 
 
+def bound_markers(events, data, targets):
+    raw = [event for event in events if event[0] == "M"]
+    typed = [event for event in events if event[0] == "T"]
+    expected = MARKERS * len(targets)
+    if ([row[3] for row in raw] != expected or [row[3] for row in typed] != expected
+            or not any(row[0] == "X" and row[2] == data["pid"] for row in events)):
+        raise ValueError("incomplete raw/typed marker sequence or missing worker exit")
+    for raw_row, typed_row, user in zip(raw, typed, data["markers"], strict=True):
+        if any(
+            row[2] != data["tid"] or row[2] != user["tid"] or row[3] != user["code"]
+            or not user["before"] <= row[1] <= user["after"]
+            or user["after"] - user["before"] > 5_000_000
+            for row in (raw_row, typed_row)
+        ):
+            raise ValueError("marker exceeds original clock/TID/cost bounds")
+    return raw
+
+
+def account_window(native, events, tid, row, left, right):
+    intervals = [
+        item for item in native.kernel.off_cpu_intervals(events) if item["tid"] == tid
+    ]
+    switch_outs = sum(event[0] == "S" and event[2] == tid for event in events)
+    if len(intervals) != switch_outs:
+        raise ValueError("incomplete caller switch pairs")
+    if row["pre_yield_thread_cpu_ns"] > row["pre_yield_wall_ns"]:
+        raise ValueError("thread CPU exceeds the wall-clock interval")
+    totals = {"blocked": 0, "ready": 0}
+    for item in intervals:
+        if item["end"] <= left or item["start"] >= right:
+            continue
+        wake = item["wake"]
+        if wake is None or item["raw_state"] not in KNOWN_STATES:
+            raise ValueError("unattributed overlapping caller interval")
+        # Include only time inside the userspace window for every reconciled offset.
+        totals["blocked"] += max(0, min(right, wake) - max(left, item["start"]))
+        totals["ready"] += max(0, min(right, item["end"]) - max(left, wake))
+    for kind, total in totals.items():
+        row[f"certain_{kind}_ns"] = total
+
+
 def kernel_binding(native, output, targets, host):
     data = json.loads((output / "frames.json").read_text())
     if (data["host"] != host or [tuple(row["key"]) for row in data["frames"]] != targets):
@@ -251,56 +323,48 @@ def kernel_binding(native, output, targets, host):
         with stderr.open("rb") as stream:
             print("S07_KERNEL_STDERR=" + stream.read(4096).decode(errors="replace"), flush=True)
     events = native.read_records(output)
-    markers = [event for event in events if event[0] == "M"]
+    raw = bound_markers(events, data, targets)
     tid = data["tid"]
-    if ([event[3] for event in markers] != MARKERS * len(targets)
-            or not any(event[0] == "X" and event[2] == data["pid"] for event in events)):
-        raise ValueError("incomplete raw marker sequence or missing worker exit")
-    for event, userspace in zip(markers, data["markers"], strict=True):
-        if not (event[2] == tid == userspace["tid"] and event[3] == userspace["code"]
-                and userspace["before"] <= event[1] <= userspace["after"]
-                and userspace["after"] - userspace["before"] <= 5_000_000):
-            raise ValueError("raw marker exceeds original clock/TID/cost bounds")
     pairs = [data["clock_before"], data["clock_after"]]
     low = max(pair["boot"] - pair["mono_after"] for pair in pairs)
     high = min(pair["boot"] - pair["mono_before"] for pair in pairs)
     if low > high:
         raise ValueError("monotonic/boot clocks do not reconcile")
-    traces = list(output.glob("network.*"))
-    native.inventory(events, traces)
-    native.syscall_pairs(events, markers[0][1], markers[-1][1])
+    native.inventory(events, list(output.glob("network.*")))
+    native.syscall_pairs(events, raw[0][1], raw[-1][1])
+
+    windows = []
     for index, frame in enumerate(data["frames"]):
-        begin, start, end, finish = [event[1] for event in markers[index * 4:index * 4 + 4]]
-        scoped = [event for event in events if begin <= event[1] <= finish]
-        typed = [event[3] for event in scoped if event[0] == "T" and event[2] == tid
-                 and event[3] in (1, 2)]
-        if not begin < start < end < finish or typed != [1, 2]:
-            raise ValueError("independent typed write trace or exact frame boundary missing")
-        intervals = [row for row in native.kernel.off_cpu_intervals(scoped) if row["tid"] == tid]
-        if len(intervals) != sum(event[0] == "S" and event[2] == tid for event in scoped):
-            raise ValueError("incomplete caller switch pairs")
-        for purpose, (left, right) in frame["pre_yield"].items():
-            if not start <= left + low <= right + high <= end:
-                raise ValueError("lifecycle entry outside the original probe")
+        first = index * len(MARKERS)
+        stamps = [event[1] for event in raw[first:first + len(MARKERS)]]
+        if any(before >= after for before, after in pairwise(stamps)):
+            raise ValueError("kernel windows are not strictly ordered within the probe")
+        start, end = stamps[1], stamps[-2]
+        for slot, purpose in enumerate(PURPOSES):
+            opened, closed = stamps[2 + slot * 2:4 + slot * 2]
+            left, right = frame["pre_yield"][purpose]
+            if not (
+                start <= left + low <= left + high <= opened < closed
+                <= right + low <= right + high <= end
+            ):
+                raise ValueError("kernel entry markers do not bind the observed lock and yield")
+            windows.append((opened, closed))
+            scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            if row["pre_yield_thread_cpu_ns"] > row["pre_yield_wall_ns"]:
-                raise ValueError("thread CPU exceeds the wall-clock interval")
-            buckets = (("blocked", "start", "wake"), ("ready", "wake", "end"))
-            for kind, start_key, end_key in buckets:
-                total = 0
-                for item in intervals:
-                    if item["end"] <= left + low or item["start"] >= right + high:
-                        continue
-                    if item["wake"] is None or item["raw_state"] not in KNOWN_STATES:
-                        raise ValueError("unattributed overlapping caller interval")
-                    # Include only time inside the window for every reconciled offset.
-                    total += max(0, min(right + low, item[end_key])
-                                 - max(left + high, item[start_key]))
-                row[f"certain_{kind}_ns"] = total
+            account_window(native, scoped, tid, row, left + high, right + low)
+            if targets == CONTROL and index == 3 and purpose == "capture-acquire":
+                pairs = native.syscall_pairs(
+                    [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
+                    opened, closed,
+                )
+                print("S07_SYSCALL_CONTROL=" + json.dumps(pairs, sort_keys=True), flush=True)
         if not all(frame["probe"][key] for key in (
             "preserved", "search_found", "product_dispatch_blocked"
         )):
             raise ValueError("original Capture semantics failed")
+    for kind, stamp, *_ in events:
+        if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
+            raise ValueError("scheduler event outside the declared post-lock windows")
     return data["frames"]
 
 
