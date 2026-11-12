@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_pool_window import PURPOSES, observe, summarize
+from s07_pool_window import PURPOSES, observe, pool_lifetimes, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "0f6163213dc79ef47b57f822bde3107d7ab3c22d"
+PREVIOUS = "c032e2728b121a8f91cdc66afe7faa16b3f17d5f"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
     HISTORICAL_S06_CPU,
@@ -372,34 +372,22 @@ def kernel_binding(native, output, targets, host):
             opened, closed = stamps[2 + slot * 2:4 + slot * 2]
             left, right = frame["pool_window"][purpose]
             if not (
-                start <= left + low <= left + high <= opened < closed
-                <= right + low <= right + high <= end
+                start <= opened <= left + low <= left + high <= right + low
+                <= right + high <= closed <= end
             ):
                 raise ValueError("kernel markers do not bind the Capture transaction pool shutdown")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
             intervals = account_window(native, scoped, tid, row, left + high, right + low)
-            workers = set(frame.pop("pool_tids"))
-            forks = [
-                event[3] for event in events if event[0] == "F" and start <= event[1] < opened
-                and event[2] == tid and event[3] in workers
-            ]
-            exits = [event for event in scoped if event[0] == "X" and event[2] in workers]
-            if (
-                len(forks) != len(workers) or set(forks) != workers
-                or len(exits) != len(workers) or {event[2] for event in exits} != workers
-            ):
-                raise ValueError("transaction pool worker forks or exits do not bind to shutdown")
-            last_exit = max(event[1] for event in exits)
-            row.update(
-                verified_pool_exits=len(exits),
-                last_exit_after_open_ns=last_exit - opened,
-                close_after_last_exit_ns=closed - last_exit,
-                caller_blocked_at_last_exit=any(
-                    item["start"] <= last_exit < item["wake"] for item in intervals
-                    if item["wake"] is not None
-                ),
+            last_exit, lifetimes = pool_lifetimes(
+                events, tid, frame.pop("pool_tids"), start, end, opened,
+                (right + low, right + high),
+            )
+            row.update(lifetimes)
+            row["caller_blocked_at_last_exit"] = left + high <= last_exit < right + low and any(
+                item["start"] <= last_exit < item["wake"] for item in intervals
+                if item["wake"] is not None
             )
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(

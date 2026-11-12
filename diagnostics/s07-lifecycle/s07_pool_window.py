@@ -75,15 +75,15 @@ def observe(atomic, adapter, *, clock, begin_entry, end_entry, control):
         ):
             raise ValueError("transaction pool workers were not all live before drain")
         row.worker_tids = tuple(sorted(tids))
-        row.start = clock()
         begin_entry()
+        row.start = clock()
         try:
             if control is not None:
                 control("before-pool-wait")
             result = drain(transaction, primary)
         finally:
-            end_entry()
             row.end = clock()
+            end_entry()
         if transaction._transaction_pool_state != "drained" or any(
             thread.is_alive() for thread in workers
         ):
@@ -124,4 +124,31 @@ def summarize(rows, start, end, index_span):
         }},
         "search_index": {"wall_ns": index_end[0] - index_start[0],
                          "thread_cpu_ns": index_end[1] - index_start[1]},
+    }
+
+
+def pool_lifetimes(events, caller, workers, probe_start, probe_end, opened, return_bounds):
+    workers = set(workers)
+    forks = [
+        event[3] for event in events if event[0] == "F" and probe_start <= event[1] < opened
+        and event[2] == caller and event[3] in workers
+    ]
+    if len(forks) != len(workers) or set(forks) != workers:
+        raise ValueError(f"pool worker forks matched {len(set(forks))} of {len(workers)}")
+    exits = [event for event in events if event[0] == "X" and event[2] in workers]
+    if len(exits) != len(workers) or {event[2] for event in exits} != workers:
+        raise ValueError(f"pool worker exits matched {len(exits)} of {len(workers)}")
+    if any(event[1] < opened for event in exits):
+        raise ValueError("pool worker exited before shutdown began")
+
+    # Python joins the thread-state lock. Kernel exit can follow that return.
+    earliest, latest = return_bounds
+    last_exit = max(event[1] for event in exits)
+    return last_exit, {
+        "verified_pool_exits": len(exits),
+        "exits_before_return": sum(event[1] < earliest for event in exits),
+        "exits_after_return": sum(event[1] > latest for event in exits),
+        "exits_within_return_clock_bounds": sum(earliest <= event[1] <= latest for event in exits),
+        "exits_after_probe": sum(event[1] > probe_end for event in exits),
+        "last_exit_minus_return_ns_bounds": [last_exit - latest, last_exit - earliest],
     }

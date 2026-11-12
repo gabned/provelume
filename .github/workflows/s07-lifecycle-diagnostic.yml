@@ -1,4 +1,4 @@
-name: S07 transaction pool shutdown in Capture process
+name: S07 pool shutdown return and worker exits
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit the EPYC runner and measure model-free pool shutdown controls
+      - name: Admit the EPYC runner and check shutdown timing and worker exits
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
