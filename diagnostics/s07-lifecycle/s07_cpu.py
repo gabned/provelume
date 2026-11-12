@@ -32,6 +32,7 @@ NETWORK_DIAGNOSTIC = "6e18c37d15bb1170f3dbe6a3176318d85cc92158"
 TRACE_PREFIX_CORRECTION = "5202c4085ed8f6ae58be28996eecdc4c90810821"
 METHOD_CORRECTION = "c72b80260c6f633ed45d910df8e6bc7040141edf"
 STREAM_LIMIT_PREPARATION = "f915ac8d22bc3faedaeaed48540fb0eb6f369ca3"
+WINDOWED_PREPARATION = "87ff66d3fab720c84093ecc78022377c26259a7b"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -76,7 +77,8 @@ def source_proof():
         os.environ["GITHUB_REF"] != f"refs/heads/{BRANCH}"
         or os.environ["GITHUB_RUN_ATTEMPT"] != "1"
         or git(ROOT, "rev-parse", "HEAD") != os.environ["GITHUB_SHA"]
-        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != STREAM_LIMIT_PREPARATION
+        or git(ROOT, "show", "-s", "--format=%P", "HEAD") != WINDOWED_PREPARATION
+        or git(ROOT, "show", "-s", "--format=%P", WINDOWED_PREPARATION) != STREAM_LIMIT_PREPARATION
         or git(ROOT, "show", "-s", "--format=%P", STREAM_LIMIT_PREPARATION) != METHOD_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", METHOD_CORRECTION) != TRACE_PREFIX_CORRECTION
         or git(ROOT, "show", "-s", "--format=%P", TRACE_PREFIX_CORRECTION) != NETWORK_DIAGNOSTIC
@@ -271,17 +273,25 @@ def worker(native, mode, output, inputs=None):
 
 def bound_markers(events, data, targets):
     raw = [event for event in events if event[0] == "M"]
-    typed = [event for event in events if event[0] == "T"]
+    completed = [event for event in events if event[0] == "T"]
     expected = MARKERS * len(targets)
-    if ([row[3] for row in raw] != expected or [row[3] for row in typed] != expected
-            or not any(row[0] == "X" and row[2] == data["pid"] for row in events)):
-        raise ValueError("incomplete raw/typed marker sequence or missing worker exit")
-    for raw_row, typed_row, user in zip(raw, typed, data["markers"], strict=True):
+    entries, exits = [row[3] for row in raw], [row[3] for row in completed]
+    worker_exited = any(row[0] == "X" and row[2] == data["pid"] for row in events)
+    print("S07_MARKER_CONTROL=" + json.dumps({
+        "expected": len(expected), "entries": len(entries), "exits": len(exits),
+        "entry_order": entries == expected, "exit_order": exits == expected,
+        "worker_exited": worker_exited,
+    }), flush=True)
+    if entries != expected or exits != expected or not worker_exited:
+        raise ValueError("incomplete marker entry/completion sequence or missing worker exit")
+    for raw_row, exit_row, user in zip(raw, completed, data["markers"], strict=True):
+        if raw_row[1] > exit_row[1]:
+            raise ValueError("write completion precedes marker entry")
         if any(
             row[2] != data["tid"] or row[2] != user["tid"] or row[3] != user["code"]
             or not user["before"] <= row[1] <= user["after"]
             or user["after"] - user["before"] > 5_000_000
-            for row in (raw_row, typed_row)
+            for row in (raw_row, exit_row)
         ):
             raise ValueError("marker exceeds original clock/TID/cost bounds")
     return raw
@@ -405,7 +415,7 @@ def admit(native, output):
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")
     formats = {}
-    for name in native.FORMATS:
+    for name in (*native.FORMATS, "raw_syscalls/sys_exit"):
         data = subprocess.check_output(
             ["sudo", "-n", "cat", f"/sys/kernel/tracing/events/{name}/format"], timeout=5,
         )

@@ -40,23 +40,25 @@ tracepoint:sched:sched_wakeup
   }
 }
 
-tracepoint:syscalls:sys_enter_write
-/@owned[tid] && args.fd == 198 && args.count >= 1 && args.count <= 10/
-{
-  @emitted[8] = count();
-  printf("T %llu %d %d\n", nsecs, tid, args.count);
-}
-
-// Independent raw register arguments: x86-64 __NR_write == 1.
-// No count-range predicate; exact marker identities are checked in userspace.
+// x86-64 __NR_write == 1. The raw entry supplies the descriptor and count.
+// An independent exit probe corroborates the bytes actually written.
 tracepoint:raw_syscalls:sys_enter
 /@owned[tid] && args.id == 1 && args.args[0] == 198/
 {
   if (CAPTURE_BINDING && args.args[2] == 4) { @active = (uint64)0; }
   $stamp = nsecs;
   if (CAPTURE_BINDING && args.args[2] == 3) { @active = $stamp; }
+  @marker_pending[tid] = 1;
   @emitted[4] = count();
   printf("M %llu %d %llu\n", $stamp, tid, args.args[2]);
+}
+
+tracepoint:raw_syscalls:sys_exit
+/args.id == 1 && @marker_pending[tid]/
+{
+  @emitted[8] = count();
+  printf("T %llu %d %lld\n", nsecs, tid, args.ret);
+  delete(@marker_pending[tid]);
 }
 
 tracepoint:syscalls:sys_enter_futex
@@ -120,7 +122,7 @@ tracepoint:sched:sched_process_exit
 }
 
 END {
-  clear(@owned); clear(@active);
+  clear(@owned); clear(@active); clear(@marker_pending);
   clear(@futex_start); clear(@futex_recorded);
   clear(@fsync_start); clear(@fsync_recorded);
 }
