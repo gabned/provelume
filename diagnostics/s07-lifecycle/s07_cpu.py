@@ -26,16 +26,19 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "ed48e20b7e59e10ddf51624051665fb0089e231d"
-HISTORICAL_CPU = "AMD EPYC 9V45 96-Core Processor"
+PREVIOUS = "d638cd37ef006cfc82c89fa7ad05454621e42d33"
+COMPARISON_CPU = "AMD EPYC 7763 64-Core Processor"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
     "s07_inventory_window.py",
 ))}
-TARGETS = [("s06", 1), ("s06", 5)]
-CONTROL = [("control", n) for n in range(4)]
+MATCHED_SLOTS = {1: 7, 5: 11}
+TARGETS = [("s06", n) for n in MATCHED_SLOTS]
+CONTROL = [("control", n) for n in range(4)] + [
+    ("matched-idle", n) for n in MATCHED_SLOTS.values()
+]
 WINDOW_OPEN = 3
 WINDOW_CLOSE = 4
 MARKERS = [9, 1, *([WINDOW_OPEN, WINDOW_CLOSE] * len(PURPOSES)), 2, 10]
@@ -236,6 +239,19 @@ def worker(native, mode, output, inputs=None):
                     probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
                 if number in injections:
                     frames[-1]["injection"] = injections[number]
+            # The full qualifier grows the journal with three idle and three
+            # deterministic-busy captures before S06. On this same runner,
+            # build an independent model-free instance with that many receipts.
+            with tempfile.TemporaryDirectory(prefix="s07-replay-", dir=TEMP) as temp:
+                instance = ProvelumeInstance.initialise(Path(temp) / "synthetic-instance")
+                selected = set(MATCHED_SLOTS.values())
+                probe = wrap(qualifier.deterministic_probe, "matched-idle", selected)
+                for number in range(max(selected) + 1):
+                    result = probe(instance, number)
+                    if not all(result[key] for key in (
+                        "preserved", "search_found", "product_dispatch_blocked"
+                    )):
+                        raise ValueError("model-free journal priming changed Capture semantics")
         else:
             # Run the original full qualifier. Only the two selected S06 probes have hooks.
             with patch.object(
@@ -412,10 +428,10 @@ def worker_args(mode, output, *extra):
 def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
-    if host["cpu_model"] != HISTORICAL_CPU or host["logical_cpus"] != 4:
+    if host["cpu_model"] != COMPARISON_CPU or host["logical_cpus"] != 4:
         observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
         print("S07_INVENTORY_HOST=" + json.dumps(observed), flush=True)
-        raise ValueError("runner CPU profile differs from historical S06 1/5")
+        raise ValueError("runner CPU profile differs from the declared EPYC 7763 comparison")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")
@@ -468,13 +484,44 @@ def admit(native, output):
         raise ValueError("known delay was not localized inside/outside the inventory call")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
+    matched_idle = {str(frame["key"][1]): frame for frame in frames if (
+        frame["key"][0] == "matched-idle"
+    )}
+    for slot in MATCHED_SLOTS.values():
+        validate_inventory_counts(matched_idle[str(slot)], slot)
     receipt = {"status": "ADMITTED", "source": source, "host": host, "formats": formats,
-               "containment": containment, "started_boot_ns": started}
+               "containment": containment, "started_boot_ns": started,
+               "matched_idle": matched_idle}
     native.kernel.write(output / "admission.json", receipt)
     print("S07_ADMISSION=" + json.dumps({
         "status": "ADMITTED", "source": source, "qualification_eligible": False,
         "native_inference": "NOT_RUN", "controls": [frame["summary"] for frame in frames],
     }), flush=True)
+
+
+def validate_inventory_counts(frame, slot):
+    scopes = frame["summary"]["by_purpose"]
+    if [scopes[purpose]["records"] for purpose in PURPOSES] != [slot, slot + 1]:
+        raise ValueError("inventory counts differ from the declared matched control")
+
+
+def compare_inventory(frame, control, slot):
+    validate_inventory_counts(frame, slot)
+    validate_inventory_counts(control, slot)
+    busy = frame["summary"]["by_purpose"]
+    idle = control["summary"]["by_purpose"]
+    metrics = ("inventory_wall_ns", "inventory_thread_cpu_ns",
+               "certain_blocked_ns", "certain_ready_ns")
+    return {
+        "control_slot": slot,
+        "control_capture_seconds": control["probe"]["capture_seconds"],
+        "control_summary": control["summary"],
+        "busy_minus_control_ns": {
+            purpose: {metric: busy[purpose][metric] - idle[purpose][metric]
+                      for metric in metrics}
+            for purpose in PURPOSES
+        },
+    }
 
 
 def run(native, admission, inputs, output):
@@ -528,6 +575,9 @@ def run(native, admission, inputs, output):
             raise ValueError("selected probe differs from the original report")
         excess = (row["capture_seconds"] - limit) * 1e9
         duration = frame["summary"]["capture_inventory_wall_ns"]
+        slot = MATCHED_SLOTS[index]
+        control = receipt["matched_idle"][str(slot)]
+        frame["matched_idle"] = compare_inventory(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
             "INVENTORY_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
@@ -535,6 +585,8 @@ def run(native, admission, inputs, output):
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
               "factor": "CaptureJournal._inventory",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_JOURNAL_COUNTS",
+              "historical_hardware_matched": False,
               "qualification_eligible": False, "original_status": report["status"],
               "original_gates": report["gates"], "frames": frames, "cost_deduction": "NONE"}
     native.kernel.write(output / "analysis.json", result)
