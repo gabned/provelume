@@ -1,4 +1,4 @@
-name: S07 Capture inventory on one EPYC 7763 runner
+name: S07 Capture inventory on one admitted EPYC runner
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit EPYC 7763 and measure matched model-free journal controls
+      - name: Admit the EPYC profile and measure matched model-free journal controls
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
