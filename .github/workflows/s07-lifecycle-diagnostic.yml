@@ -1,4 +1,4 @@
-name: S07 pool shutdown return and worker exits
+name: S07 S06 sample 5 pool shutdown on EPYC 9V45
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]

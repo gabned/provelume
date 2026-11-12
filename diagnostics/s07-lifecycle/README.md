@@ -72,3 +72,7 @@ The model-free controls localize a 120 ms delay inside the window and a separate
 ### Shutdown return and kernel exit are separate events
 
 The [first admission attempt](https://github.com/gabned/provelume/actions/runs/43314088018/job/131517426823) stopped before model acquisition. The earlier check required kernel exits within the shutdown window. CPython 3.12 joins its thread-state lock, which may release the caller before the kernel records the native thread exit. The timer now stops at the original shutdown return, before writing the close marker. Verify the same workers' creation and exit separately using the complete task trace, classify exits relative to the return and the sample, and report the last exit with the reconciled clock bounds. The runner still needs to pass all controls before the one native sequence.
+
+### Historical EPYC 9V45 profile
+
+The [corrected pool shutdown observer](https://github.com/gabned/provelume/actions/runs/43315093534/job/131520894565) completed on EPYC 7763 without reproducing the S06 slot 5 exceedance. This next attempt accepts only the historical EPYC 9V45 CPU model with four logical CPUs. It reuses the corrected shutdown window, separate kernel exit evidence and same-runner model-free controls. It retains the original sequence, inputs, evaluator and observer bounds. The assigned GitHub-hosted runner is inspected once and a different profile stops admission before model acquisition.
