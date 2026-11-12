@@ -1,4 +1,4 @@
-name: S07 post-commit integrity readback in Capture process
+name: S07 durable staging cleanup in Capture process
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit the EPYC runner and measure model-free readback controls
+      - name: Admit the EPYC runner and measure model-free staging cleanup controls
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
@@ -59,7 +59,7 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
           test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
           .venv/bin/python "$RUNNER_TEMP/s07-original/scripts/ai_runtime_acquire.py" --directory "$RUNNER_TEMP/s07-inputs" --accept-licenses --include-model
-      - name: Execute one original sequence and compare the S06 5 readback
+      - name: Execute one original sequence and compare the S06 5 staging cleanup
         shell: bash
         run: |
           .venv/bin/python "$DRIVER" run "$RUNNER_TEMP/s07-admission" \
