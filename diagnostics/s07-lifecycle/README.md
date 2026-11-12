@@ -76,3 +76,9 @@ The [first admission attempt](https://github.com/gabned/provelume/actions/runs/4
 ### Historical EPYC 9V45 profile
 
 The [corrected pool shutdown observer](https://github.com/gabned/provelume/actions/runs/43315093534/job/131520894565) completed on EPYC 7763 without reproducing the S06 slot 5 exceedance. This next attempt accepts only the historical EPYC 9V45 CPU model with four logical CPUs. It reuses the corrected shutdown window, separate kernel exit evidence and same-runner model-free controls. It retains the original sequence, inputs, evaluator and observer bounds. The assigned GitHub-hosted runner is inspected once and a different profile stops admission before model acquisition.
+
+### Capture entry publication on another EPYC profile
+
+The [9V45-only attempt](https://github.com/gabned/provelume/actions/runs/43318737437/job/131533508161) stopped before model acquisition when GitHub assigned a 7763. This experiment admits an EPYC 7763 or 9V74 with four logical CPUs. It observes the acquisition's original `_publish_entries` call, including its verification, atomic moves, and wait for destination-directory fsyncs. The window closes on return from publication, before transaction pool shutdown and the committed manifest. Each expected destination-directory fsync must have a pair in the trace from a worker in the Capture pool. The separate index measurement remains available.
+
+The same-runner model-free probe matches entry, preimage, and destination-directory counts. The controls retain the 120 ms delay inside and outside the window, traced synthetic futex/fsync, original Capture semantics, placement and network checks. The original sequence runs once after admission. Its own idle probes determine the Capture threshold with the unchanged evaluator.

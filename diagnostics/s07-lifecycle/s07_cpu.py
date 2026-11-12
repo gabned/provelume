@@ -1,4 +1,4 @@
-"""Single S07 transaction pool shutdown experiment on the original S06 failure source."""
+"""Single S07 transaction publication experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_pool_window import PURPOSES, observe, pool_lifetimes, summarize
+from s07_publish_window import PURPOSES, observe, publication_fsyncs, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,14 +26,15 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "a814b082ed81968c12a1833d2b69a5aefcfc5b38"
+PREVIOUS = "47fb136a0e1ac92280902c29f075ab08f281b397"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
+COMPARISON_CPUS = {"AMD EPYC 9V74 80-Core Processor", "AMD EPYC 7763 64-Core Processor"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
-    "s07_cleanup_window.py", "s07_pool_window.py",
+    "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
 ))}
 MATCHED_SLOTS = {5: 11}
 TARGETS = [("s06", n) for n in MATCHED_SLOTS]
@@ -165,7 +166,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected, *, pool_control=None):
+    def wrap(original, group, selected, *, publication_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -183,7 +184,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                atomic, adapter, clock=clock, control=pool_control,
+                atomic, adapter, clock=clock, control=publication_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -194,10 +195,11 @@ def worker(native, mode, output, inputs=None):
             emit(10)
             if len(spans) != 1:
                 raise ValueError("exactly one index refresh required")
-            pool_window, summary = summarize(rows, start, end, spans[0])
+            publication_window, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "pool_tids": rows[0].worker_tids,
-                           "pool_window": pool_window, "probe_interval": (start, end)})
+                           "publication_tids": rows[0].worker_tids,
+                           "publication_window": publication_window,
+                           "probe_interval": (start, end)})
             return result
 
         return probe
@@ -214,12 +216,12 @@ def worker(native, mode, output, inputs=None):
                 time.sleep(0.12)
                 injections[number] = (start, time.monotonic_ns())
 
-            def pool_hook(number, fixture, phase):
+            def publication_hook(number, fixture, phase):
                 if (number, phase) in (
-                    (1, "before-pool-wait"), (2, "after-pool-wait"),
+                    (1, "before-publish"), (2, "after-publish"),
                 ):
                     inject(number)
-                elif number == 3 and phase == "before-pool-wait":
+                elif number == 3 and phase == "before-publish":
                     exercise_syscalls(fixture)
 
             for number in range(4):
@@ -229,7 +231,7 @@ def worker(native, mode, output, inputs=None):
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
-                        pool_control=partial(pool_hook, number, syscall_fixture),
+                        publication_control=partial(publication_hook, number, syscall_fixture),
                     )
                     probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
                 if number in injections:
@@ -310,7 +312,6 @@ def account_window(native, events, tid, row, left, right):
         totals["ready"] += max(0, min(right, item["end"]) - max(left, wake))
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
-    return intervals
 
 
 def validate_syscall_pairs(events):
@@ -365,25 +366,19 @@ def kernel_binding(native, output, targets, host):
         start, end = stamps[1], stamps[-2]
         for slot, purpose in enumerate(PURPOSES):
             opened, closed = stamps[2 + slot * 2:4 + slot * 2]
-            left, right = frame["pool_window"][purpose]
+            left, right = frame["publication_window"][purpose]
             if not (
                 start <= opened <= left + low <= left + high <= right + low
                 <= right + high <= closed <= end
             ):
-                raise ValueError("kernel markers do not bind the Capture transaction pool shutdown")
+                raise ValueError("kernel markers do not bind the Capture entry publication")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            intervals = account_window(native, scoped, tid, row, left + high, right + low)
-            last_exit, lifetimes = pool_lifetimes(
-                events, tid, frame.pop("pool_tids"), start, end, opened,
-                (right + low, right + high),
-            )
-            row.update(lifetimes)
-            row["caller_blocked_at_last_exit"] = left + high <= last_exit < right + low and any(
-                item["start"] <= last_exit < item["wake"] for item in intervals
-                if item["wake"] is not None
-            )
+            account_window(native, scoped, tid, row, left + high, right + low)
+            row.update(publication_fsyncs(
+                scoped, frame.pop("publication_tids"), row["destination_directories"],
+            ))
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
@@ -396,7 +391,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the Capture transaction pool shutdown window")
+            raise ValueError("scheduler event outside the Capture entry publication window")
     return data["frames"]
 
 
@@ -434,9 +429,9 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_POOL_HOST=" + json.dumps(observed), flush=True)
-    if host["cpu_model"] != HISTORICAL_S06_CPU or host["logical_cpus"] != 4:
-        raise ValueError("runner is not the historical EPYC 9V45 profile with four logical CPUs")
+    print("S07_PUBLICATION_HOST=" + json.dumps(observed), flush=True)
+    if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
+        raise ValueError("runner is not an admitted EPYC 7763 or 9V74 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")
@@ -463,7 +458,7 @@ def admit(native, output):
     control = output / "control"
     try:
         if native.collect(SOURCE, control, worker_args("control", control), 45):
-            raise ValueError("Capture transaction pool shutdown kernel controls failed")
+            raise ValueError("Capture entry publication kernel controls failed")
     except (OSError, ValueError, subprocess.SubprocessError):
         for path in (control / "kernel.stderr", control / "execution.log"):
             if path.is_file():
@@ -474,8 +469,8 @@ def admit(native, output):
     positive, negative = (frames[i]["summary"]["by_purpose"][PURPOSES[0]] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]
     neg_start, neg_end = frames[2]["injection"]
-    pos_left, pos_right = frames[1]["pool_window"][PURPOSES[0]]
-    _, neg_right = frames[2]["pool_window"][PURPOSES[0]]
+    pos_left, pos_right = frames[1]["publication_window"][PURPOSES[0]]
+    _, neg_right = frames[2]["publication_window"][PURPOSES[0]]
     _, probe_end = frames[2]["probe_interval"]
     if not (
         pos_left <= pos_start <= pos_end <= pos_right
@@ -486,7 +481,7 @@ def admit(native, output):
         and positive["certain_blocked_ns"] > 0
         and negative["wall_ns"] < 120_000_000
     ):
-        raise ValueError("known delay was not localized at the pool shutdown boundary")
+        raise ValueError("known delay was not localized at the publication boundary")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -502,12 +497,12 @@ def admit(native, output):
     }), flush=True)
 
 
-def compare_pool(frame, control, slot):
+def compare_publication(frame, control, slot):
     busy = frame["summary"]["by_purpose"][PURPOSES[0]]
     idle = control["summary"]["by_purpose"][PURPOSES[0]]
-    shape = ("entries", "preimages", "pool_workers")
+    shape = ("entries", "preimages", "destination_directories")
     if any(busy[key] != idle[key] for key in shape):
-        raise ValueError("Capture transaction pool shutdown shape differs from the matched control")
+        raise ValueError("Capture entry publication shape differs from the matched control")
     metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
     return {
         "control_slot": slot,
@@ -570,15 +565,15 @@ def run(native, admission, inputs, output):
         duration = frame["summary"]["by_purpose"][PURPOSES[0]]["wall_ns"]
         slot = MATCHED_SLOTS[index]
         control = receipt["matched_idle"][str(slot)]
-        frame["matched_idle"] = compare_pool(frame, control, slot)
+        frame["matched_idle"] = compare_publication(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "POOL_SHUTDOWN_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "POOL_SHUTDOWN_COMPATIBLE_IN_THIS_SAMPLE"
+            "PUBLICATION_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "PUBLICATION_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture acquisition transaction pool shutdown",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_POOL_SHUTDOWN_SHAPE",
+              "factor": "Capture acquisition entry publication",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_PUBLICATION_SHAPE",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],
