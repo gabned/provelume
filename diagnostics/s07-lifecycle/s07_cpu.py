@@ -27,13 +27,9 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "b06a16b2cf2925b43f8add6a1d3d315fe82f0827"
+PREVIOUS = "e4381a24765444922fd5d38c19a5790d39fccb00"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
-COMPARISON_CPUS = {
-    HISTORICAL_S06_CPU,
-    "AMD EPYC 9V74 80-Core Processor",
-    "AMD EPYC 7763 64-Core Processor",
-}
+COMPARISON_CPU = "Intel(R) Xeon(R) 6975P-C"
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -468,8 +464,8 @@ def admit(native, output):
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
     print("S07_PREPARE_HOST=" + json.dumps(observed), flush=True)
-    if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
-        raise ValueError("runner is not an admitted EPYC 7763, 9V74 or 9V45 with four logical CPUs")
+    if host["cpu_model"] != COMPARISON_CPU or host["logical_cpus"] != 4:
+        raise ValueError("this attempt requires an Intel Xeon 6975P-C with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")

@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit EPYC 7763, 9V74 or 9V45 and validate both staging windows
+      - name: Admit Xeon 6975P-C and validate both staging windows
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash

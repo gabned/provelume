@@ -127,3 +127,10 @@ If the combined window is shorter than a reproduced excess, it is insufficient
 to explain that sample. Compatibility is diagnostic, and a within-limit result
 is NON_REPRODUCTION. A diagnostic conclusion does not establish the cause of
 any historical finding or qualify a candidate.
+
+The [first staging attempt](https://github.com/gabned/provelume/actions/runs/43511793221/job/132183615512)
+observed an Intel Xeon 6975P-C with four logical CPUs and stopped at the EPYC
+selector. The follow-up selects that exact Xeon profile. The original hardware
+check already ran on that profile. The Linux controls must still pass before
+input acquisition, and the admission and native sequence must use the same
+runner, boot and placement. The comparison applies to the observed Xeon host.
