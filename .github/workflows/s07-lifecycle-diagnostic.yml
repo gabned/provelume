@@ -1,4 +1,4 @@
-name: S07 S06 sample 5 path validation during add
+name: S07 S06 sample 5 add path validation on admitted EPYC
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -47,7 +47,7 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit EPYC 7763 or 9V74 and check registration path controls
+      - name: Admit EPYC 7763, 9V74 or 9V45 and check registration paths
         run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
       - name: Acquire locked inputs after admission
         shell: bash
