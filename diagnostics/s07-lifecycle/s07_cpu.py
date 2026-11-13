@@ -1,4 +1,4 @@
-"""Single S07 registration path validation experiment on the original S06 failure source."""
+"""One S07 comparison of staging writer waits on the original failure source."""
 
 import ctypes
 import errno
@@ -18,8 +18,8 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_add_window import PURPOSES, observe, summarize
-from s07_publish_window import publication_fsyncs
+from s07_flush_window import bind_waits
+from s07_prepare_window import PURPOSES, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -27,7 +27,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "67f98e6788b3add6994e49ddae84dfb2db1737e4"
+PREVIOUS = "b06a16b2cf2925b43f8add6a1d3d315fe82f0827"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
     HISTORICAL_S06_CPU,
@@ -41,9 +41,12 @@ CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
     "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
     "s07_flush_window.py", "s07_target_window.py", "s07_add_window.py",
+    "s07_prepare_window.py",
 ))}
-MATCHED_SLOTS = {5: 11}
-TARGETS = [("s06", n) for n in MATCHED_SLOTS]
+# Three idle captures precede deterministic slot 1. All three deterministic
+# busy captures precede the governed S06 slots.
+MATCHED_SLOTS = {("deterministic", 1): 4, ("s06", 1): 7, ("s06", 2): 8, ("s06", 5): 11}
+TARGETS = list(MATCHED_SLOTS)
 CONTROL = [("control", n) for n in range(4)] + [
     ("matched-idle", n) for n in MATCHED_SLOTS.values()
 ]
@@ -99,6 +102,9 @@ def source_proof():
     for path in FIXED:
         if len({git(ROOT, "rev-parse", f"{ref}:{path}") for ref in (BASE, MAIN, OWNER)}) != 1:
             raise ValueError(f"fixed input drift: {path}")
+    journal = "core/provelume/capture_journal.py"
+    if git(ROOT, "rev-parse", f"{BASE}:{journal}") != git(ROOT, "rev-parse", f"{MAIN}:{journal}"):
+        raise ValueError("historical Capture journal differs from main")
     return {"diagnostic": os.environ["GITHUB_SHA"], "baseline": BASE, "tree": TREE,
             "main": MAIN, "owner": OWNER, "bind": BIND,
             "kernel_program_sha256": hashlib.sha256(PROGRAM.read_bytes()).hexdigest()}
@@ -172,7 +178,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected, *, publication_control=None):
+    def wrap(original, group, selected, *, writer_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -190,7 +196,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                atomic, adapter, clock=clock, control=publication_control,
+                atomic, adapter, clock=clock, control=writer_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -201,15 +207,11 @@ def worker(native, mode, output, inputs=None):
             emit(10)
             if len(spans) != 1:
                 raise ValueError("exactly one index refresh required")
-            publication_window, summary = summarize(
-                rows, start, end, spans[0], expected_root_depth=len(TEMP.parts) + 1,
-            )
+            if len(instance.store.paths.root.parts) != len(TEMP.parts) + 2:
+                raise ValueError("Capture root differs from the matched probe depth")
+            windows, writes, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "calls": rows[0].calls, "publication_tids": rows[0].worker_tids,
-                           "publish_span": rows[0].publish_span,
-                           "publication_window": publication_window,
-                           "first_target": rows[0].calls[0][:2],
-                           "second_target_start": rows[0].calls[1][0][0],
+                           "windows": windows, "writes": writes,
                            "probe_interval": (start, end)})
             return result
 
@@ -222,17 +224,12 @@ def worker(native, mode, output, inputs=None):
 
             injections = {}
 
-            def inject(number):
-                start = time.monotonic_ns()
-                time.sleep(0.12)
-                injections[number] = (start, time.monotonic_ns())
-
-            def publication_hook(number, fixture, phase):
-                if (number, phase) in (
-                    (1, "inside-first-target"), (2, "after-first-target"),
-                ):
-                    inject(number)
-                elif number == 3 and phase == "inside-first-target":
+            def writer_hook(number, fixture, purpose, phase):
+                if (number, phase) in ((1, "inside"), (2, "after")):
+                    start = time.monotonic_ns()
+                    time.sleep(0.12)
+                    injections.setdefault(number, {})[purpose] = (start, time.monotonic_ns())
+                elif number == 3 and purpose == PURPOSES[0] and phase == "inside":
                     exercise_syscalls(fixture)
 
             for number in range(4):
@@ -242,7 +239,7 @@ def worker(native, mode, output, inputs=None):
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
-                        publication_control=partial(publication_hook, number, syscall_fixture),
+                        writer_control=partial(writer_hook, number, syscall_fixture),
                     )
                     probe(ProvelumeInstance.initialise(Path(temp) / "synthetic-instance"), number)
                 if number in injections:
@@ -261,10 +258,27 @@ def worker(native, mode, output, inputs=None):
                     )):
                         raise ValueError("model-free journal priming changed Capture semantics")
         else:
-            # Run the original full qualifier. Only S06 slot 5 has timing hooks.
-            with patch.object(
-                jobs, "deterministic_probe",
-                wrap(jobs.deterministic_probe, "s06", set(MATCHED_SLOTS)),
+            # Wrap the deterministic busy entry point so all original idle
+            # measurements and every nonselected probe stay uninstrumented.
+            measure_busy = qualifier.measure_busy_probe
+            base_probe = qualifier.deterministic_probe
+
+            def observed_busy(instance, runtime, thread, number, **kwargs):
+                if number != 1:
+                    return measure_busy(instance, runtime, thread, number, **kwargs)
+                with patch.object(
+                    qualifier, "deterministic_probe", wrap(base_probe, "deterministic", {1}),
+                ):
+                    return measure_busy(instance, runtime, thread, number, **kwargs)
+
+            with (
+                patch.object(qualifier, "measure_busy_probe", observed_busy),
+                patch.object(
+                    jobs, "deterministic_probe", wrap(
+                        jobs.deterministic_probe, "s06",
+                        {number for group, number in TARGETS if group == "s06"},
+                    ),
+                ),
             ):
                 qualifier.measure(inputs, output / "report-before-network.json")
     finally:
@@ -333,6 +347,7 @@ def account_window(native, events, tid, row, left, right, calls, offset):
             )
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
+    return intervals
 
 
 def validate_syscall_pairs(events):
@@ -387,27 +402,22 @@ def kernel_binding(native, output, targets, host):
         start, end = stamps[1], stamps[-2]
         for slot, purpose in enumerate(PURPOSES):
             opened, closed = stamps[2 + slot * 2:4 + slot * 2]
-            left, right = frame["publication_window"][purpose]
+            left, right = frame["windows"][purpose]
             if not (
                 start <= opened <= left + low <= left + high <= right + low
                 <= right + high <= closed <= end
             ):
-                raise ValueError("kernel markers do not bind Capture registration and publication")
+                raise ValueError("kernel markers do not bind the staging writer window")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            account_window(
+            intervals = account_window(
                 native, scoped, tid, row, left + high, right + low,
-                frame.pop("calls"), (low, high),
+                [((left, 0), (right, 0), None)], (low, high),
             )
-            publish_start, publish_end = frame.pop("publish_span")
-            if not opened < publish_start < publish_end < closed:
-                raise ValueError("publication fsync interval is outside the acquisition markers")
-            row["worker_fsync_pairs"] = publication_fsyncs(
-                [event for event in scoped if publish_start <= event[1] <= publish_end],
-                frame.pop("publication_tids"), row["destination_directories"],
-            )["worker_fsync_pairs"]
-            if targets == CONTROL and index == 3:
+            writes = frame["writes"][purpose]
+            row["future_results"] = bind_waits(scoped, writes, intervals, (low, high))
+            if targets == CONTROL and index == 3 and purpose == PURPOSES[0]:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
                     opened, closed,
@@ -419,7 +429,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the Capture acquisition observation window")
+            raise ValueError("scheduler event outside the staging writer windows")
     return data["frames"]
 
 
@@ -457,7 +467,7 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_ADD_TARGET_HOST=" + json.dumps(observed), flush=True)
+    print("S07_PREPARE_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
         raise ValueError("runner is not an admitted EPYC 7763, 9V74 or 9V45 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
@@ -486,7 +496,7 @@ def admit(native, output):
     control = output / "control"
     try:
         if native.collect(SOURCE, control, worker_args("control", control), 45):
-            raise ValueError("Capture entry publication kernel controls failed")
+            raise ValueError("Capture staging writer kernel controls failed")
     except (OSError, ValueError, subprocess.SubprocessError):
         for path in (control / "kernel.stderr", control / "execution.log"):
             if path.is_file():
@@ -494,22 +504,23 @@ def admit(native, output):
         raise
     clean_network(control, "network", "four-frame-capture-control")
     frames = kernel_binding(native, control, CONTROL, host)
-    positive, negative = (frames[i]["summary"]["by_purpose"][PURPOSES[0]] for i in (1, 2))
-    pos_start, pos_end = frames[1]["injection"]
-    neg_start, neg_end = frames[2]["injection"]
-    (pos_left, _), (pos_right, _) = frames[1]["first_target"]
-    _, (neg_right, _) = frames[2]["first_target"]
-    next_target = frames[2]["second_target_start"]
-    if not (
-        pos_left <= pos_start <= pos_end <= pos_right
-        and pos_end - pos_start >= 120_000_000
-        and neg_right <= neg_start <= neg_end <= next_target
-        and neg_end - neg_start >= 120_000_000
-        and positive["wall_ns"] >= 120_000_000
-        and positive["certain_blocked_ns"] > 0
-        and negative["wall_ns"] < 120_000_000
-    ):
-        raise ValueError("known delay was not localized at the destination validation boundary")
+    for purpose in PURPOSES:
+        positive = frames[1]["summary"]["by_purpose"][purpose]
+        negative = frames[2]["summary"]["by_purpose"][purpose]
+        pos_start, pos_end = frames[1]["injection"][purpose]
+        neg_start, neg_end = frames[2]["injection"][purpose]
+        (wait_left, _), (wait_right, _) = frames[1]["writes"][purpose][0]["wait"]
+        _, neg_right = frames[2]["windows"][purpose]
+        if not (
+            wait_left <= pos_start <= pos_end <= wait_right
+            and pos_end - pos_start >= 120_000_000
+            and neg_right <= neg_start <= neg_end <= frames[2]["probe_interval"][1]
+            and neg_end - neg_start >= 120_000_000
+            and positive["wait_wall_ns"] >= 120_000_000
+            and positive["future_results"]["certain_blocked_ns"] > 0
+            and negative["wall_ns"] < 120_000_000
+        ):
+            raise ValueError(f"known delay was not localized at the {purpose} writer wait")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -525,21 +536,25 @@ def admit(native, output):
     }), flush=True)
 
 
-def compare_publication(frame, control, slot):
-    busy = frame["summary"]["by_purpose"][PURPOSES[0]]
-    idle = control["summary"]["by_purpose"][PURPOSES[0]]
-    shape = (
-        "registered_calls", "registered_directories", "entries", "preimages",
-        "destination_directories", "root_depth", "relative_depths",
-    )
-    if any(busy[key] != idle[key] for key in shape):
-        raise ValueError("Capture entry publication shape differs from the matched control")
-    metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
+def compare_writers(frame, control, slot):
+    comparison = {}
+    for purpose in PURPOSES:
+        busy = frame["summary"]["by_purpose"][purpose]
+        idle = control["summary"]["by_purpose"][purpose]
+        if [kind for kind, _ in busy["staged_sizes"]] != [
+            kind for kind, _ in idle["staged_sizes"]
+        ]:
+            raise ValueError(f"{purpose} staging write counts differ from the matched control")
+        metrics = (
+            "wall_ns", "thread_cpu_ns", "wait_wall_ns", "wait_cpu_ns",
+            "certain_blocked_ns", "certain_ready_ns",
+        )
+        comparison[purpose] = {metric: busy[metric] - idle[metric] for metric in metrics}
     return {
         "control_slot": slot,
         "control_capture_seconds": control["probe"]["capture_seconds"],
         "control_summary": control["summary"],
-        "busy_minus_control_ns": {metric: busy[metric] - idle[metric] for metric in metrics},
+        "busy_minus_control_ns": comparison,
     }
 
 
@@ -585,26 +600,28 @@ def run(native, admission, inputs, output):
     frames = kernel_binding(native, output, TARGETS, receipt["host"])
     idle = report["deterministic_idle"]
     limit = min(1, 2 * statistics.median(row["capture_seconds"] for row in idle) + 0.1)
-    busy = report["s06"]["deterministic_busy"]
+    busy = {"deterministic": report["deterministic_busy"],
+            "s06": report["s06"]["deterministic_busy"]}
     for frame in frames:
-        _, index = frame["key"]
-        row = busy[index]
+        group, index = frame["key"]
+        row = busy[group][index]
         matches_probe = all(row[key] == value for key, value in frame["probe"].items())
         if row["sample"] != index or not matches_probe:
             raise ValueError("selected probe differs from the original report")
         excess = (row["capture_seconds"] - limit) * 1e9
-        duration = frame["summary"]["by_purpose"][PURPOSES[0]]["wall_ns"]
-        slot = MATCHED_SLOTS[index]
+        durations = {purpose: frame["summary"]["by_purpose"][purpose]["wall_ns"]
+                     for purpose in PURPOSES}
+        slot = MATCHED_SLOTS[(group, index)]
         control = receipt["matched_idle"][str(slot)]
-        frame["matched_idle"] = compare_publication(frame, control, slot)
+        frame["matched_idle"] = compare_writers(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "ADD_TARGET_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "ADD_TARGET_COMPATIBLE_IN_THIS_SAMPLE"
+            "PREPARE_WRITERS_INSUFFICIENT_IN_THIS_SAMPLE" if sum(durations.values()) < excess else
+            "PREPARE_WRITERS_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture acquisition _instance_target calls in add",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_TARGET_PATH_DEPTHS",
+              "factor": "Capture staging writers in _prepare, submit and process",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_STAGING_WRITE_COUNTS",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],

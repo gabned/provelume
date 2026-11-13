@@ -102,3 +102,28 @@ This experiment measures the original `_instance_target` calls made by `AtomicIn
 The paired model-free probe on the same runner and boot must match the instance root depth, all relative target depths and the entry, preimage and directory counts. Delay controls distinguish time inside the first lookup from time immediately after it. The original inputs, workload, controls, evaluator and bounds apply. Run one native sequence after admission.
 
 Compare the calls and depth profile of registered entries independently of the manifest entries. Preparation skips already identical files. Check publication fsync pairs against the directories in the resulting manifest.
+
+## Staging writer waits in submit and process
+
+The [entry-registration attempt](https://github.com/gabned/provelume/actions/runs/43386419832/job/131755852243)
+stopped on the host admission check. This experiment observes a different factor
+on the original source: the interval from the first staging writer submission in
+`AtomicInstanceCommit._prepare()` to the last original `write.result()` return.
+It binds each future to the successful file fsync in its own writer thread.
+The submit and acquisition commits have separate windows. Directory fsyncs after
+the writer scope, the prepared manifest, publication, and pool shutdown are
+outside the measured intervals. The complete search-index refresh stays separate.
+
+Observe deterministic slot 1 and S06 slots 1, 2 and 5 in one original native
+sequence. Model-free controls on the same boot and placement match Instance
+depth, prior Capture count and staging write counts by kind. Report staged
+byte counts, caller wall and CPU time, scheduler wait, and per-future fsync
+timing. Use the same 120 ms inside/outside delay controls for each phase,
+synthetic syscall control, original network and semantic checks, observer limits,
+locked inputs, evaluator and deadlines. Only the original idle measurements
+determine the Capture limit. Admit EPYC 7763, 9V74 or 9V45 with four logical CPUs.
+
+If the combined window is shorter than a reproduced excess, it is insufficient
+to explain that sample. Compatibility is diagnostic, and a within-limit result
+is NON_REPRODUCTION. A diagnostic conclusion does not establish the cause of
+any historical finding or qualify a candidate.
