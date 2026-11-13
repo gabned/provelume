@@ -18,8 +18,8 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_publish_window import publication_fsyncs
 from s07_add_window import PURPOSES, observe, summarize
+from s07_publish_window import publication_fsyncs
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -27,7 +27,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "d7a769b403b7b526711423189ee1c13a918d0090"
+PREVIOUS = "3636260d1995421b618d4359735e90a58cc5099e"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {"AMD EPYC 9V74 80-Core Processor", "AMD EPYC 7763 64-Core Processor"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"

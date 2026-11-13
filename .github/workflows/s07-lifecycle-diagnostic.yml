@@ -1,4 +1,4 @@
-name: S07 S06 sample 5 path validation in add
+name: S07 S06 sample 5 path validation during add
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
