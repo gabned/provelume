@@ -1,4 +1,4 @@
-"""Single S07 transaction publication experiment on the original S06 failure source."""
+"""Single S07 directory flush-result experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_publish_window import PURPOSES, observe, publication_fsyncs, summarize
+from s07_flush_window import PURPOSES, bind_waits, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "47fb136a0e1ac92280902c29f075ab08f281b397"
+PREVIOUS = "611a296f81c538f1fa1d5b17b99a210200c2d502"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {"AMD EPYC 9V74 80-Core Processor", "AMD EPYC 7763 64-Core Processor"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
@@ -34,7 +34,7 @@ DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
-    "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
+    "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py", "s07_flush_window.py",
 ))}
 MATCHED_SLOTS = {5: 11}
 TARGETS = [("s06", n) for n in MATCHED_SLOTS]
@@ -197,8 +197,9 @@ def worker(native, mode, output, inputs=None):
                 raise ValueError("exactly one index refresh required")
             publication_window, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "publication_tids": rows[0].worker_tids,
+                           "flushes": [vars(flush) for flush in rows[0].flushes.values()],
                            "publication_window": publication_window,
+                           "first_wait": next(iter(rows[0].flushes.values())).wait,
                            "probe_interval": (start, end)})
             return result
 
@@ -218,10 +219,10 @@ def worker(native, mode, output, inputs=None):
 
             def publication_hook(number, fixture, phase):
                 if (number, phase) in (
-                    (1, "before-publish"), (2, "after-publish"),
+                    (1, "inside-first-wait"), (2, "after-publish"),
                 ):
                     inject(number)
-                elif number == 3 and phase == "before-publish":
+                elif number == 3 and phase == "inside-first-wait":
                     exercise_syscalls(fixture)
 
             for number in range(4):
@@ -312,6 +313,7 @@ def account_window(native, events, tid, row, left, right):
         totals["ready"] += max(0, min(right, item["end"]) - max(left, wake))
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
+    return intervals
 
 
 def validate_syscall_pairs(events):
@@ -375,10 +377,9 @@ def kernel_binding(native, output, targets, host):
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            account_window(native, scoped, tid, row, left + high, right + low)
-            row.update(publication_fsyncs(
-                scoped, frame.pop("publication_tids"), row["destination_directories"],
-            ))
+            intervals = account_window(native, scoped, tid, row, left + high, right + low)
+            flushes = frame.pop("flushes")
+            row.update(bind_waits(scoped, flushes, intervals, (low, high)))
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
@@ -429,7 +430,7 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_PUBLICATION_HOST=" + json.dumps(observed), flush=True)
+    print("S07_FLUSH_RESULT_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
         raise ValueError("runner is not an admitted EPYC 7763 or 9V74 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
@@ -469,7 +470,7 @@ def admit(native, output):
     positive, negative = (frames[i]["summary"]["by_purpose"][PURPOSES[0]] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]
     neg_start, neg_end = frames[2]["injection"]
-    pos_left, pos_right = frames[1]["publication_window"][PURPOSES[0]]
+    (pos_left, _), (pos_right, _) = frames[1]["first_wait"]
     _, neg_right = frames[2]["publication_window"][PURPOSES[0]]
     _, probe_end = frames[2]["probe_interval"]
     if not (
@@ -568,12 +569,12 @@ def run(native, admission, inputs, output):
         frame["matched_idle"] = compare_publication(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "PUBLICATION_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "PUBLICATION_COMPATIBLE_IN_THIS_SAMPLE"
+            "FLUSH_RESULT_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "FLUSH_RESULT_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture acquisition entry publication",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_PUBLICATION_SHAPE",
+              "factor": "Capture acquisition destination-directory flush.result() waits",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_DIRECTORY_FLUSH_SHAPE",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],
