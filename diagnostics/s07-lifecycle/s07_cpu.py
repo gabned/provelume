@@ -27,7 +27,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "3828366e5d51f569efc4013bf24aa4a96fe00f40"
+PREVIOUS = "67f98e6788b3add6994e49ddae84dfb2db1737e4"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
     HISTORICAL_S06_CPU,
@@ -528,7 +528,10 @@ def admit(native, output):
 def compare_publication(frame, control, slot):
     busy = frame["summary"]["by_purpose"][PURPOSES[0]]
     idle = control["summary"]["by_purpose"][PURPOSES[0]]
-    shape = ("entries", "preimages", "destination_directories", "root_depth", "relative_depths")
+    shape = (
+        "registered_calls", "registered_directories", "entries", "preimages",
+        "destination_directories", "root_depth", "relative_depths",
+    )
     if any(busy[key] != idle[key] for key in shape):
         raise ValueError("Capture entry publication shape differs from the matched control")
     metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")

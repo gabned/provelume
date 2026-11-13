@@ -1,4 +1,4 @@
-name: S07 S06 sample 5 add path validation on admitted EPYC
+name: S07 S06 sample 5 path validation for registered entries
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]

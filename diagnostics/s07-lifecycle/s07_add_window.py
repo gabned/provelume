@@ -4,6 +4,7 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from threading import get_ident
 from unittest.mock import patch
 
@@ -21,6 +22,7 @@ class Acquisition:
     worker_tids: tuple[int, ...] = ()
     entries: int = 0
     preimages: int = 0
+    registered_directories: int = 0
     destination_directories: int = 0
 
 
@@ -90,6 +92,9 @@ def observe(atomic, adapter, *, clock, begin_entry, end_entry, control):
         if any(entry.get("operation", "write") != "write" for entry in entries):
             raise ValueError("expected write-only Capture entries")
         row.entries = len(entries)
+        row.destination_directories = len({
+            PurePosixPath(entry["relative"]).parent for entry in entries
+        })
         row.preimages = sum(entry["had_preimage"] for entry in entries)
         tids = [worker.native_id for worker in pool._threads]
         if not tids or None in tids or len(set(tids)) != len(tids):
@@ -113,7 +118,7 @@ def observe(atomic, adapter, *, clock, begin_entry, end_entry, control):
         root = store.paths.root
         target = result[0].relative_to(root)
         directories.add(target.parent)
-        row.destination_directories = len(directories)
+        row.registered_directories = len(directories)
         row.root_depth = len(root.parts) - 1
         row.calls.append((start, end, len(target.parts)))
         return result
@@ -134,7 +139,7 @@ def summarize(rows, start, end, index_span, expected_root_depth):
     if not (
         row.start and row.end and row.commit_start and row.publish_span and row.worker_tids
         and len(row.calls) >= 2
-        and len(row.calls) == row.entries
+        and 0 < row.entries <= len(row.calls)
     ):
         raise ValueError("missing destination validation for a Capture entry")
     if row.root_depth != expected_root_depth:
@@ -160,6 +165,8 @@ def summarize(rows, start, end, index_span, expected_root_depth):
         "by_purpose": {PURPOSES[0]: {
             "wall_ns": sum(right[0] - left[0] for left, right, _ in row.calls),
             "thread_cpu_ns": sum(right[1] - left[1] for left, right, _ in row.calls),
+            "registered_calls": len(row.calls),
+            "registered_directories": row.registered_directories,
             "entries": row.entries,
             "preimages": row.preimages,
             "destination_directories": row.destination_directories,

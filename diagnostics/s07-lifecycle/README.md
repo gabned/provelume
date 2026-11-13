@@ -100,3 +100,5 @@ All controls and the native probe use the same instance root depth on the same r
 This experiment measures the original `_instance_target` calls made by `AtomicInstanceCommit.add` when `_acquire_locked` registers entries for S06 slot 5. It binds the registering transaction to its subsequent commit. The individual timings end before commit begins. The enclosing trace also retains the publication fsync check. The search index is timed separately.
 
 The paired model-free probe on the same runner and boot must match the instance root depth, all relative target depths and the entry, preimage and directory counts. Delay controls distinguish time inside the first lookup from time immediately after it. The original inputs, workload, controls, evaluator and bounds apply. Run one native sequence after admission.
+
+Compare the calls and depth profile of registered entries independently of the manifest entries. Preparation skips already identical files. Check publication fsync pairs against the directories in the resulting manifest.
