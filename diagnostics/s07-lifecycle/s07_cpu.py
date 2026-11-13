@@ -1,4 +1,4 @@
-"""Single S07 directory flush-result experiment on the original S06 failure source."""
+"""Single S07 destination path validation experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -18,7 +18,8 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_flush_window import PURPOSES, bind_waits, observe, summarize
+from s07_publish_window import publication_fsyncs
+from s07_target_window import PURPOSES, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,7 +27,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "611a296f81c538f1fa1d5b17b99a210200c2d502"
+PREVIOUS = "f66e3df459071d1bd96d47a684742962721bfaa4"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {"AMD EPYC 9V74 80-Core Processor", "AMD EPYC 7763 64-Core Processor"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
@@ -34,7 +35,8 @@ DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
-    "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py", "s07_flush_window.py",
+    "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
+    "s07_flush_window.py", "s07_target_window.py",
 ))}
 MATCHED_SLOTS = {5: 11}
 TARGETS = [("s06", n) for n in MATCHED_SLOTS]
@@ -195,11 +197,14 @@ def worker(native, mode, output, inputs=None):
             emit(10)
             if len(spans) != 1:
                 raise ValueError("exactly one index refresh required")
-            publication_window, summary = summarize(rows, start, end, spans[0])
+            publication_window, summary = summarize(
+                rows, start, end, spans[0], expected_root_depth=len(TEMP.parts) + 1,
+            )
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "flushes": [vars(flush) for flush in rows[0].flushes.values()],
+                           "calls": rows[0].calls, "publication_tids": rows[0].worker_tids,
                            "publication_window": publication_window,
-                           "first_wait": next(iter(rows[0].flushes.values())).wait,
+                           "first_target": rows[0].calls[0][:2],
+                           "second_target_start": rows[0].calls[1][0][0],
                            "probe_interval": (start, end)})
             return result
 
@@ -219,22 +224,22 @@ def worker(native, mode, output, inputs=None):
 
             def publication_hook(number, fixture, phase):
                 if (number, phase) in (
-                    (1, "inside-first-wait"), (2, "after-publish"),
+                    (1, "inside-first-target"), (2, "after-first-target"),
                 ):
                     inject(number)
-                elif number == 3 and phase == "inside-first-wait":
+                elif number == 3 and phase == "inside-first-target":
                     exercise_syscalls(fixture)
 
             for number in range(4):
                 with (
-                    tempfile.TemporaryDirectory(dir=output) as temp,
+                    tempfile.TemporaryDirectory(prefix="s07-control-", dir=TEMP) as temp,
                     tempfile.TemporaryFile(dir=output) as syscall_fixture,
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
                         publication_control=partial(publication_hook, number, syscall_fixture),
                     )
-                    probe(ProvelumeInstance.initialise(Path(temp) / "Synthetic Space"), number)
+                    probe(ProvelumeInstance.initialise(Path(temp) / "synthetic-instance"), number)
                 if number in injections:
                     frames[-1]["injection"] = injections[number]
             # The full qualifier grows the journal with three idle and three
@@ -292,7 +297,7 @@ def bound_markers(events, data, targets):
     return raw
 
 
-def account_window(native, events, tid, row, left, right):
+def account_window(native, events, tid, row, left, right, calls, offset):
     intervals = [
         item for item in native.kernel.off_cpu_intervals(events) if item["tid"] == tid
     ]
@@ -301,19 +306,28 @@ def account_window(native, events, tid, row, left, right):
         raise ValueError("incomplete caller switch pairs")
     if row["thread_cpu_ns"] > row["wall_ns"]:
         raise ValueError("thread CPU exceeds the wall-clock interval")
-    totals = {"blocked": 0, "ready": 0}
     for item in intervals:
         if item["end"] <= left or item["start"] >= right:
             continue
-        wake = item["wake"]
-        if wake is None or item["raw_state"] not in KNOWN_STATES:
+        if item["wake"] is None or item["raw_state"] not in KNOWN_STATES:
             raise ValueError("unattributed overlapping caller interval")
-        # Include only time inside the userspace window for every reconciled offset.
-        totals["blocked"] += max(0, min(right, wake) - max(left, item["start"]))
-        totals["ready"] += max(0, min(right, item["end"]) - max(left, wake))
+
+    low, high = offset
+    totals = {"blocked": 0, "ready": 0}
+    for call_start, call_end, _ in calls:
+        certain_start, certain_end = call_start[0] + high, call_end[0] + low
+        for item in intervals:
+            wake = item["wake"]
+            if wake is None:
+                continue
+            totals["blocked"] += max(
+                0, min(certain_end, wake) - max(certain_start, item["start"]),
+            )
+            totals["ready"] += max(
+                0, min(certain_end, item["end"]) - max(certain_start, wake),
+            )
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
-    return intervals
 
 
 def validate_syscall_pairs(events):
@@ -377,9 +391,13 @@ def kernel_binding(native, output, targets, host):
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            intervals = account_window(native, scoped, tid, row, left + high, right + low)
-            flushes = frame.pop("flushes")
-            row.update(bind_waits(scoped, flushes, intervals, (low, high)))
+            account_window(
+                native, scoped, tid, row, left + high, right + low,
+                frame.pop("calls"), (low, high),
+            )
+            row["worker_fsync_pairs"] = publication_fsyncs(
+                scoped, frame.pop("publication_tids"), row["destination_directories"],
+            )["worker_fsync_pairs"]
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
@@ -430,7 +448,7 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_FLUSH_RESULT_HOST=" + json.dumps(observed), flush=True)
+    print("S07_INSTANCE_TARGET_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
         raise ValueError("runner is not an admitted EPYC 7763 or 9V74 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
@@ -470,19 +488,19 @@ def admit(native, output):
     positive, negative = (frames[i]["summary"]["by_purpose"][PURPOSES[0]] for i in (1, 2))
     pos_start, pos_end = frames[1]["injection"]
     neg_start, neg_end = frames[2]["injection"]
-    (pos_left, _), (pos_right, _) = frames[1]["first_wait"]
-    _, neg_right = frames[2]["publication_window"][PURPOSES[0]]
-    _, probe_end = frames[2]["probe_interval"]
+    (pos_left, _), (pos_right, _) = frames[1]["first_target"]
+    _, (neg_right, _) = frames[2]["first_target"]
+    next_target = frames[2]["second_target_start"]
     if not (
         pos_left <= pos_start <= pos_end <= pos_right
         and pos_end - pos_start >= 120_000_000
-        and neg_right <= neg_start <= neg_end <= probe_end
+        and neg_right <= neg_start <= neg_end <= next_target
         and neg_end - neg_start >= 120_000_000
         and positive["wall_ns"] >= 120_000_000
         and positive["certain_blocked_ns"] > 0
         and negative["wall_ns"] < 120_000_000
     ):
-        raise ValueError("known delay was not localized at the publication boundary")
+        raise ValueError("known delay was not localized at the destination validation boundary")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -501,7 +519,7 @@ def admit(native, output):
 def compare_publication(frame, control, slot):
     busy = frame["summary"]["by_purpose"][PURPOSES[0]]
     idle = control["summary"]["by_purpose"][PURPOSES[0]]
-    shape = ("entries", "preimages", "destination_directories")
+    shape = ("entries", "preimages", "destination_directories", "root_depth", "relative_depths")
     if any(busy[key] != idle[key] for key in shape):
         raise ValueError("Capture entry publication shape differs from the matched control")
     metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
@@ -569,12 +587,12 @@ def run(native, admission, inputs, output):
         frame["matched_idle"] = compare_publication(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "FLUSH_RESULT_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "FLUSH_RESULT_COMPATIBLE_IN_THIS_SAMPLE"
+            "INSTANCE_TARGET_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "INSTANCE_TARGET_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture acquisition destination-directory flush.result() waits",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_DIRECTORY_FLUSH_SHAPE",
+              "factor": "Capture acquisition _instance_target calls inside _publish_entries",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_TARGET_PATH_DEPTHS",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],
