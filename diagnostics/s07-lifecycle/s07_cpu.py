@@ -1,4 +1,4 @@
-"""Single S07 destination path validation experiment on the original S06 failure source."""
+"""Single S07 registration path validation experiment on the original S06 failure source."""
 
 import ctypes
 import errno
@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from s07_publish_window import publication_fsyncs
-from s07_target_window import PURPOSES, observe, summarize
+from s07_add_window import PURPOSES, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -27,7 +27,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "f66e3df459071d1bd96d47a684742962721bfaa4"
+PREVIOUS = "d7a769b403b7b526711423189ee1c13a918d0090"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {"AMD EPYC 9V74 80-Core Processor", "AMD EPYC 7763 64-Core Processor"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
@@ -36,7 +36,7 @@ CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "README.md", "s07_cpu.py", "s07_lifecycle_window.py", "s07_lifecycle_events.bt",
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
     "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
-    "s07_flush_window.py", "s07_target_window.py",
+    "s07_flush_window.py", "s07_target_window.py", "s07_add_window.py",
 ))}
 MATCHED_SLOTS = {5: 11}
 TARGETS = [("s06", n) for n in MATCHED_SLOTS]
@@ -202,6 +202,7 @@ def worker(native, mode, output, inputs=None):
             )
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
                            "calls": rows[0].calls, "publication_tids": rows[0].worker_tids,
+                           "publish_span": rows[0].publish_span,
                            "publication_window": publication_window,
                            "first_target": rows[0].calls[0][:2],
                            "second_target_start": rows[0].calls[1][0][0],
@@ -387,7 +388,7 @@ def kernel_binding(native, output, targets, host):
                 start <= opened <= left + low <= left + high <= right + low
                 <= right + high <= closed <= end
             ):
-                raise ValueError("kernel markers do not bind the Capture entry publication")
+                raise ValueError("kernel markers do not bind Capture registration and publication")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
@@ -395,8 +396,12 @@ def kernel_binding(native, output, targets, host):
                 native, scoped, tid, row, left + high, right + low,
                 frame.pop("calls"), (low, high),
             )
+            publish_start, publish_end = frame.pop("publish_span")
+            if not opened < publish_start < publish_end < closed:
+                raise ValueError("publication fsync interval is outside the acquisition markers")
             row["worker_fsync_pairs"] = publication_fsyncs(
-                scoped, frame.pop("publication_tids"), row["destination_directories"],
+                [event for event in scoped if publish_start <= event[1] <= publish_end],
+                frame.pop("publication_tids"), row["destination_directories"],
             )["worker_fsync_pairs"]
             if targets == CONTROL and index == 3:
                 pairs = native.syscall_pairs(
@@ -410,7 +415,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the Capture entry publication window")
+            raise ValueError("scheduler event outside the Capture acquisition observation window")
     return data["frames"]
 
 
@@ -448,7 +453,7 @@ def admit(native, output):
     output.mkdir()
     source, host = source_proof(), native.host()
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
-    print("S07_INSTANCE_TARGET_HOST=" + json.dumps(observed), flush=True)
+    print("S07_ADD_TARGET_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
         raise ValueError("runner is not an admitted EPYC 7763 or 9V74 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
@@ -587,11 +592,11 @@ def run(native, admission, inputs, output):
         frame["matched_idle"] = compare_publication(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "INSTANCE_TARGET_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
-            "INSTANCE_TARGET_COMPATIBLE_IN_THIS_SAMPLE"
+            "ADD_TARGET_INSUFFICIENT_IN_THIS_SAMPLE" if duration < excess else
+            "ADD_TARGET_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture acquisition _instance_target calls inside _publish_entries",
+              "factor": "Capture acquisition _instance_target calls in add",
               "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_TARGET_PATH_DEPTHS",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,

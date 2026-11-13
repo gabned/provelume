@@ -94,3 +94,9 @@ The positive 120 ms control is inside the first measured wait. The negative cont
 The [directory flush comparison](https://github.com/gabned/provelume/actions/runs/43370253609/job/131704090332) observed no S06 slot 5 exceedance or increase in the waits under load. This experiment measures only the original `_instance_target` calls made directly by `_publish_entries` for the acquisition. The publication markers bound kernel tracing. The measured wall, caller CPU, blocked and ready times cover only the individual validations. The original directory fsync pairing remains checked across publication.
 
 All controls and the native probe use the same instance root depth on the same runner. The matched model-free sample must also have the same destination path depths, entry, preimage and directory counts. The two 120 ms controls inject a delay inside or immediately after the first validation. The original workload, evaluator, inputs, trace bounds and stop rules apply. One native sequence may run after admission.
+
+### Path validation during entry registration
+
+This experiment measures the original `_instance_target` calls made by `AtomicInstanceCommit.add` when `_acquire_locked` registers entries for S06 slot 5. It binds the registering transaction to its subsequent commit. The individual timings end before commit begins. The enclosing trace also retains the publication fsync check. The search index is timed separately.
+
+The paired model-free probe on the same runner and boot must match the instance root depth, all relative target depths and the entry, preimage and directory counts. Delay controls distinguish time inside the first lookup from time immediately after it. The original inputs, workload, controls, evaluator and bounds apply. Run one native sequence after admission.
