@@ -134,3 +134,8 @@ selector. The follow-up selects that exact Xeon profile. The original hardware
 check already ran on that profile. The Linux controls must still pass before
 input acquisition, and the admission and native sequence must use the same
 runner, boot and placement. The comparison applies to the observed Xeon host.
+
+The [Xeon-only attempt](https://github.com/gabned/provelume/actions/runs/43512492797/job/132185987022)
+received an EPYC 9V45 and stopped before running the controls. This attempt accepts
+either of those two exact CPU profiles with four logical CPUs. Admission and the
+single original native sequence use the same runner, boot and placement.
