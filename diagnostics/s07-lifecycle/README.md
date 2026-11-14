@@ -187,3 +187,8 @@ after the first validation of each phase. The synthetic syscall control takes
 place before the timed call. The original locked inputs, thresholds, network
 and semantic gates, tracing limits and time bounds apply to the single native
 sequence. The selected samples are deterministic 1 and S06 1, 2 and 5.
+
+The [first attempt](https://github.com/gabned/provelume/actions/runs/43592583106/job/132440283208)
+received an EPYC 9V74 and stopped at the CPU selector. The next attempt accepts
+EPYC 9V74, EPYC 9V45 or Xeon 6975P-C with four logical CPUs. The same-runner
+controls must pass before the original sequence runs.

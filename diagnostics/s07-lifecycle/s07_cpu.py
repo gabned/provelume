@@ -26,9 +26,13 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "e950f328ef44eb25091520d760a736083bc5d66a"
+PREVIOUS = "d3ff0b8eb543314933042f33dbb030381448f1ef"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
-COMPARISON_CPUS = {HISTORICAL_S06_CPU, "Intel(R) Xeon(R) 6975P-C"}
+COMPARISON_CPUS = {
+    HISTORICAL_S06_CPU,
+    "AMD EPYC 9V74 80-Core Processor",
+    "Intel(R) Xeon(R) 6975P-C",
+}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
 DIRECTORY = "diagnostics/s07-lifecycle"
 CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
@@ -462,7 +466,7 @@ def admit(native, output):
     observed = {"cpu": host["cpu_model"], "logical_cpus": host["logical_cpus"]}
     print("S07_PREPARE_HOST=" + json.dumps(observed), flush=True)
     if host["cpu_model"] not in COMPARISON_CPUS or host["logical_cpus"] != 4:
-        raise ValueError("this attempt requires a Xeon 6975P-C or EPYC 9V45 with four logical CPUs")
+        raise ValueError("expected a Xeon 6975P-C, EPYC 9V45 or EPYC 9V74 with four logical CPUs")
     started = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
     if subprocess.check_output(["bpftrace", "--version"], text=True).strip() != "bpftrace v0.20.2":
         raise ValueError("unreviewed bpftrace version")
