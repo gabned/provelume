@@ -1,4 +1,4 @@
-"""One S07 comparison of Capture destination reads on the original failure source."""
+"""One S07 comparison of Capture destination validation in _prepare."""
 
 import ctypes
 import errno
@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_bounded_read_window import PURPOSES, observe, summarize
+from s07_prepare_target_window import PURPOSES, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -26,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "b58ab66be9b944fd6e29f9f521db1b70af5fd2b6"
+PREVIOUS = "e950f328ef44eb25091520d760a736083bc5d66a"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {HISTORICAL_S06_CPU, "Intel(R) Xeon(R) 6975P-C"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
@@ -37,6 +37,7 @@ CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
     "s07_flush_window.py", "s07_target_window.py", "s07_add_window.py",
     "s07_prepare_window.py", "s07_prepared_manifest_window.py", "s07_bounded_read_window.py",
+    "s07_prepare_target_window.py",
 ))}
 # Three idle captures precede deterministic slot 1. All three deterministic
 # busy captures precede the governed S06 slots.
@@ -173,7 +174,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected, *, read_control=None):
+    def wrap(original, group, selected, *, target_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -191,7 +192,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                atomic, adapter, clock=clock, control=read_control,
+                atomic, adapter, clock=clock, control=target_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -219,7 +220,7 @@ def worker(native, mode, output, inputs=None):
 
             injections = {}
 
-            def read_hook(number, fixture, purpose, phase):
+            def target_hook(number, fixture, purpose, phase):
                 if (number, phase) in ((1, "inside"), (2, "after")):
                     start = time.monotonic_ns()
                     time.sleep(0.12)
@@ -234,7 +235,7 @@ def worker(native, mode, output, inputs=None):
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
-                        read_control=partial(read_hook, number, syscall_fixture),
+                        target_control=partial(target_hook, number, syscall_fixture),
                     )
                     probe(ProvelumeInstance.initialise(Path(temp) / "synthetic-instance"), number)
                 if number in injections:
@@ -401,7 +402,7 @@ def kernel_binding(native, output, targets, host):
                 start <= opened <= left + low <= left + high <= right + low
                 <= right + high <= closed <= end
             ):
-                raise ValueError("kernel markers do not bind the Capture destination reads")
+                raise ValueError("kernel markers do not bind the Capture destination validations")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
@@ -421,7 +422,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the Capture destination read windows")
+            raise ValueError("scheduler event outside the Capture destination validation windows")
     return data["frames"]
 
 
@@ -488,7 +489,7 @@ def admit(native, output):
     control = output / "control"
     try:
         if native.collect(SOURCE, control, worker_args("control", control), 45):
-            raise ValueError("Capture destination read kernel controls failed")
+            raise ValueError("Capture destination validation kernel controls failed")
     except (OSError, ValueError, subprocess.SubprocessError):
         for path in (control / "kernel.stderr", control / "execution.log"):
             if path.is_file():
@@ -514,7 +515,7 @@ def admit(native, output):
             and positive["certain_blocked_ns"] > 0
             and negative["wall_ns"] < 120_000_000
         ):
-            raise ValueError(f"known delay was not localized at the {purpose} destination read")
+            raise ValueError(f"known delay was not localized at the {purpose} path validation")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -530,13 +531,13 @@ def admit(native, output):
     }), flush=True)
 
 
-def compare_reads(frame, control, slot):
+def compare_targets(frame, control, slot):
     comparison = {}
     for purpose in PURPOSES:
         busy = frame["summary"]["by_purpose"][purpose]
         idle = control["summary"]["by_purpose"][purpose]
-        if sorted(busy["read_shape"]) != sorted(idle["read_shape"]):
-            raise ValueError(f"{purpose} destination depths, presence or bytes differ from control")
+        if sorted(busy["validation_shape"]) != sorted(idle["validation_shape"]):
+            raise ValueError(f"{purpose} destination depths or component presence differ")
         metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
         comparison[purpose] = {metric: busy[metric] - idle[metric] for metric in metrics}
     return {
@@ -602,15 +603,15 @@ def run(native, admission, inputs, output):
                      for purpose in PURPOSES}
         slot = MATCHED_SLOTS[(group, index)]
         control = receipt["matched_idle"][str(slot)]
-        frame["matched_idle"] = compare_reads(frame, control, slot)
+        frame["matched_idle"] = compare_targets(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "BOUNDED_READS_INSUFFICIENT_IN_THIS_SAMPLE" if sum(durations.values()) < excess else
-            "BOUNDED_READS_COMPATIBLE_IN_THIS_SAMPLE"
+            "PREPARE_TARGET_INSUFFICIENT_IN_THIS_SAMPLE" if sum(durations.values()) < excess else
+            "PREPARE_TARGET_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "_bounded_file_bytes in Capture _prepare, submit and process",
-              "comparison": "SAME_RUNNER_MATCHED_DEPTH_PRESENCE_AND_BYTES",
+              "factor": "_instance_target in Capture _prepare, submit and process",
+              "comparison": "SAME_RUNNER_MATCHED_DEPTH_AND_COMPONENT_PRESENCE",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],

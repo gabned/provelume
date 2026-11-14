@@ -170,3 +170,20 @@ distinct. Delay controls place 120 ms inside or immediately after the first
 read of each phase. The synthetic syscall control runs before the timed read.
 The two CPU profiles, locked inputs, limits, evaluator, original sequence and
 selected samples are retained.
+
+## Destination validation in prepare
+
+The [destination read run](https://github.com/gabned/provelume/actions/runs/43589753003/job/132431761884)
+ended without a Capture exceedance. This experiment sums the elapsed and
+caller CPU time of the original `_instance_target()` calls made by
+`_prepare()` in each Capture commit. It records presence from the original
+component checks without additional filesystem lookups. Scheduler totals
+cover the calls themselves. The search-index refresh is measured separately.
+
+The model-free controls match Instance depth, relative destination depth and
+the ordered presence of the path components for each matched destination.
+They run on the same boot and placement and place 120 ms inside or immediately
+after the first validation of each phase. The synthetic syscall control takes
+place before the timed call. The original locked inputs, thresholds, network
+and semantic gates, tracing limits and time bounds apply to the single native
+sequence. The selected samples are deterministic 1 and S06 1, 2 and 5.
