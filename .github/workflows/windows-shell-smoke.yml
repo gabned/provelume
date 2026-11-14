@@ -79,21 +79,19 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Time deletion of the completed group's test temporaries
+      - name: Identify the first denied deletion in shard 1
         shell: python
         run: |
           import json
           import os
+          import re
           import shutil
           import stat
           import time
-          from datetime import datetime, timezone
           from pathlib import Path
 
           def emit(event, **fields):
-              print(json.dumps({
-                  "event": event, "utc": datetime.now(timezone.utc).isoformat(), **fields,
-              }, sort_keys=True), flush=True)
+              print(json.dumps({"event": event, **fields}, sort_keys=True), flush=True)
 
           def real_directory(path):
               info = path.lstat()
@@ -104,38 +102,107 @@ jobs:
 
           root = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
           output = real_directory(root / "windows-core-0")
+          shard = real_directory(output / "shard-1")
+          target = real_directory(shard / "pytest-tmp")
           result = json.loads((output / "group-0.json").read_text(encoding="utf-8"))
           if (result["exit_code"] != 0 or result["group"] != 0 or result["timed_out"]
               or result["timeout_seconds"] != 540
               or result["identity"]["tree"] != "95eb63daf19b3c98d5aa7adaf46868d331cfc295"):
               raise SystemExit("Group did not finish successfully with the original controls")
-          candidates = [
-              output / "inventory-state", output / "state-0", output / "state-1",
-          ]
-          for shard in ("shard-0", "shard-1"):
-              parent = real_directory(output / shard)
-              candidates.extend(parent / name for name in ("pytest-tmp", "pytest-cache"))
 
-          failed = False
-          overall = time.perf_counter()
-          emit("cleanup_start", group_seconds=result["duration_seconds"])
-          for path in candidates:
-              label = path.relative_to(output).as_posix()
+          # Mirror the first probe and stop at its first error. Leave the failed
+          # entry in place, with its attributes unchanged, for the native method.
+          observed = None
+
+          def stop_on_error(function, path, error):
+              candidate = Path(path)
+              relative = candidate.relative_to(target)
+              if not candidate.resolve(strict=False).is_relative_to(target):
+                  raise SystemExit("Unexpected deletion path")
+              fields = {"operation": function.__name__,
+                        "winerror": getattr(error, "winerror", None),
+                        "errno": error.errno, "relative_depth": len(relative.parts)}
+              # Only publish names fixed by known synthetic test fixtures.
+              known_test = re.compile(r"test_(?:permission_only_postpubli|migration_preserves_windo|windows_canonical_config_)[a-z_]*\d+")
+              if relative.parts and known_test.fullmatch(relative.parts[0]):
+                  fields["fixture"] = relative.parts[0]
+              if candidate.name in {"operator.txt", "provelume.yml"}:
+                  fields["fixture_leaf"] = candidate.name
               try:
-                  real_directory(path)
-              except FileNotFoundError:
-                  emit("cleanup_absent", directory=label)
-                  continue
-              started = time.perf_counter()
-              emit("delete_start", directory=label)
-              try:
-                  shutil.rmtree(path)
-              except OSError as error:
-                  failed = True
-                  emit("delete_error", directory=label, seconds=time.perf_counter() - started,
-                       kind=type(error).__name__, winerror=getattr(error, "winerror", None))
+                  attrs = candidate.lstat().st_file_attributes
+              except OSError as metadata_error:
+                  fields["metadata_winerror"] = getattr(metadata_error, "winerror", None)
               else:
-                  emit("delete_end", directory=label, seconds=time.perf_counter() - started)
-          emit("cleanup_end", seconds=time.perf_counter() - overall, delete_failed=failed)
-          if failed:
-              raise SystemExit("Deletion of test temporaries did not complete")
+                  fields["read_only"] = bool(attrs & stat.FILE_ATTRIBUTE_READONLY)
+                  fields["reparse_point"] = bool(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                  fields["directory"] = bool(attrs & stat.FILE_ATTRIBUTE_DIRECTORY)
+              emit("python_delete_error", **fields)
+              raise error
+
+          started = time.perf_counter()
+          try:
+              shutil.rmtree(target, onexc=stop_on_error)
+          except PermissionError as error:
+              if error.winerror != 5:
+                  raise
+              observed = error.winerror
+          emit("python_delete_end", seconds=time.perf_counter() - started,
+               winerror=observed, residual=target.exists())
+
+      - name: Apply the active runner's native cleanup to the observed residual
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Assert-PlainDirectory([string]$Path) {
+            $item = Get-Item -LiteralPath $Path -Force
+            if (-not $item.PSIsContainer -or
+                ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected directory type' }
+            return $item.FullName
+          }
+          $root = Assert-PlainDirectory ([IO.Path]::GetFullPath($env:RUNNER_TEMP))
+          $group = Assert-PlainDirectory (Join-Path $root 'windows-core-0')
+          $shard = Assert-PlainDirectory (Join-Path $group 'shard-1')
+          $target = Join-Path $shard 'pytest-tmp'
+          if (-not (Test-Path -LiteralPath $target)) {
+            @{event='native_delete_not_needed'; reason='no Python deletion error'} | ConvertTo-Json -Compress
+            exit 0
+          }
+          $target = Assert-PlainDirectory $target
+          if ([IO.Path]::GetRelativePath($root, $target) -ne 'windows-core-0\shard-1\pytest-tmp') {
+            throw 'Target outside the diagnostic directory'
+          }
+
+          $processId = $PID
+          $worker = $null
+          for ($depth = 0; $depth -lt 12 -and $processId; $depth++) {
+            $process = Get-CimInstance Win32_Process -Filter "ProcessId=$processId"
+            if ($process.Name -eq 'Runner.Worker.exe') { $worker = $process.ExecutablePath; break }
+            $processId = $process.ParentProcessId
+          }
+          if (-not $worker) { throw 'Cannot identify the active GitHub runner worker' }
+          $bin = [IO.Path]::GetDirectoryName($worker)
+          $sdk = Join-Path $bin 'Runner.Sdk.dll'
+          $assembly = [Reflection.Assembly]::LoadFrom($sdk)
+          if ($assembly.Location -ne $sdk) { throw 'Runner cleanup assembly location mismatch' }
+          $class = $assembly.GetType('GitHub.Runner.Sdk.IOUtil', $true)
+          $method = $class.GetMethod('DeleteDirectory', [type[]]@([string], [bool], [bool], [Threading.CancellationToken]))
+          if (-not $method) { throw 'Native runner cleanup signature missing' }
+          @{
+            event='native_method_bound'; assembly_sha256=(Get-FileHash -LiteralPath $sdk).Hash;
+            worker_product_version=[Diagnostics.FileVersionInfo]::GetVersionInfo($worker).ProductVersion;
+            framework=[Runtime.InteropServices.RuntimeInformation]::FrameworkDescription
+          } | ConvertTo-Json -Compress
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          try {
+            [void]$method.Invoke($null, [object[]]@($target, $true, $true, [Threading.CancellationToken]::None))
+            $watch.Stop()
+            $left = @(Get-ChildItem -Force -LiteralPath $target | Select-Object -First 1).Count -ne 0
+            @{event='native_delete_end'; seconds=$watch.Elapsed.TotalSeconds; residual=$left} | ConvertTo-Json -Compress
+            if ($left) { exit 1 }
+          } catch {
+            $watch.Stop()
+            $errorInfo = $_.Exception.GetBaseException()
+            @{event='native_delete_error'; seconds=$watch.Elapsed.TotalSeconds;
+              kind=$errorInfo.GetType().Name; hresult=$errorInfo.HResult} | ConvertTo-Json -Compress
+            exit 1
+          }
