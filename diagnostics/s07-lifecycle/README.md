@@ -154,3 +154,19 @@ manifest size, entries and preimages. The inside and outside delay controls
 remain 120 ms for both phases. The two CPU profiles, tracing and network checks,
 input locks, original evaluator, workload and time bounds are retained. One
 admitted native run observes deterministic slot 1 and S06 slots 1, 2 and 5.
+
+## Destination reads in prepare
+
+The [prepared manifest run](https://github.com/gabned/provelume/actions/runs/43575753140/job/132389482128)
+ended without a Capture exceedance. This experiment sums the wall and caller
+CPU time of the original `_bounded_file_bytes()` calls made from `_prepare()`
+in each Capture commit. Scheduler tracing encloses the reads. Scheduler totals
+exclude the gaps between calls. The search-index refresh is measured separately.
+
+Model-free controls use the same runner, boot and placement. The comparison
+requires the same Instance and relative destination depths, presence and exact
+read byte count for every call. An absent file and a present empty file are
+distinct. Delay controls place 120 ms inside or immediately after the first
+read of each phase. The synthetic syscall control runs before the timed read.
+The two CPU profiles, locked inputs, limits, evaluator, original sequence and
+selected samples are retained.
