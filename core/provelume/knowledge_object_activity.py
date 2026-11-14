@@ -73,6 +73,8 @@ class ObjectInterface:
     def plan(self, identity=None, relation=False, *, kind="entity", version_id=None):
         require(kind in OBJECT_KINDS)
         before = self.get(identity, relation) if identity else None
+        require(before is None or relation or before["record"]["origin"]["kind"] != "connector",
+                "denied")
         choices = self.services.list(limit=100)["items"] if relation else []
         plan = {
             "plan_revision": before["sha256"] if before else "ABSENT",

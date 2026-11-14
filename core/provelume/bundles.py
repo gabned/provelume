@@ -300,6 +300,8 @@ class DocumentBundleManager:
         self,
         document: dict[str, Any],
         data: bytes,
+        *,
+        version: dict[str, Any] | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
         locator = str(document["locator"])
         web_locator = urlsplit(locator).scheme in {"http", "https"}
@@ -309,7 +311,13 @@ class DocumentBundleManager:
 
             extractor = capture_document_extractor(self.store, document)
         try:
-            extraction = (
+            from .productivity_projection import productivity_extraction
+
+            projection = (
+                productivity_extraction(self.store, document, version, data)
+                if version is not None else None
+            )
+            extraction = projection or (
                 extract_web_readable_text(str(document["media_type"]), data)
                 if web_locator
                 else extractor.extract(data)
@@ -552,7 +560,7 @@ class DocumentBundleManager:
             if is_pdf:
                 pages, assets, warnings = self._pdf_pages(data)
             else:
-                pages, assets, warnings = self._single_page(document, data)
+                pages, assets, warnings = self._single_page(document, data, version=version)
             markdown, page_map = self._markdown_and_page_map(
                 document,
                 version,
