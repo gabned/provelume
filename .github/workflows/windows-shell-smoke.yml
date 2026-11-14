@@ -412,6 +412,26 @@ jobs:
               )
 
 
+          class FastInventoryRejected(Exception):
+              """The assigned runner did not meet the diagnostic preflight."""
+
+
+          def fast_inventory(report_path):
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+              log = report_path.with_suffix(".log").read_text(encoding="utf-8")
+              summaries = re.findall(r"(?m)^6078 tests collected in ([0-9]+[.][0-9]+)s\s*$", log)
+              inventory = report["inventory"]
+              valid = (report["mode"] == "inventory" and report["exit_code"] == 0
+                       and report["identity"]["tree"] == "95eb63daf19b3c98d5aa7adaf46868d331cfc295"
+                       and not report["errors"] and len(inventory) == len(set(inventory)) == 6078
+                       and report["selected"] == inventory and len(summaries) == 1)
+              seconds = float(summaries[0]) if valid else None
+              admitted = seconds is not None and 0 < seconds <= 10.00
+              emit("fast_inventory_admission", admitted=admitted, pytest_seconds=seconds,
+                   inventory_count=len(inventory), threshold_seconds=10.00)
+              return admitted
+
+
           def main():
               if sys.platform != "win32" or struct.calcsize("P") != 8:
                   raise SystemExit("Windows x64 is required")
@@ -424,19 +444,33 @@ jobs:
                   emit("scheduler_admission", admitted=False, reason="calibration_failed")
                   raise
               emit("scheduler_admission", admitted=True)
-              fixed_work()
               if sys.argv[1:] == ["--calibration-only"]:
                   return
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-                  output.write("admitted=true\n")
               checker = Path("tools/agent_protocol_work_check.py").resolve(strict=True)
               observer = Sampler()
 
               def record_popen(*args, **kwargs):
                   proc = ORIGINAL_POPEN(*args, **kwargs)
                   command = args[0] if args else kwargs.get("args")
-                  if (isinstance(command, list) and len(command) > 3 and command[1] == str(checker)
-                          and command[2] == "windows-shard"):
+                  owned = isinstance(command, list) and len(command) > 3 and command[1] == str(checker)
+                  if owned and command[2] == "windows-inventory":
+                      report_path = Path(command[command.index("--output") + 1])
+                      wait = proc.wait
+
+                      def wait_for_inventory(*wait_args, **wait_kwargs):
+                          code = wait(*wait_args, **wait_kwargs)
+                          if code != 0:
+                              emit("fast_inventory_admission", admitted=False, reason="collection_failed")
+                              return code
+                          if not fast_inventory(report_path):
+                              raise FastInventoryRejected()
+                          fixed_work()
+                          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                              output.write("admitted=true\n")
+                          return code
+
+                      proc.wait = wait_for_inventory
+                  if owned and command[2] == "windows-shard":
                       shard = command[command.index("--shard") + 1]
                       try:
                           observer.add_root("shard_" + shard, proc.pid)
@@ -451,6 +485,8 @@ jobs:
               exit_result = None
               try:
                   runpy.run_path(str(checker), run_name="__main__")
+              except FastInventoryRejected:
+                  return
               except SystemExit as error:
                   exit_result = error.code
               finally:
