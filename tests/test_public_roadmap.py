@@ -929,9 +929,10 @@ def test_productivity_connector_forecast_is_explicit_and_guarded() -> None:
         "Asana supports multiple OAuth identities",
         "organizations/workspaces, teams and projects",
         "Tududi supports multiple server",
-        "per-instance read/write policy",
-        "guarded task write-back preview",
-        "explicit diff, human confirmation",
+        "per-instance read policy",
+        "Asana and Tududi are read-only in 0.15.0",
+        "Unsupported completion/due-date writes are outside this release promise",
+        "issues/383#issuecomment-6711131611",
         "Local-only/no-GitHub/no-rsync mode performs no connector or mirror access",
     ):
         assert required_contract in roadmap

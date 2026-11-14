@@ -16,6 +16,7 @@ datas = collect_data_files(
     "provelume", include_py_files=True,
     excludes=["**/__pycache__", "**/*.pyc", "**/*.pyo"],
 ) + [(str(ICON), "assets")]
+datas += collect_data_files("icalendar")
 # collect_data_files intentionally omits native extensions. These governed
 # optional resources must retain their exact package-relative paths and bytes.
 package_root = Path(find_spec("provelume").origin).parent

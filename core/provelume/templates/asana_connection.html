@@ -1,0 +1,47 @@
+{% extends base_layout %}
+{% block title %}Asana · Provelume{% endblock %}
+{% block content %}
+<header class="page-header"><h1>Asana</h1><p>{{ t('asana.lead') }}</p></header>
+{% if notice in ['saved', 'error', 'continuation', 'remote_unknown'] %}<p role="status">{{ t('asana.' ~ notice) }}</p>{% endif %}
+{% if not connection.network_enabled %}<p role="status">{{ t('asana.offline') }}</p>{% endif %}
+{% macro hidden(action, identity=None, revision=None, source=None) %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="{{ action }}">
+{% if identity %}<input type="hidden" name="identity" value="{{ identity }}">{% endif %}
+{% if revision is not none %}<input type="hidden" name="revision" value="{{ revision }}">{% endif %}
+{% if source %}<input type="hidden" name="source_id" value="{{ source }}">{% endif %}
+{% endmacro %}
+{% macro confirm() %}<label><input type="checkbox" name="confirm" value="yes" required> {{ t('asana.confirm') }}</label>{% endmacro %}
+{% if editable %}
+<section class="panel"><details><summary>{{ t('asana.network') }}</summary>
+<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('network') }}<input type="hidden" name="enabled" value="{{ 'no' if connection.network_enabled else 'yes' }}">{{ confirm() }}<button>{{ t('asana.network') }}</button></form></details>
+<details><summary>{{ t('asana.client') }}</summary><p>{{ t('asana.client_help') }}</p>
+<label>{{ t('asana.callback') }} <input value="{{ callback_uri }}" readonly></label><p><code>projects:read tasks:read stories:read teams:read users:read workspaces:read</code></p>
+<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('configure') }}<label>{{ t('asana.client') }} <textarea name="client_json" maxlength="16384" autocomplete="off" required></textarea></label>{{ confirm() }}<button>{{ t('icalendar.save') }}</button></form></details></section>
+<section class="panel"><h2>{{ t('asana.connect') }}</h2><form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('connect') }}
+<label>{{ t('icalendar.name') }} <input name="name" maxlength="120" value="Asana" required></label>{{ confirm() }}<button>{{ t('asana.connect') }}</button></form></section>
+{% endif %}
+{% for identity in connection.identities %}<section class="panel"><h2>{{ identity.name }}</h2><p>{{ t('asana.status.' ~ identity.asana.status) }}</p>
+{% if editable %}
+<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('connect', identity.id) }}{{ confirm() }}<button>{{ t('asana.reconnect') }}</button></form>
+{% if identity.asana.status == 'authorized' %}
+<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('catalogue', identity.id) }}{{ confirm() }}<button>{{ t('asana.load_workspaces') }}</button></form>
+{% if identity.catalogue.workspaces %}<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('catalogue', identity.id) }}
+<label>{{ t('asana.workspace') }} <select name="workspace">{% for item in identity.catalogue.workspaces %}<option value="{{ item.gid }}">{{ item.name }}</option>{% endfor %}</select></label>{{ confirm() }}<button>{{ t('asana.load_projects') }}</button></form>{% endif %}
+{% if identity.catalogue.workspace %}<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('select', identity.id) }}
+<input type="hidden" name="workspace" value="{{ identity.catalogue.workspace }}"><label>{{ t('asana.source_name') }} <input name="name" maxlength="120" required></label>
+<label>{{ t('asana.scope') }} <select name="scope"><option value="workspace">{{ t('asana.workspace') }}</option>{% if identity.catalogue.workspace_is_organization %}<option value="organization">{{ t('asana.organization') }}</option>{% endif %}{% if identity.catalogue.teams %}<option value="team">{{ t('asana.team') }}</option>{% endif %}{% if identity.catalogue.projects %}<option value="project">{{ t('asana.project') }}</option>{% endif %}</select></label>
+{% if identity.catalogue.teams %}<label>{{ t('asana.team') }} <select name="team">{% for item in identity.catalogue.teams %}<option value="{{ item.gid }}">{{ item.name }}</option>{% endfor %}</select></label>{% endif %}
+{% if identity.catalogue.projects %}<label>{{ t('asana.project') }} <select name="project">{% for item in identity.catalogue.projects %}<option value="{{ item.gid }}">{{ item.name }}</option>{% endfor %}</select></label>{% endif %}
+<p>{{ t('asana.scope_help') }}</p>{{ confirm() }}<button>{{ t('asana.select') }}</button></form>{% endif %}
+{% for action in ['disconnect', 'revoke'] %}<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden(action, identity.id, identity.asana.revision) }}{{ confirm() }}<button>{{ t('asana.' ~ action) }}</button></form>{% endfor %}
+{% endif %}{% endif %}</section>{% endfor %}
+<section class="panel"><h2>{{ t('asana.sources') }}</h2>
+{% for source in connection.sources %}<section><h3>{{ source.name }}</h3><p>{{ t('icalendar.mode.' ~ (source.policy.mode if source.policy else 'disabled')) }}</p>
+{% if source.last_run %}<p role="status">{{ t('asana.completed') if source.last_run.status == 'completed' else t('asana.continuation') if source.last_run.status == 'continuation_available' else t('asana.rate_limited') if source.last_run.error_code == 'rate_limited' else t('asana.reconnect') if source.last_run.error_code == 'authorization_required' else t('asana.error') }} <time>{{ source.last_run.finished_at }}</time></p>{% endif %}
+{% if editable and source.policy %}
+{% for action in ['read', 'reset'] %}<form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden(action, revision=source.policy.revision, source=source.id) }}{{ confirm() }}<button>{{ t('asana.' ~ action) }}</button></form>{% endfor %}
+<details><summary>{{ t('icalendar.policy') }}</summary><form method="post" action="/asana/connect?lang={{ lang }}">{{ hidden('policy', revision=source.policy.revision, source=source.id) }}
+<label>{{ t('icalendar.policy') }} <select name="mode">{% for mode in ['disabled', 'manual', 'scheduled'] %}<option value="{{ mode }}"{% if source.policy.mode == mode %} selected{% endif %}>{{ t('icalendar.mode.' ~ mode) }}</option>{% endfor %}</select></label>
+<label>{{ t('icalendar.interval') }} <input name="interval" type="number" min="60" value="3600"></label>{{ confirm() }}<button>{{ t('icalendar.save') }}</button></form></details>
+{% endif %}</section>{% else %}<p>{{ t('asana.empty') }}</p>{% endfor %}</section>
+{% endblock %}

@@ -94,6 +94,24 @@ def _seed_classified_library(
     return instance, documents, collection
 
 
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows path handling")
+def test_library_staging_round_trip_uses_extended_paths(tmp_path: Path) -> None:
+    instance = ProvelumeInstance.initialise(tmp_path / "instance")
+    manager = LibraryProjectionManager(instance.store)
+    staging = tmp_path / "projection"
+    relative = PurePosixPath("library-test", "a" * 110, "b" * 110, "README.md")
+    assert len(str(staging.joinpath(*relative.parts).parent)) > 260
+    files = {relative: b"# Synthetic library entry\n"}
+    manifest = manager._content_manifest(
+        files, {}, canonical_fingerprint=manager._deep_fingerprint(instance.store)
+    )
+
+    manager._write_staging(staging, files, manifest)
+    result = manager._status(staging)
+    assert result["status"] == "ready"
+    assert result["content_fingerprint"] == manifest["content_fingerprint"]
+
+
 def test_library_projection_is_deterministic_linked_and_canonical_safe(
     tmp_path: Path,
 ) -> None:

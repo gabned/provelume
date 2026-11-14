@@ -33,6 +33,7 @@ from .instance_schema import (
     build_instance_manifest,
 )
 from .instance_validation import inspect_instance
+from .paths import native_path
 from .storage import InstanceStore, utc_now
 
 LIFECYCLE_STATE_SCHEMA_VERSION = 1
@@ -446,7 +447,7 @@ class InstanceLifecycleManager:
             if moved_previous:
                 # Preserving read-only access metadata must not turn successful
                 # publication into destructive rollback merely to erase a residue.
-                shutil.rmtree(previous, ignore_errors=permission_profile is not None)
+                shutil.rmtree(native_path(previous), ignore_errors=permission_profile is not None)
                 moved_previous = False
             return {
                 "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
@@ -583,6 +584,7 @@ class InstanceLifecycleManager:
                 or any(transaction_root.glob("manual-web-*"))
                 or any(transaction_root.glob("email-intake-*"))
                 or any(transaction_root.glob("google-intake-*"))
+                or any(transaction_root.glob("productivity-intake-*"))
                 or any(transaction_root.glob("transcript-intake-*"))
                 or any(transaction_root.glob("review-*"))
                 or any(transaction_root.glob("capture-*"))
@@ -596,6 +598,7 @@ class InstanceLifecycleManager:
                 ATOMIC_COMMIT_SCHEMA_VERSION,
                 EMAIL_INTAKE_TRANSACTION_PROFILE,
                 GOOGLE_INTAKE_TRANSACTION_PROFILE,
+                PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE,
                 REVIEW_TRANSACTION_PROFILE,
                 TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                 AtomicRecoveryHandler,
@@ -616,6 +619,7 @@ class InstanceLifecycleManager:
                         AtomicRecoveryHandler(
                             profile=GOOGLE_INTAKE_TRANSACTION_PROFILE,
                         ),
+                        AtomicRecoveryHandler(profile=PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE),
                         AtomicRecoveryHandler(
                             profile=TRANSCRIPT_INTAKE_TRANSACTION_PROFILE,
                         ),
