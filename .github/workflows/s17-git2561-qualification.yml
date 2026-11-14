@@ -1,0 +1,58 @@
+name: S17 native Linux Git 2.56.1 qualification
+
+on:
+  push:
+    branches: [codex/s17-git2561-qualification]
+    paths: [.github/workflows/s17-git2561-qualification.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  native-git:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12.14'
+      - name: Bind the native runner to the exact S17 owner source
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate=2bc0a34c255534e17ec3f592f5ab815e5b8ad32a
+          tree=8f1a7b54fae8bace07a4d3b2848c9c37249cd897
+          test "$(git show -s --format=%P HEAD)" = "$candidate"
+          test "$(git diff --name-only "$candidate" HEAD)" = .github/workflows/s17-git2561-qualification.yml
+          git fetch --no-tags origin refs/heads/product/0.15-s17-git-mirror
+          test "$(git rev-parse FETCH_HEAD)" = "$candidate"
+          test "$(git rev-parse "$candidate^{tree}")" = "$tree"
+          git checkout --detach "$candidate"
+          test -z "$(git status --porcelain)"
+          git show -s --format='source=%H tree=%T'
+          printf 'runner_os=%s image=%s image_version=%s\n' "$RUNNER_OS" "$ImageOS" "$ImageVersion"
+          test "$RUNNER_OS" = Linux
+          git_binary="$(realpath "$(command -v git)")"
+          printf 'git_binary=%s\n' "$git_binary"
+          sha256sum "$git_binary"
+          "$git_binary" --version
+          test "$("$git_binary" --version)" = 'git version 2.56.1'
+          python tools/agent_protocol_v2.py verify
+      - name: Run S16/S17 native mirror and Protocol Git sentinel tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[dev]'
+          python -m ruff check --cache-dir .agent/ruff-cache core tests scripts tools
+          python -m pytest -q -r s -s \
+            tests/test_concordia_git_s17.py \
+            tests/test_concordia_git_admission.py \
+            tests/test_concordia_mirrors_s16.py \
+            tests/test_agent_protocol_v1_4_2_ops.py::test_missing_promisor_blob_never_starts_a_fetch
+          git diff --check
+          test -z "$(git status --porcelain)"
