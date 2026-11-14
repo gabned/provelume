@@ -35,7 +35,7 @@ from .markdown_viewer import (
     DocumentContentError,
     DocumentContentReader,
 )
-from .paths import normalise_locator
+from .paths import native_path, normalise_locator
 from .retention_model import effective_dispositions
 from .storage import InstanceStore
 
@@ -205,6 +205,7 @@ class LibraryProjectionManager:
         files: dict[PurePosixPath, bytes],
         manifest: dict[str, Any],
     ) -> None:
+        staging = native_path(staging)
         for relative, data in files.items():
             target = staging.joinpath(*relative.parts)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -336,7 +337,7 @@ class LibraryProjectionManager:
                 previous = None
                 raise
             if previous is not None and previous.exists():
-                shutil.rmtree(previous)
+                shutil.rmtree(native_path(previous))
                 previous = None
             return {
                 "schema_version": LIBRARY_PROJECTION_SCHEMA_VERSION,
@@ -355,7 +356,7 @@ class LibraryProjectionManager:
             raise LibraryProjectionError(str(exc)) from exc
         finally:
             if staging is not None and staging.exists():
-                shutil.rmtree(staging)
+                shutil.rmtree(native_path(staging))
             if lease is not None:
                 InstanceLockManager(self.store).release(lease)
 
@@ -383,6 +384,7 @@ class LibraryProjectionManager:
         }
 
     def _status(self, root: Path) -> dict[str, Any]:
+        root = native_path(root)
         if _unsafe_link(root):
             return {
                 "schema_version": LIBRARY_PROJECTION_SCHEMA_VERSION,
