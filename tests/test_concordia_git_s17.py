@@ -6,9 +6,11 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from provelume import mirror_git_runtime
 from provelume.migration_permissions import make_private
 from provelume.mirror_contract import MirrorError, sha
 from provelume.mirror_git import GitMirrors, git_work, remote_ref
@@ -135,7 +137,10 @@ def test_native_git_version_bare_objects_and_bounded_input(tmp_path):
     session = GitSession(tmp_path)
     observed = session.run(["--version"])[1].decode("ascii").strip()
     print(json.dumps({"optional_git_runtime": observed, "binary": session.binary}))
-    assert session.probe() in {"2.51.1", "2.52.0", "2.56.0", "2.56.0.windows.4"}
+    expected_versions = {"2.51.1", "2.52.0", "2.56.0", "2.56.0.windows.4"}
+    if sys.platform == "linux":
+        expected_versions.add("2.56.1")
+    assert session.probe() in expected_versions
     session.initialize_work()
     _code, oid = session.run(
         ["hash-object", "-w", "--stdin", "--no-filters"],
@@ -375,7 +380,8 @@ def test_batch_verification_rejects_changed_payload_and_oversized_object(tmp_pat
     [
         b"git version 2.43.0\n",
         b"git version 2.99.0\n",
-        b"git version 2.56.1\n",
+        b"git version 2.56.2\n",
+        b"git version 2.56.1.windows.1\n",
         b"git version unknown\n",
     ],
 )
@@ -387,6 +393,19 @@ def test_unqualified_git_versions_remain_rejected_before_operations(
     monkeypatch.setattr(session, "run", lambda *_args, **_kwargs: (0, observed))
     with pytest.raises(MirrorError, match="git_version_unsupported"):
         session.probe()
+
+
+@pytest.mark.parametrize("platform", ["linux", "win32", "darwin"])
+def test_exact_git_2_56_1_is_admitted_only_on_linux(tmp_path, monkeypatch, platform):
+    make_private(tmp_path)
+    session = GitSession(tmp_path)
+    monkeypatch.setattr(mirror_git_runtime, "sys", SimpleNamespace(platform=platform))
+    monkeypatch.setattr(session, "run", lambda *_args, **_kwargs: (0, b"git version 2.56.1\n"))
+    if platform == "linux":
+        assert session.probe() == "2.56.1"
+    else:
+        with pytest.raises(MirrorError, match="git_version_unsupported"):
+            session.probe()
 
 
 @pytest.mark.parametrize("mutation", ["source", "revision", "revoke", "credentials"])

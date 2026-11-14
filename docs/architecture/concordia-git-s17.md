@@ -120,7 +120,8 @@ No Concordia release is published by normal CI or this workstream.
 
 The closed candidate set is Linux Git 2.51.1 (the pinned workspace tool), Linux
 Git 2.52.0 (this development environment), Linux
-Git 2.56.0 (observed in the permanent Ubuntu CI and release-source-gate jobs), and
+Git 2.56.0 (observed in earlier Ubuntu CI and release-source-gate jobs), Linux
+Git 2.56.1 (the security update observed in the current Ubuntu runners), and
 Git for Windows 2.56.0.windows.4 (observed in Windows CI). Each requires its own
 native conformance evidence; admission to the candidate set is not qualification.
 Any other version, including another patch version, fails before transport work.

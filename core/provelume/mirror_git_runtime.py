@@ -8,6 +8,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -223,7 +224,10 @@ class GitSession:
         match = re.fullmatch(rb"git version ([0-9a-z.]+)\r?\n", output)
         require(match is not None, "git_version_unsupported")
         version = match.group(1).decode("ascii")
-        require(version in CANDIDATE_GIT_VERSIONS, "git_version_unsupported")
+        require(
+            version in CANDIDATE_GIT_VERSIONS or (sys.platform == "linux" and version == "2.56.1"),
+            "git_version_unsupported",
+        )
         return version
 
     def initialize_work(self):
