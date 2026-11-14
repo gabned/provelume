@@ -443,7 +443,7 @@ jobs:
               state.mkdir()
               report = scratch / "inventory.json"
               env = {**os.environ, "PYTHONPATH": os.pathsep.join(
-                  (str(source / "core"), str(source / "tools"))),
+                  (str(source / "core"), str(source), str(source / "tools"))),
                   "PYTHONIOENCODING": "utf-8", "PROVELUME_WINDOWS_SHARD_CHILD": "1",
                   "LOCALAPPDATA": str(state)}
               env.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
@@ -452,9 +452,19 @@ jobs:
                    "--root", str(source), "--output", str(report), "--commit", BASE,
                    "--run-id", os.environ["GITHUB_RUN_ID"], "--run-attempt", os.environ["GITHUB_RUN_ATTEMPT"],
                    "--event", "pull_request"],
-                  cwd=source, env=env, text=True, encoding="utf-8", stdout=subprocess.PIPE,
-                  stderr=subprocess.STDOUT, check=True, timeout=45,
+                  cwd=source, env=env, stdin=subprocess.DEVNULL, text=True, encoding="utf-8",
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT, check=False, timeout=45,
               )
+              if inventory.returncode:
+                  # Source/test diagnostics only. Keep matched failures and the bounded final summary.
+                  lines = inventory.stdout.splitlines()
+                  failures = [line for line in lines if "Error:" in line or line.startswith(('ERROR ', '{"result":'))]
+                  emit("git_batch_admission", admitted=False, reason="inventory_failed",
+                       inventory_exit=inventory.returncode, report_exists=report.is_file())
+                  for line in (failures[-12:] + lines[-16:]):
+                      print("inventory: " + line[:400], flush=True)
+                  raise RuntimeError(f"Reference inventory exited {inventory.returncode}")
               record = json.loads(report.read_text(encoding="utf-8"))
               durations = re.findall(r"(?m)^6078 tests collected in ([0-9]+[.][0-9]+)s\s*$", inventory.stdout)
               nodes = record["inventory"]
@@ -491,9 +501,12 @@ jobs:
               base_temp = scratch / (arm + "-tmp")
               temp = scratch / (arm + "-env")
               temp.mkdir()
-              env = {**os.environ, "PYTHONPATH": os.pathsep.join((str(source / "core"), str(source))),
-                     "PROVELUME_WINDOWS_SHARD_CHILD": "1", "GIT_TRACE2_EVENT": str(trace),
-                     "TMP": str(temp), "TEMP": str(temp)}
+              env = {**os.environ, "PYTHONPATH": os.pathsep.join(
+                  (str(source / "core"), str(source), str(source / "tools"))),
+                  "PROVELUME_WINDOWS_SHARD_CHILD": "1", "GIT_TRACE2_EVENT": str(trace),
+                  "TMP": str(temp), "TEMP": str(temp), "LOCALAPPDATA": str(temp)}
+              emit("git_batch_arm_start", arm=arm, source=git("rev-parse", "HEAD", cwd=source),
+                   tree=git("rev-parse", "HEAD^{tree}", cwd=source))
               env.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
               started = time.perf_counter()
               result = subprocess.run(
