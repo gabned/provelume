@@ -1,123 +1,141 @@
-name: Windows shell and configurable endpoint smoke
+name: Windows group 0 temporary cleanup diagnostic
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-jobs:
-  windows-shell:
-    name: Exact-head Windows shell qualification
-    runs-on: windows-latest
-    timeout-minutes: 45
-    env:
-      PROVELUME_QUALIFIED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+env:
+  RUFF_CACHE_DIR: .agent/ruff-cache
 
+jobs:
+  timing:
+    name: Diagnostic timing for Windows Core group 0
+    if: github.ref == 'refs/heads/codex/windows-group0-temp-20fb2d4' && github.run_attempt == 1
+    runs-on: windows-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out exact revision without credentials
+      - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ccdb94d811d28ede7d6972be57306128bff4323c
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Verify exact checked-out head
+      - name: Verify candidate source tree
         shell: pwsh
         run: |
-          $observed = git rev-parse HEAD
-          if (
-            $env:PROVELUME_QUALIFIED_SHA -notmatch '^[0-9a-f]{40}$' -or
-            $observed -ne $env:PROVELUME_QUALIFIED_SHA
-          ) {
-            throw "Checkout is not bound to the qualified candidate head."
+          if ((git rev-parse HEAD) -ne 'ccdb94d811d28ede7d6972be57306128bff4323c' -or
+              (git rev-parse 'HEAD^{tree}') -ne '95eb63daf19b3c98d5aa7adaf46868d331cfc295') {
+            throw 'Diagnostic source identity mismatch'
           }
 
-      - name: Initialize sanitized bounded evidence
-        shell: pwsh
-        run: |
-          $directory = "$env:RUNNER_TEMP\s07-installer"
-          New-Item -ItemType Directory -Force -Path $directory | Out-Null
-          [ordered]@{
-            schema_version = 1
-            status = "NOT_RUN"
-            failure_code = "qualification_incomplete"
-            exact_head = $env:PROVELUME_QUALIFIED_SHA
-            checks = [ordered]@{}
-            network_used_by_harness = $false
-            private_content_logged = $false
-          } | ConvertTo-Json -Depth 4 | Set-Content `
-            -LiteralPath (Join-Path $directory "windows-shell-evidence.json") `
-            -Encoding utf8NoBOM
-
-      - name: Set up CPython 3.12
+      - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements-release.txt
-            build-lock/windows-py312-x86_64.requirements.txt
-
-      - name: Install reviewed development and packaging tools
-        shell: bash
+      - name: Install package and development checks
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: python -m ruff check core tests scripts tools packaging
+      - name: Observe Windows JavaScript runtime before full shard execution
+        shell: python
         run: |
-          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
-          python -m pip install -e ".[dev]" -r requirements-release.txt
+          import json, shutil, subprocess, sys, time
+          from pathlib import Path
+          node = shutil.which("node")
+          if node is None:
+              raise SystemExit("Required browser-contract runtime is unavailable")
+          version = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=15, check=True)
+          print(json.dumps({"node": node, "node_version": version.stdout.strip(), "python": sys.version}), flush=True)
+          started = time.monotonic()
+          result = subprocess.run([node, str(Path("tests/fixtures/cura_shell_contract.cjs").resolve()),
+                                   str(Path("core/provelume/static/cura-shell.js").resolve())],
+                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=False)
+          print(json.dumps({"exit": result.returncode, "seconds": time.monotonic()-started,
+                            "stdout": result.stdout, "stderr": result.stderr}), flush=True)
+          if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
+              raise SystemExit("Windows JavaScript contract failed before shard execution")
 
-      - name: Verify source contracts and deterministic tray harness
-        shell: pwsh
-        run: |
-          python scripts/generate_windows_icon.py --check
-          python -m pytest -q `
-            tests/test_shell_settings.py `
-            tests/test_windows_identity.py `
-            tests/test_desktop_about.py
-
-      - name: Build exact-head development wheel
-        shell: pwsh
-        run: |
-          $epoch = git show -s --format=%ct $env:PROVELUME_QUALIFIED_SHA
-          $env:SOURCE_DATE_EPOCH = $epoch
-          python scripts/deterministic_build.py `
-            --commit $env:PROVELUME_QUALIFIED_SHA `
-            --output-dir "$env:RUNNER_TEMP\s07-wheel" `
-            --evidence "$env:RUNNER_TEMP\s07-build-evidence.json" `
-            --channel development
-
-      - name: Build frozen shell and unsigned development installer
-        shell: pwsh
-        run: |
-          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
-          $wheel = Get-ChildItem "$env:RUNNER_TEMP\s07-wheel\*.whl" | Select-Object -First 1
-          ./scripts/build_windows_installer.ps1 `
-            -CandidateWheel $wheel.FullName `
-            -OutputDirectory "$env:RUNNER_TEMP\s07-installer" `
-            -Version $version `
-            -Tag "v$version" `
-            -Channel development `
-            -Commit $env:PROVELUME_QUALIFIED_SHA
-
-      - name: Exercise identity, endpoint, tray lifecycle and cleanup
-        shell: pwsh
-        run: |
-          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
-          ./scripts/test_windows_shell_smoke.ps1 `
-            -Installer "$env:RUNNER_TEMP\s07-installer\Provelume-Setup-$version-x64.exe" `
-            -InstallDirectory "$env:RUNNER_TEMP\S07 Installed Provelume" `
-            -InstanceDirectory "$env:RUNNER_TEMP\S07 Synthetic Instance" `
-            -ExpectedVersion $version `
-            -ExpectedCommit $env:PROVELUME_QUALIFIED_SHA
-
-      - name: Upload sanitized exact-head evidence
+      - name: Execute two of four Windows shards within the unchanged deadline
+        run: >-
+          python tools/agent_protocol_work_check.py windows-group
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-0"
+          --group 0 --commit "ccdb94d811d28ede7d6972be57306128bff4323c"
+          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
+          --event "pull_request"
+      - name: Retain exact-source Windows execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-shell-evidence-${{ github.run_id }}
-          path: ${{ runner.temp }}/s07-installer/windows-shell-evidence.json
+          name: diagnostic-windows-core-${{ github.run_id }}-${{ github.run_attempt }}-0
+          path: |
+            ${{ runner.temp }}/windows-core-0/*.json
+            ${{ runner.temp }}/windows-core-0/*.log
+            ${{ runner.temp }}/windows-core-0/shard-*/*.json
+            ${{ runner.temp }}/windows-core-0/shard-*/*.log
           if-no-files-found: error
           retention-days: 14
+
+      - name: Time deletion of the completed group's test temporaries
+        shell: python
+        run: |
+          import json
+          import os
+          import shutil
+          import stat
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def emit(event, **fields):
+              print(json.dumps({
+                  "event": event, "utc": datetime.now(timezone.utc).isoformat(), **fields,
+              }, sort_keys=True), flush=True)
+
+          def real_directory(path):
+              info = path.lstat()
+              if (not stat.S_ISDIR(info.st_mode)
+                  or info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT):
+                  raise SystemExit("Unexpected diagnostic directory type")
+              return path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
+          output = real_directory(root / "windows-core-0")
+          result = json.loads((output / "group-0.json").read_text(encoding="utf-8"))
+          if (result["exit_code"] != 0 or result["group"] != 0 or result["timed_out"]
+              or result["timeout_seconds"] != 540
+              or result["identity"]["tree"] != "95eb63daf19b3c98d5aa7adaf46868d331cfc295"):
+              raise SystemExit("Group did not finish successfully with the original controls")
+          candidates = [
+              output / "inventory-state", output / "state-0", output / "state-1",
+          ]
+          for shard in ("shard-0", "shard-1"):
+              parent = real_directory(output / shard)
+              candidates.extend(parent / name for name in ("pytest-tmp", "pytest-cache"))
+
+          failed = False
+          overall = time.perf_counter()
+          emit("cleanup_start", group_seconds=result["duration_seconds"])
+          for path in candidates:
+              label = path.relative_to(output).as_posix()
+              try:
+                  real_directory(path)
+              except FileNotFoundError:
+                  emit("cleanup_absent", directory=label)
+                  continue
+              started = time.perf_counter()
+              emit("delete_start", directory=label)
+              try:
+                  shutil.rmtree(path)
+              except OSError as error:
+                  failed = True
+                  emit("delete_error", directory=label, seconds=time.perf_counter() - started,
+                       kind=type(error).__name__, winerror=getattr(error, "winerror", None))
+              else:
+                  emit("delete_end", directory=label, seconds=time.perf_counter() - started)
+          emit("cleanup_end", seconds=time.perf_counter() - overall, delete_failed=failed)
+          if failed:
+              raise SystemExit("Deletion of test temporaries did not complete")
