@@ -75,6 +75,7 @@ jobs:
           import struct
           import subprocess
           import sys
+          import tempfile
           import threading
           import time
           import winreg
@@ -127,6 +128,7 @@ jobs:
                   self.query_cpu = 0.0
                   self.samples = 0
                   self.last = None
+                  self.sleep_samples = []
 
               def add_root(self, label, pid):
                   handle = open_process(pid)
@@ -219,6 +221,9 @@ jobs:
                           if struct.unpack_from("<Q", data, thread + 40)[0] != pid:
                               raise RuntimeError("Thread ownership does not match snapshot layout")
                           state = struct.unpack_from("<I", data, thread + 68)[0]
+                          if label == "sleep":
+                              tid = struct.unpack_from("<Q", data, thread + 48)[0]
+                              self.sleep_samples.append((now, weight, pid, tid, state))
                           if state == 1:
                               ready.add(label)
                               info["ready"] += weight
@@ -276,40 +281,99 @@ jobs:
                        max_snapshot_gap_seconds=self.max_interval, error=self.error)
 
 
+          def sleeping_thread_window(samples, marker):
+              pid, tid, start, returned = marker
+              end = start + 2.0
+              if returned < end:
+                  raise RuntimeError("Sleep control returned before its two-second interval")
+              window = [(weight, state) for now, weight, observed_pid, observed_tid, state in samples
+                        if (pid, tid) == (observed_pid, observed_tid)
+                        and weight > 0 and start <= now - weight and now < end]
+              return {
+                  "samples": len(window),
+                  "covered_seconds": sum(weight for weight, _ in window),
+                  "blocked_seconds": sum(weight for weight, state in window if state == 5),
+                  "ready_seconds": sum(weight for weight, state in window if state == 1),
+                  "requested_seconds": 2.0,
+              }
+
+
           def calibrate():
               mask, available = ct.c_size_t(), ct.c_size_t()
               if not K32.GetProcessAffinityMask(K32.GetCurrentProcess(), ct.byref(mask), ct.byref(available)) or not mask.value:
                   raise RuntimeError("Cannot determine calibration affinity")
               one_core = mask.value & -mask.value
-              source = ("import ctypes as c,sys,time; from ctypes import wintypes as w\n"
-                        "k=c.WinDLL('kernel32'); k.GetCurrentProcess.restype=w.HANDLE\n"
-                        "k.SetProcessAffinityMask.argtypes=[w.HANDLE, c.c_size_t]\n"
-                        "if not k.SetProcessAffinityMask(k.GetCurrentProcess(), int(sys.argv[1])): raise SystemExit(3)\n"
-                        "if sys.argv[2]=='sleep': time.sleep(2.0)\n"
-                        "else:\n"
-                        " end=time.perf_counter()+2.0\n"
-                        " while time.perf_counter()<end: pass\n")
-              observer = Sampler()
-              children = []
-              try:
-                  for label in ("spin0", "spin1", "sleep"):
-                      p = ORIGINAL_POPEN([sys.executable, "-c", source, str(one_core), label])
-                      children.append(p)
-                      observer.add_root(label, p.pid)
-                  observer.thread.start()
-                  for p in children:
-                      if p.wait(timeout=8):
-                          raise RuntimeError("Calibration child failed")
-              finally:
-                  for p in children:
-                      if p.poll() is None:
-                          p.terminate()
-                          p.wait(timeout=3)
-                  observer.finish("scheduler_calibration")
+              source = """
+          import ctypes as c
+          from ctypes import wintypes as w
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          import threading
+          import time
+
+          k = c.WinDLL("kernel32")
+          k.GetCurrentProcess.restype = w.HANDLE
+          k.SetProcessAffinityMask.argtypes = [w.HANDLE, c.c_size_t]
+          if not k.SetProcessAffinityMask(k.GetCurrentProcess(), int(sys.argv[1])):
+              raise SystemExit(3)
+          label, directory = sys.argv[2], Path(sys.argv[3])
+          (directory / (label + ".armed")).touch()
+          barrier = directory / "start"
+          timeout = time.perf_counter() + 5
+          while not barrier.is_file():
+              if time.perf_counter() >= timeout:
+                  raise SystemExit(4)
+              time.sleep(0.01)
+          start = float(barrier.read_text())
+          time.sleep(max(0, start - time.perf_counter()))
+          if label == "sleep":
+              start = time.perf_counter()
+              time.sleep(2.0)
+              (directory / "sleep.json").write_text(json.dumps(
+                  [os.getpid(), threading.get_native_id(), start, time.perf_counter()]))
+          else:
+              end = time.perf_counter() + 2.0
+              while time.perf_counter() < end:
+                  pass
+          """
+              with tempfile.TemporaryDirectory(prefix="pv-cal-") as directory:
+                  control = Path(directory)
+                  observer = Sampler()
+                  children = []
+                  try:
+                      labels = ("spin0", "spin1", "sleep")
+                      for label in labels:
+                          p = ORIGINAL_POPEN([sys.executable, "-c", source, str(one_core), label, directory])
+                          children.append(p)
+                          observer.add_root(label, p.pid)
+                      deadline = time.perf_counter() + 5
+                      while not all((control / (label + ".armed")).is_file() for label in labels):
+                          if time.perf_counter() >= deadline or any(p.poll() is not None for p in children):
+                              raise RuntimeError("Calibration children did not arm")
+                          time.sleep(0.01)
+                      observer.thread.start()
+                      release = control / "release"
+                      release.write_text(str(time.perf_counter() + 0.25))
+                      release.replace(control / "start")
+                      for p in children:
+                          if p.wait(timeout=8):
+                              raise RuntimeError("Calibration child failed")
+                  finally:
+                      for p in children:
+                          if p.poll() is None:
+                              p.terminate()
+                              p.wait(timeout=3)
+                      observer.finish("scheduler_calibration")
+                  marker = json.loads((control / "sleep.json").read_text())
+                  window = sleeping_thread_window(observer.sleep_samples, marker)
               rows = observer.summary
-              if (observer.error or rows["sleep"]["samples"] < 10 or rows["sleep"]["blocked"] < 0.4
-                      or rows["sleep"]["ready"] > 0.25 or min(rows[x]["ready"] for x in ("spin0", "spin1")) < 0.25
-                      or min(rows[x]["tree_cpu"] for x in ("spin0", "spin1")) < 0.4):
+              passed = not (observer.error or window["samples"] < 10 or window["blocked_seconds"] < 0.4
+                            or window["ready_seconds"] > 0.25 or min(rows[x]["ready"] for x in ("spin0", "spin1")) < 0.25
+                            or min(rows[x]["tree_cpu"] for x in ("spin0", "spin1")) < 0.4)
+              emit("scheduler_sleep_window", passed=passed, maximum_ready_seconds=0.25, **window)
+              if not passed:
                   raise RuntimeError("Scheduler sampler did not distinguish CPU competition from blocked sleep")
 
 
@@ -438,7 +502,11 @@ jobs:
               if not check_runner():
                   emit("git_batch_admission", admitted=False, reason="runner_profile_mismatch")
                   return False
-              calibrate()
+              try:
+                  calibrate()
+              except (RuntimeError, OSError, subprocess.TimeoutExpired):
+                  emit("git_batch_admission", admitted=False, reason="calibration_failed")
+                  raise
               state = scratch / "inventory-state"
               state.mkdir()
               report = scratch / "inventory.json"
