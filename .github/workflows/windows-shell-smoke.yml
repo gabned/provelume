@@ -1,637 +1,123 @@
-name: Isolated PROTOCOL Windows qualification
+name: Windows shell and configurable endpoint smoke
 
 on:
+  pull_request:
   push:
-    branches: [codex/protocol-windows-git-batch]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  RUFF_CACHE_DIR: .agent/ruff-cache
-
 jobs:
-  windows-shards:
-    name: PROTOCOL Windows Core execution (${{ matrix.group }})
-    if: github.ref == 'refs/heads/codex/protocol-windows-git-batch' && github.event_name == 'push' && github.run_attempt == 1
+  windows-shell:
+    name: Exact-head Windows shell qualification
     runs-on: windows-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [0, 1]
+    timeout-minutes: 45
+    env:
+      PROVELUME_QUALIFIED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
     steps:
-      - name: Checkout repository
+      - name: Check out exact revision without credentials
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: 2e3d2a8bae7a5ae88d589c1f9792bbee13b74482
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify source and workflow identity
-        shell: bash
-        run: |
-          sha=$(git rev-parse HEAD)
-          tree=$(git rev-parse 'HEAD^{tree}')
-          test "$sha" = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
-          test "$tree" = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
-          printf '{"event":"protocol_qualification_source","source":"%s","tree":"%s","workflow":"%s","trigger":"%s"}\n' "$sha" "$tree" "$GITHUB_SHA" "$GITHUB_EVENT_NAME"
 
-      - name: Set up Python
+      - name: Verify exact checked-out head
+        shell: pwsh
+        run: |
+          $observed = git rev-parse HEAD
+          if (
+            $env:PROVELUME_QUALIFIED_SHA -notmatch '^[0-9a-f]{40}$' -or
+            $observed -ne $env:PROVELUME_QUALIFIED_SHA
+          ) {
+            throw "Checkout is not bound to the qualified candidate head."
+          }
+
+      - name: Initialize sanitized bounded evidence
+        shell: pwsh
+        run: |
+          $directory = "$env:RUNNER_TEMP\s07-installer"
+          New-Item -ItemType Directory -Force -Path $directory | Out-Null
+          [ordered]@{
+            schema_version = 1
+            status = "NOT_RUN"
+            failure_code = "qualification_incomplete"
+            exact_head = $env:PROVELUME_QUALIFIED_SHA
+            checks = [ordered]@{}
+            network_used_by_harness = $false
+            private_content_logged = $false
+          } | ConvertTo-Json -Depth 4 | Set-Content `
+            -LiteralPath (Join-Path $directory "windows-shell-evidence.json") `
+            -Encoding utf8NoBOM
+
+      - name: Set up CPython 3.12
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install package and development checks
-        run: python -m pip install -e ".[dev]"
-      - name: Lint
-        run: python -m ruff check core tests scripts tools packaging
-      - name: Observe Windows JavaScript runtime before full shard execution
-        shell: python
-        run: |
-          import json, shutil, subprocess, sys, time
-          from pathlib import Path
-          node = shutil.which("node")
-          if node is None:
-              raise SystemExit("Required browser-contract runtime is unavailable")
-          version = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=15, check=True)
-          print(json.dumps({"node": node, "node_version": version.stdout.strip(), "python": sys.version}), flush=True)
-          started = time.monotonic()
-          result = subprocess.run([node, str(Path("tests/fixtures/cura_shell_contract.cjs").resolve()),
-                                   str(Path("core/provelume/static/cura-shell.js").resolve())],
-                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=False)
-          print(json.dumps({"exit": result.returncode, "seconds": time.monotonic()-started,
-                            "stdout": result.stdout, "stderr": result.stderr}), flush=True)
-          if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
-              raise SystemExit("Windows JavaScript contract failed before shard execution")
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-release.txt
+            build-lock/windows-py312-x86_64.requirements.txt
 
-      - name: Stage group 0 slow-runner admission
-        if: matrix.group == 0
+      - name: Install reviewed development and packaging tools
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
+          python -m pip install -e ".[dev]" -r requirements-release.txt
+
+      - name: Verify source contracts and deterministic tray harness
         shell: pwsh
         run: |
-          @'
-          """Observe slow-runner admission during the unchanged Windows group command."""
-          import ctypes as ct
-          from ctypes import wintypes as wt
-          import json
-          import os
-          from pathlib import Path
-          import random
-          import re
-          import runpy
-          import struct
-          import subprocess
-          import sys
-          import tempfile
-          import threading
-          import time
-          import winreg
+          python scripts/generate_windows_icon.py --check
+          python -m pytest -q `
+            tests/test_shell_settings.py `
+            tests/test_windows_identity.py `
+            tests/test_desktop_about.py
 
-          NT = ct.WinDLL("ntdll")
-          K32 = ct.WinDLL("kernel32", use_last_error=True)
-          NT.NtQuerySystemInformation.argtypes = [wt.ULONG, ct.c_void_p, wt.ULONG, ct.POINTER(wt.ULONG)]
-          NT.NtQuerySystemInformation.restype = ct.c_uint32
-          K32.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
-          K32.OpenProcess.restype = wt.HANDLE
-          K32.CloseHandle.argtypes = [wt.HANDLE]
-          K32.GetProcessTimes.argtypes = [wt.HANDLE] + [ct.POINTER(wt.FILETIME)] * 4
-          K32.GetProcessTimes.restype = wt.BOOL
-          K32.GetProcessAffinityMask.argtypes = [wt.HANDLE, ct.POINTER(ct.c_size_t), ct.POINTER(ct.c_size_t)]
-          K32.GetProcessAffinityMask.restype = wt.BOOL
-          K32.GetCurrentProcess.restype = wt.HANDLE
-          K32.GetActiveProcessorGroupCount.argtypes = []
-          K32.GetActiveProcessorGroupCount.restype = wt.WORD
-          K32.GetActiveProcessorCount.argtypes = [wt.WORD]
-          K32.GetActiveProcessorCount.restype = wt.DWORD
-          K32.SetProcessAffinityMask.argtypes = [wt.HANDLE, ct.c_size_t]
-          K32.SetProcessAffinityMask.restype = wt.BOOL
-          ORIGINAL_POPEN = subprocess.Popen
+      - name: Build exact-head development wheel
+        shell: pwsh
+        run: |
+          $epoch = git show -s --format=%ct $env:PROVELUME_QUALIFIED_SHA
+          $env:SOURCE_DATE_EPOCH = $epoch
+          python scripts/deterministic_build.py `
+            --commit $env:PROVELUME_QUALIFIED_SHA `
+            --output-dir "$env:RUNNER_TEMP\s07-wheel" `
+            --evidence "$env:RUNNER_TEMP\s07-build-evidence.json" `
+            --channel development
 
+      - name: Build frozen shell and unsigned development installer
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          $wheel = Get-ChildItem "$env:RUNNER_TEMP\s07-wheel\*.whl" | Select-Object -First 1
+          ./scripts/build_windows_installer.ps1 `
+            -CandidateWheel $wheel.FullName `
+            -OutputDirectory "$env:RUNNER_TEMP\s07-installer" `
+            -Version $version `
+            -Tag "v$version" `
+            -Channel development `
+            -Commit $env:PROVELUME_QUALIFIED_SHA
 
-          def emit(event, **fields):
-              print(json.dumps({"event": event, **fields}, sort_keys=True), flush=True)
+      - name: Exercise identity, endpoint, tray lifecycle and cleanup
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          ./scripts/test_windows_shell_smoke.ps1 `
+            -Installer "$env:RUNNER_TEMP\s07-installer\Provelume-Setup-$version-x64.exe" `
+            -InstallDirectory "$env:RUNNER_TEMP\S07 Installed Provelume" `
+            -InstanceDirectory "$env:RUNNER_TEMP\S07 Synthetic Instance" `
+            -ExpectedVersion $version `
+            -ExpectedCommit $env:PROVELUME_QUALIFIED_SHA
 
-
-          def process_times(handle):
-              creation, exit_time, kernel, user = (wt.FILETIME() for _ in range(4))
-              if not K32.GetProcessTimes(handle, ct.byref(creation), ct.byref(exit_time), ct.byref(kernel), ct.byref(user)):
-                  raise ct.WinError(ct.get_last_error())
-              return tuple((x.dwHighDateTime << 32) | x.dwLowDateTime for x in (creation, exit_time, kernel, user))
-
-
-          def open_process(pid):
-              return K32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-
-
-          class Sampler:
-              def __init__(self):
-                  self.proc = {}
-                  self.summary = {}
-                  self.stop = threading.Event()
-                  self.thread = threading.Thread(target=self.poll, daemon=True)
-                  self.error = None
-                  self.buffer = ct.create_string_buffer(2 * 1024 * 1024)
-                  self.max_interval = 0.0
-                  self.query_cpu = 0.0
-                  self.samples = 0
-                  self.last = None
-                  self.sleep_samples = []
-
-              def add_root(self, label, pid):
-                  handle = open_process(pid)
-                  if not handle:
-                      raise ct.WinError(ct.get_last_error())
-                  created, _, _, _ = process_times(handle)
-                  self.summary[label] = dict(root_cpu=0.0, tree_cpu=0.0, ready=0.0, root_ready=0.0,
-                                             running=0.0, blocked=0.0, deferred_ready=0.0, samples=0, processes=0,
-                                             unobserved_descendant_handles=0, observed_wall=0.0,
-                                             concurrent_ready=0.0, concurrent_wall=0.0,
-                                             runnable_without_running_wall=0.0)
-                  self.summary[label]["root"] = (pid, created)
-                  self.proc[(pid, created)] = (label, handle)
-
-              def snapshots(self):
-                  used = wt.ULONG()
-                  while True:
-                      rc = NT.NtQuerySystemInformation(5, self.buffer, len(self.buffer), ct.byref(used))
-                      if rc != 0xC0000004:
-                          break
-                      size = max(len(self.buffer) * 2, used.value)
-                      if size > 32 * 1024 * 1024:
-                          raise RuntimeError("Process snapshot exceeds diagnostic bound")
-                      self.buffer = ct.create_string_buffer(size)
-                  if rc:
-                      raise RuntimeError(f"Process snapshot returned {rc:#x}")
-                  # x64 SYSTEM_PROCESS_INFORMATION followed by SYSTEM_THREAD_INFORMATION.
-                  # Verify own PID/layout and each owned handle's creation time.
-                  offset = 0
-                  rows = {}
-                  data = memoryview(self.buffer)
-                  while True:
-                      next_entry, count = struct.unpack_from("<II", data, offset)
-                      created = struct.unpack_from("<Q", data, offset + 32)[0]
-                      pid, parent = struct.unpack_from("<QQ", data, offset + 80)
-                      end = offset + next_entry if next_entry else used.value
-                      if end > used.value or offset + 256 + 80 * count > end:
-                          raise RuntimeError("Unexpected x64 process snapshot layout")
-                      rows[pid] = (created, parent, offset, count)
-                      if not next_entry:
-                          break
-                      offset = end
-                  if os.getpid() not in rows:
-                      raise RuntimeError("Own PID absent from scheduler snapshot")
-                  return rows
-
-              def sample(self):
-                  started = time.thread_time()
-                  rows = self.snapshots()
-                  now = time.perf_counter()
-                  interval = now - self.last if self.last is not None else 0.0
-                  self.last = now
-                  self.max_interval = max(self.max_interval, interval)
-                  # Bound attribution during pauses of the observer itself.
-                  weight = interval if interval < 0.25 else 0.0
-                  data = memoryview(self.buffer)
-                  owner = {pid: (created, label) for (pid, created), (label, _) in list(self.proc.items())
-                           if pid in rows and rows[pid][0] == created}
-                  pending = {pid for pid in rows if pid not in owner}
-                  while pending:
-                      found = set()
-                      for pid in pending:
-                          created, parent, _, _ = rows[pid]
-                          if parent not in owner or created < owner[parent][0]:
-                              continue
-                          label = owner[parent][1]
-                          handle = open_process(pid)
-                          if handle and process_times(handle)[0] != created:
-                              K32.CloseHandle(handle)
-                              handle = None
-                          if not handle:
-                              self.summary[label]["unobserved_descendant_handles"] += 1
-                              continue
-                          self.proc[(pid, created)] = (label, handle)
-                          owner[pid] = (created, label)
-                          found.add(pid)
-                      if not found:
-                          break
-                      pending -= found
-                  active = set()
-                  concurrent = {label for pid, (created, label) in owner.items()
-                                if (pid, created) == self.summary[label]["root"]} == {"shard_0", "shard_1"}
-                  running = set()
-                  ready = set()
-                  for pid, (created, label) in owner.items():
-                      _, _, offset, count = rows[pid]
-                      info = self.summary[label]
-                      for n in range(count):
-                          thread = offset + 256 + 80 * n
-                          if struct.unpack_from("<Q", data, thread + 40)[0] != pid:
-                              raise RuntimeError("Thread ownership does not match snapshot layout")
-                          state = struct.unpack_from("<I", data, thread + 68)[0]
-                          if label == "sleep":
-                              tid = struct.unpack_from("<Q", data, thread + 48)[0]
-                              self.sleep_samples.append((now, weight, pid, tid, state))
-                          if state == 1:
-                              ready.add(label)
-                              info["ready"] += weight
-                              if concurrent:
-                                  info["concurrent_ready"] += weight
-                              if (pid, created) == info["root"]:
-                                  info["root_ready"] += weight
-                          elif state == 2:
-                              running.add(label)
-                              info["running"] += weight
-                          elif state == 5:
-                              info["blocked"] += weight
-                          elif state in (3, 7):
-                              info["deferred_ready"] += weight
-                      active.add(label)
-                  for label in active:
-                      self.summary[label]["samples"] += 1
-                      self.summary[label]["observed_wall"] += weight
-                      if concurrent:
-                          self.summary[label]["concurrent_wall"] += weight
-                          if label in ready and label not in running:
-                              self.summary[label]["runnable_without_running_wall"] += weight
-                  self.samples += 1
-                  self.query_cpu += time.thread_time() - started
-
-              def poll(self):
-                  rng = random.Random(460)
-                  try:
-                      while not self.stop.is_set():
-                          self.sample()
-                          self.stop.wait(rng.uniform(0.070, 0.110))
-                  except Exception as error:
-                      self.error = type(error).__name__ + ": " + str(error)
-
-              def finish(self, label):
-                  self.stop.set()
-                  if self.thread.is_alive():
-                      self.thread.join()
-                  for identity, (key, handle) in self.proc.items():
-                      entry = self.summary[key]
-                      try:
-                          creation, exit_time, kernel, user = process_times(handle)
-                          cpu = (kernel + user) / 10_000_000
-                          entry["tree_cpu"] += cpu
-                          entry["processes"] += 1
-                          if identity == entry["root"]:
-                              entry["root_cpu"] = cpu
-                              entry["root_exited"] = bool(exit_time)
-                              entry["root_wall"] = (exit_time - creation) / 10_000_000 if exit_time else None
-                      finally:
-                          K32.CloseHandle(handle)
-                  for row in self.summary.values():
-                      row.pop("root")
-                  emit(label, measurements=self.summary, snapshots=self.samples, observer_cpu_seconds=self.query_cpu,
-                       max_snapshot_gap_seconds=self.max_interval, error=self.error)
-
-
-          def sleeping_thread_window(samples, marker):
-              pid, tid, start, returned = marker
-              end = start + 2.0
-              if returned < end:
-                  raise RuntimeError("Sleep control returned before its two-second interval")
-              window = [(weight, state) for now, weight, observed_pid, observed_tid, state in samples
-                        if (pid, tid) == (observed_pid, observed_tid)
-                        and weight > 0 and start <= now - weight and now < end]
-              return {
-                  "samples": len(window),
-                  "covered_seconds": sum(weight for weight, _ in window),
-                  "blocked_seconds": sum(weight for weight, state in window if state == 5),
-                  "ready_seconds": sum(weight for weight, state in window if state == 1),
-                  "requested_seconds": 2.0,
-              }
-
-
-          def calibrate():
-              mask, available = ct.c_size_t(), ct.c_size_t()
-              if not K32.GetProcessAffinityMask(K32.GetCurrentProcess(), ct.byref(mask), ct.byref(available)) or not mask.value:
-                  raise RuntimeError("Cannot determine calibration affinity")
-              one_core = mask.value & -mask.value
-              source = """
-          import ctypes as c
-          from ctypes import wintypes as w
-          import json
-          import os
-          from pathlib import Path
-          import sys
-          import threading
-          import time
-
-          k = c.WinDLL("kernel32")
-          k.GetCurrentProcess.restype = w.HANDLE
-          k.SetProcessAffinityMask.argtypes = [w.HANDLE, c.c_size_t]
-          if not k.SetProcessAffinityMask(k.GetCurrentProcess(), int(sys.argv[1])):
-              raise SystemExit(3)
-          label, directory = sys.argv[2], Path(sys.argv[3])
-          (directory / (label + ".armed")).touch()
-          barrier = directory / "start"
-          timeout = time.perf_counter() + 5
-          while not barrier.is_file():
-              if time.perf_counter() >= timeout:
-                  raise SystemExit(4)
-              time.sleep(0.01)
-          start = float(barrier.read_text())
-          time.sleep(max(0, start - time.perf_counter()))
-          if label == "sleep":
-              start = time.perf_counter()
-              time.sleep(2.0)
-              (directory / "sleep.json").write_text(json.dumps(
-                  [os.getpid(), threading.get_native_id(), start, time.perf_counter()]))
-          else:
-              end = time.perf_counter() + 2.0
-              while time.perf_counter() < end:
-                  pass
-          """
-              with tempfile.TemporaryDirectory(prefix="pv-cal-") as directory:
-                  control = Path(directory)
-                  observer = Sampler()
-                  children = []
-                  try:
-                      labels = ("spin0", "spin1", "sleep")
-                      for label in labels:
-                          p = ORIGINAL_POPEN([sys.executable, "-c", source, str(one_core), label, directory])
-                          children.append(p)
-                          observer.add_root(label, p.pid)
-                      deadline = time.perf_counter() + 5
-                      while not all((control / (label + ".armed")).is_file() for label in labels):
-                          if time.perf_counter() >= deadline or any(p.poll() is not None for p in children):
-                              raise RuntimeError("Calibration children did not arm")
-                          time.sleep(0.01)
-                      observer.thread.start()
-                      release = control / "release"
-                      release.write_text(str(time.perf_counter() + 0.25))
-                      release.replace(control / "start")
-                      for p in children:
-                          if p.wait(timeout=8):
-                              raise RuntimeError("Calibration child failed")
-                  finally:
-                      for p in children:
-                          if p.poll() is None:
-                              p.terminate()
-                              p.wait(timeout=3)
-                      observer.finish("scheduler_calibration")
-                  marker = json.loads((control / "sleep.json").read_text())
-                  window = sleeping_thread_window(observer.sleep_samples, marker)
-              rows = observer.summary
-              passed = not (observer.error or window["samples"] < 10 or window["blocked_seconds"] < 0.4
-                            or window["ready_seconds"] > 0.25 or min(rows[x]["ready"] for x in ("spin0", "spin1")) < 0.25
-                            or min(rows[x]["tree_cpu"] for x in ("spin0", "spin1")) < 0.4)
-              emit("scheduler_sleep_window", passed=passed, maximum_ready_seconds=0.25, **window)
-              if not passed:
-                  raise RuntimeError("Scheduler sampler did not distinguish CPU competition from blocked sleep")
-
-
-          def machine_image_value(name):
-              value = os.environ.get(name)
-              with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
-                                  r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment") as key:
-                  try:
-                      installed, _ = winreg.QueryValueEx(key, name)
-                  except FileNotFoundError:
-                      installed = None
-              if value and installed and value != installed:
-                  return None
-              return value or installed
-
-          def check_runner():
-              mask, system_mask = ct.c_size_t(), ct.c_size_t()
-              mask_ok = bool(K32.GetProcessAffinityMask(K32.GetCurrentProcess(),
-                                                         ct.byref(mask), ct.byref(system_mask)))
-              windows = sys.getwindowsversion()
-              observed = {
-                  "image": machine_image_value("ImageOS"),
-                  "image_version": machine_image_value("ImageVersion"),
-                  "windows_build": windows.build,
-                  "server": windows.product_type == 3,
-                  "architecture": os.environ.get("RUNNER_ARCH"),
-                  "active_vcpus": K32.GetActiveProcessorCount(0xffff),
-                  "processor_groups": K32.GetActiveProcessorGroupCount(),
-                  "process_affinity_vcpus": mask.value.bit_count() if mask_ok else None,
-                  "system_affinity_vcpus": system_mask.value.bit_count() if mask_ok else None,
-                  "full_affinity": mask_ok and mask.value == system_mask.value and bool(mask.value),
-              }
-              matched = (observed["image"] == "win25-vs2026"
-                         and observed["image_version"] == "20261103.298.1"
-                         and observed["windows_build"] == 26100 and observed["server"]
-                         and observed["architecture"] == "X64" and observed["active_vcpus"] == 4
-                         and observed["processor_groups"] == 1 and observed["full_affinity"]
-                         and observed["process_affinity_vcpus"] == 4)
-              emit("scheduler_runner_profile", matched=matched, **observed)
-              return matched
-
-          def fixed_work():
-              iterations = 10_000_000
-              seed = 0x460
-              expected = 0xd3d944e0
-              worker = """
-          import ctypes as ct
-          from ctypes import wintypes as wt
-          import json
-          import platform
-          import sys
-          import time
-
-          count, seed, expected = map(int, sys.argv[1:4])
-          kernel = ct.WinDLL("kernel32", use_last_error=True)
-          kernel.GetCurrentProcess.restype = wt.HANDLE
-          kernel.GetProcessAffinityMask.argtypes = [wt.HANDLE, ct.POINTER(ct.c_size_t), ct.POINTER(ct.c_size_t)]
-          kernel.GetProcessAffinityMask.restype = wt.BOOL
-          kernel.SetProcessAffinityMask.argtypes = [wt.HANDLE, ct.c_size_t]
-          kernel.SetProcessAffinityMask.restype = wt.BOOL
-          process = kernel.GetCurrentProcess()
-
-          def affinity():
-              mask, system = ct.c_size_t(), ct.c_size_t()
-              if not kernel.GetProcessAffinityMask(process, ct.byref(mask), ct.byref(system)):
-                  raise ct.WinError(ct.get_last_error())
-              return mask.value, system.value
-
-          original, system = affinity()
-          if original != system or original.bit_count() != 4:
-              raise SystemExit("Probe did not inherit the admitted affinity")
-          one = original & -original
-          if not kernel.SetProcessAffinityMask(process, one) or affinity() != (one, system):
-              raise SystemExit("Probe could not confirm single-vCPU affinity")
-          if platform.python_implementation() != "CPython":
-              raise SystemExit("Probe requires CPython")
-
-          def loop(n, value):
-              for _ in range(n):
-                  value = (1664525 * value + 1013904223) & 0xffffffff
-              return value
-
-          loop(100_000, seed)
-          wall_start = time.perf_counter_ns()
-          cpu_start = time.thread_time_ns()
-          checksum = loop(count, seed)
-          cpu_ns = time.thread_time_ns() - cpu_start
-          wall_ns = time.perf_counter_ns() - wall_start
-          if checksum != expected or cpu_ns <= 0 or wall_ns <= 0 or affinity() != (one, system):
-              raise SystemExit("Invalid work, timing or affinity observation")
-          print(json.dumps({
-              "event": "cpython_fixed_work", "python": platform.python_version(),
-              "cpu_identifier": __import__("os").environ.get("PROCESSOR_IDENTIFIER"),
-              "vcpu_bit": one, "iterations": count, "seed": seed, "checksum": f"{checksum:08x}",
-              "cpu_ns": cpu_ns, "wall_ns": wall_ns,
-          }, sort_keys=True), flush=True)
-          """
-              result = subprocess.run(
-                  [sys.executable, "-I", "-S", "-c", worker, str(iterations), str(seed), str(expected)],
-                  check=True, timeout=20, stdout=subprocess.PIPE, text=True,
-              )
-              result = json.loads(result.stdout)
-              emit("cpython_fixed_work", **{key: value for key, value in result.items() if key != "event"})
-              return result["cpu_ns"]
-
-
-
-
-          SOURCE = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
-          TREE = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
-
-
-          class NotAdmitted(Exception):
-              pass
-
-
-          def inspect_inventory(path):
-              report = json.loads(path.read_text(encoding="utf-8"))
-              samples = re.findall(r"(?m)^6078 tests collected in ([0-9]+[.][0-9]+)s[ \t]*$",
-                                   path.with_suffix(".log").read_text(encoding="utf-8"))
-              nodes = report["inventory"]
-              identity = report["identity"]
-              if (report["mode"] != "inventory" or report["exit_code"] != 0 or report["errors"]
-                      or len(nodes) != 6078 or len(set(nodes)) != 6078 or report["selected"] != nodes
-                      or identity["commit"] != SOURCE or identity["tree"] != TREE
-                      or identity["event"] != "push" or identity["run_id"] != os.environ["GITHUB_RUN_ID"]
-                      or identity["run_attempt"] != os.environ["GITHUB_RUN_ATTEMPT"] or len(samples) != 1):
-                  raise RuntimeError("Invalid source-bound Windows inventory for admission")
-              seconds = float(samples[0])
-              cpu_ns = fixed_work() if seconds >= 13.00 else None
-              admitted = cpu_ns is not None and cpu_ns >= 900_000_000
-              emit("protocol_slow_runner_admission", admitted=admitted, inventory_seconds=seconds,
-                   inventory_count=len(nodes), cpu_ns=cpu_ns, minimum_inventory_seconds=13.00,
-                   minimum_cpu_ns=900_000_000)
-              if not admitted:
-                  raise NotAdmitted("Assigned VM did not match the slow-runner diagnostic profile")
-
-
-          def main():
-              if not check_runner():
-                  emit("protocol_slow_runner_admission", admitted=False, reason="runner_profile_mismatch")
-                  raise NotAdmitted("Reference image and full four-vCPU affinity are required")
-              try:
-                  calibrate()
-              except (RuntimeError, OSError, subprocess.TimeoutExpired):
-                  emit("protocol_slow_runner_admission", admitted=False, reason="calibration_failed")
-                  raise
-              checker = Path("tools/agent_protocol_work_check.py").resolve(strict=True)
-
-              def observe_inventory(*args, **kwargs):
-                  child = ORIGINAL_POPEN(*args, **kwargs)
-                  command = args[0] if args else kwargs.get("args")
-                  if (isinstance(command, list) and len(command) > 3 and command[1] == str(checker)
-                          and command[2] == "windows-inventory"):
-                      path = Path(command[command.index("--output") + 1])
-                      wait = child.wait
-
-                      def wait_for_inventory(*wait_args, **wait_kwargs):
-                          status = wait(*wait_args, **wait_kwargs)
-                          if status == 0:
-                              inspect_inventory(path)
-                          else:
-                              emit("protocol_slow_runner_admission", admitted=False,
-                                   reason="inventory_failed", inventory_exit=status)
-                          return status
-
-                      child.wait = wait_for_inventory
-                  return child
-
-              subprocess.Popen = observe_inventory
-              sys.argv[0] = str(checker)
-              sys.path.insert(0, str(checker.parent))
-              try:
-                  runpy.run_path(str(checker), run_name="__main__")
-              except NotAdmitted as error:
-                  raise SystemExit(str(error)) from None
-              finally:
-                  subprocess.Popen = ORIGINAL_POPEN
-
-
-          if __name__ == "__main__":
-              main()
-          '@ | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'protocol-slow-runner.py')
-
-      - name: Execute two of four Windows shards within the unchanged deadline
-        if: matrix.group == 1
-        run: >-
-          python tools/agent_protocol_work_check.py windows-group
-          --root "${{ github.workspace }}"
-          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
-          --group ${{ matrix.group }} --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
-          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
-          --event "${{ github.event_name }}"
-      - name: Admit the slow runner and execute the two original group 0 shards
-        if: matrix.group == 0
-        run: >-
-          python "${{ runner.temp }}/protocol-slow-runner.py" windows-group
-          --root "${{ github.workspace }}"
-          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
-          --group ${{ matrix.group }} --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
-          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
-          --event "${{ github.event_name }}"
-      - name: Retain exact-source Windows execution evidence
+      - name: Upload sanitized exact-head evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
-          path: |
-            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.json
-            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.log
-            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.json
-            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.log
+          name: windows-shell-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/s07-installer/windows-shell-evidence.json
           if-no-files-found: error
           retention-days: 14
-
-  windows-tests:
-    name: PROTOCOL Windows aggregate
-    if: ${{ always() && github.ref == 'refs/heads/codex/protocol-windows-git-batch' && github.event_name == 'push' && github.run_attempt == 1 }}
-    needs: windows-shards
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: 2e3d2a8bae7a5ae88d589c1f9792bbee13b74482
-          persist-credentials: false
-      - name: Verify source and workflow identity
-        shell: bash
-        run: |
-          sha=$(git rev-parse HEAD)
-          tree=$(git rev-parse 'HEAD^{tree}')
-          test "$sha" = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
-          test "$tree" = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
-          printf '{"event":"protocol_qualification_source","source":"%s","tree":"%s","workflow":"%s","trigger":"%s"}\n' "$sha" "$tree" "$GITHUB_SHA" "$GITHUB_EVENT_NAME"
-
-      - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - name: Download this run and attempt's Windows evidence
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
-        with:
-          pattern: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-*
-          path: ${{ runner.temp }}/windows-core-evidence
-          merge-multiple: true
-      - name: Require complete disjoint Windows execution on the exact source
-        if: always()
-        run: >-
-          python tools/agent_protocol_work_check.py windows-verify
-          --root "${{ github.workspace }}"
-          --output "${{ runner.temp }}/windows-core-evidence"
-          --groups-result "${{ needs.windows-shards.result }}"
-          --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482" --run-id "${{ github.run_id }}"
-          --run-attempt "${{ github.run_attempt }}" --event "${{ github.event_name }}"
