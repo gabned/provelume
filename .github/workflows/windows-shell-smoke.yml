@@ -76,6 +76,7 @@ jobs:
           import sys
           import threading
           import time
+          import winreg
 
           NT = ct.WinDLL("ntdll")
           K32 = ct.WinDLL("kernel32", use_last_error=True)
@@ -89,6 +90,10 @@ jobs:
           K32.GetProcessAffinityMask.argtypes = [wt.HANDLE, ct.POINTER(ct.c_size_t), ct.POINTER(ct.c_size_t)]
           K32.GetProcessAffinityMask.restype = wt.BOOL
           K32.GetCurrentProcess.restype = wt.HANDLE
+          K32.GetActiveProcessorGroupCount.argtypes = []
+          K32.GetActiveProcessorGroupCount.restype = wt.WORD
+          K32.GetActiveProcessorCount.argtypes = [wt.WORD]
+          K32.GetActiveProcessorCount.restype = wt.DWORD
           K32.SetProcessAffinityMask.argtypes = [wt.HANDLE, ct.c_size_t]
           K32.SetProcessAffinityMask.restype = wt.BOOL
           ORIGINAL_POPEN = subprocess.Popen
@@ -307,12 +312,60 @@ jobs:
                   raise RuntimeError("Scheduler sampler did not distinguish CPU competition from blocked sleep")
 
 
+          def machine_image_value(name):
+              value = os.environ.get(name)
+              with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                  r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment") as key:
+                  try:
+                      installed, _ = winreg.QueryValueEx(key, name)
+                  except FileNotFoundError:
+                      installed = None
+              if value and installed and value != installed:
+                  return None
+              return value or installed
+
+          def check_runner():
+              mask, system_mask = ct.c_size_t(), ct.c_size_t()
+              mask_ok = bool(K32.GetProcessAffinityMask(K32.GetCurrentProcess(),
+                                                         ct.byref(mask), ct.byref(system_mask)))
+              windows = sys.getwindowsversion()
+              observed = {
+                  "image": machine_image_value("ImageOS"),
+                  "image_version": machine_image_value("ImageVersion"),
+                  "windows_build": windows.build,
+                  "server": windows.product_type == 3,
+                  "architecture": os.environ.get("RUNNER_ARCH"),
+                  "active_vcpus": K32.GetActiveProcessorCount(0xffff),
+                  "processor_groups": K32.GetActiveProcessorGroupCount(),
+                  "process_affinity_vcpus": mask.value.bit_count() if mask_ok else None,
+                  "system_affinity_vcpus": system_mask.value.bit_count() if mask_ok else None,
+                  "full_affinity": mask_ok and mask.value == system_mask.value and bool(mask.value),
+              }
+              matched = (observed["image"] == "win25-vs2026"
+                         and observed["image_version"] == "20261103.298.1"
+                         and observed["windows_build"] == 26100 and observed["server"]
+                         and observed["architecture"] == "X64" and observed["active_vcpus"] == 4
+                         and observed["processor_groups"] == 1 and observed["full_affinity"]
+                         and observed["process_affinity_vcpus"] == 4)
+              emit("scheduler_runner_profile", matched=matched, **observed)
+              return matched
+
           def main():
               if sys.platform != "win32" or struct.calcsize("P") != 8:
                   raise SystemExit("Windows x64 is required")
-              calibrate()
+              if not check_runner():
+                  emit("scheduler_admission", admitted=False, reason="runner_profile_mismatch")
+                  return
+              try:
+                  calibrate()
+              except (RuntimeError, OSError, subprocess.TimeoutExpired):
+                  emit("scheduler_admission", admitted=False, reason="calibration_failed")
+                  raise
+              emit("scheduler_admission", admitted=True)
               if sys.argv[1:] == ["--calibration-only"]:
                   return
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write("admitted=true\n")
               checker = Path("tools/agent_protocol_work_check.py").resolve(strict=True)
               observer = Sampler()
 
@@ -353,7 +406,8 @@ jobs:
               main()
           '@ | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-scheduler.py')
 
-      - name: Execute two of four Windows shards within the unchanged deadline
+      - name: Admit the runner and execute the two original Windows shards
+        id: measured
         run: >-
           python "${{ runner.temp }}/windows-scheduler.py" windows-group
           --root "${{ github.workspace }}"
@@ -362,7 +416,7 @@ jobs:
           --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
           --event "pull_request"
       - name: Retain exact-source Windows execution evidence
-        if: always()
+        if: ${{ always() && steps.measured.outputs.admitted == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: diagnostic-windows-core-${{ github.run_id }}-${{ github.run_attempt }}-0
