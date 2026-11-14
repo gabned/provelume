@@ -350,6 +350,68 @@ jobs:
               emit("scheduler_runner_profile", matched=matched, **observed)
               return matched
 
+          def fixed_work():
+              iterations = 10_000_000
+              seed = 0x460
+              expected = 0xd3d944e0
+              worker = """
+          import ctypes as ct
+          from ctypes import wintypes as wt
+          import json
+          import platform
+          import sys
+          import time
+
+          count, seed, expected = map(int, sys.argv[1:4])
+          kernel = ct.WinDLL("kernel32", use_last_error=True)
+          kernel.GetCurrentProcess.restype = wt.HANDLE
+          kernel.GetProcessAffinityMask.argtypes = [wt.HANDLE, ct.POINTER(ct.c_size_t), ct.POINTER(ct.c_size_t)]
+          kernel.GetProcessAffinityMask.restype = wt.BOOL
+          kernel.SetProcessAffinityMask.argtypes = [wt.HANDLE, ct.c_size_t]
+          kernel.SetProcessAffinityMask.restype = wt.BOOL
+          process = kernel.GetCurrentProcess()
+
+          def affinity():
+              mask, system = ct.c_size_t(), ct.c_size_t()
+              if not kernel.GetProcessAffinityMask(process, ct.byref(mask), ct.byref(system)):
+                  raise ct.WinError(ct.get_last_error())
+              return mask.value, system.value
+
+          original, system = affinity()
+          if original != system or original.bit_count() != 4:
+              raise SystemExit("Probe did not inherit the admitted affinity")
+          one = original & -original
+          if not kernel.SetProcessAffinityMask(process, one) or affinity() != (one, system):
+              raise SystemExit("Probe could not confirm single-vCPU affinity")
+          if platform.python_implementation() != "CPython":
+              raise SystemExit("Probe requires CPython")
+
+          def loop(n, value):
+              for _ in range(n):
+                  value = (1664525 * value + 1013904223) & 0xffffffff
+              return value
+
+          loop(100_000, seed)
+          wall_start = time.perf_counter_ns()
+          cpu_start = time.thread_time_ns()
+          checksum = loop(count, seed)
+          cpu_ns = time.thread_time_ns() - cpu_start
+          wall_ns = time.perf_counter_ns() - wall_start
+          if checksum != expected or cpu_ns <= 0 or wall_ns <= 0 or affinity() != (one, system):
+              raise SystemExit("Invalid work, timing or affinity observation")
+          print(json.dumps({
+              "event": "cpython_fixed_work", "python": platform.python_version(),
+              "cpu_identifier": __import__("os").environ.get("PROCESSOR_IDENTIFIER"),
+              "vcpu_bit": one, "iterations": count, "seed": seed, "checksum": f"{checksum:08x}",
+              "cpu_ns": cpu_ns, "wall_ns": wall_ns,
+          }, sort_keys=True), flush=True)
+          """
+              subprocess.run(
+                  [sys.executable, "-I", "-S", "-c", worker, str(iterations), str(seed), str(expected)],
+                  check=True, timeout=20,
+              )
+
+
           def main():
               if sys.platform != "win32" or struct.calcsize("P") != 8:
                   raise SystemExit("Windows x64 is required")
@@ -362,6 +424,7 @@ jobs:
                   emit("scheduler_admission", admitted=False, reason="calibration_failed")
                   raise
               emit("scheduler_admission", admitted=True)
+              fixed_work()
               if sys.argv[1:] == ["--calibration-only"]:
                   return
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
