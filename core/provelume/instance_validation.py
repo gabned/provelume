@@ -1051,6 +1051,11 @@ def _canonical_records(
     records: dict[str, dict[str, dict[str, Any]]] = {}
     for kind in CANONICAL_KINDS:
         directory = store.paths.canonical_dir(kind)
+        reference_root = store.paths.root
+        if kind in OBJECT_CANONICAL_KINDS:
+            # Object revision names can cross MAX_PATH inside a restore stage.
+            directory = native_path(directory)
+            reference_root = native_path(reference_root)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
         if directory.is_symlink() or directory.is_junction():
@@ -1094,7 +1099,7 @@ def _canonical_records(
                 )
                 continue
         for path in sorted(directory.glob("*.json")):
-            relative = path.relative_to(store.paths.root).as_posix()
+            relative = path.relative_to(reference_root).as_posix()
             if path.is_symlink() or path.is_junction():
                 errors.append(
                     _finding(
