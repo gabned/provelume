@@ -1,7 +1,8 @@
-name: PROTOCOL Windows Git read timing
+name: Isolated PROTOCOL Windows qualification
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [codex/protocol-windows-git-batch]
 
 permissions:
   contents: read
@@ -10,25 +11,30 @@ env:
   RUFF_CACHE_DIR: .agent/ruff-cache
 
 jobs:
-  timing:
-    name: PROTOCOL Windows Git read comparison
-    if: github.ref == 'refs/heads/codex/protocol-windows-git-batch' && github.run_attempt == 1
+  windows-shards:
+    name: PROTOCOL Windows Core execution (${{ matrix.group }})
+    if: github.ref == 'refs/heads/codex/protocol-windows-git-batch' && github.event_name == 'push' && github.run_attempt == 1
     runs-on: windows-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [0, 1]
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ccdb94d811d28ede7d6972be57306128bff4323c
+          ref: 2e3d2a8bae7a5ae88d589c1f9792bbee13b74482
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify candidate source tree
-        shell: pwsh
+      - name: Verify source and workflow identity
+        shell: bash
         run: |
-          if ((git rev-parse HEAD) -ne 'ccdb94d811d28ede7d6972be57306128bff4323c' -or
-              (git rev-parse 'HEAD^{tree}') -ne '95eb63daf19b3c98d5aa7adaf46868d331cfc295') {
-            throw 'Diagnostic source identity mismatch'
-          }
+          sha=$(git rev-parse HEAD)
+          tree=$(git rev-parse 'HEAD^{tree}')
+          test "$sha" = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
+          test "$tree" = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
+          printf '{"event":"protocol_qualification_source","source":"%s","tree":"%s","workflow":"%s","trigger":"%s"}\n' "$sha" "$tree" "$GITHUB_SHA" "$GITHUB_EVENT_NAME"
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -58,11 +64,12 @@ jobs:
           if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
               raise SystemExit("Windows JavaScript contract failed before shard execution")
 
-      - name: Stage the scheduler sampler outside the source checkout
+      - name: Stage group 0 slow-runner admission
+        if: matrix.group == 0
         shell: pwsh
         run: |
           @'
-          """Diagnostic sampler for the unchanged Windows group command."""
+          """Observe slow-runner admission during the unchanged Windows group command."""
           import ctypes as ct
           from ctypes import wintypes as wt
           import json
@@ -70,8 +77,7 @@ jobs:
           from pathlib import Path
           import random
           import re
-          import shutil
-          import xml.etree.ElementTree as ET
+          import runpy
           import struct
           import subprocess
           import sys
@@ -482,169 +488,150 @@ jobs:
 
 
 
-          BASE = "ccdb94d811d28ede7d6972be57306128bff4323c"
-          TREE = "95eb63daf19b3c98d5aa7adaf46868d331cfc295"
-          RECOVERY = "tests/test_agent_protocol_v1_2.py::test_recovery_conformance_runs_in_isolation_and_propagates_failure"
-          TRANSFER = "tests/test_agent_protocol_transfer.py"
-          TARGETS = {
-              ".github/workflows/windows-shell-smoke.yml",
-              "tools/agent_protocol_v1_4_2_ops.py",
-              "tools/agent_protocol_work_recovery.py",
-              "tools/agent_protocol_transfer.py",
-          }
+          SOURCE = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
+          TREE = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
 
 
-          def git(*args, cwd):
-              return subprocess.check_output(["git", *args], cwd=cwd, text=True).strip()
+          class NotAdmitted(Exception):
+              pass
 
 
-          def admit(source, scratch):
-              if not check_runner():
-                  emit("git_batch_admission", admitted=False, reason="runner_profile_mismatch")
-                  return False
-              try:
-                  calibrate()
-              except (RuntimeError, OSError, subprocess.TimeoutExpired):
-                  emit("git_batch_admission", admitted=False, reason="calibration_failed")
-                  raise
-              state = scratch / "inventory-state"
-              state.mkdir()
-              report = scratch / "inventory.json"
-              env = {**os.environ, "PYTHONPATH": os.pathsep.join(
-                  (str(source / "core"), str(source), str(source / "tools"))),
-                  "PYTHONIOENCODING": "utf-8", "PROVELUME_WINDOWS_SHARD_CHILD": "1",
-                  "LOCALAPPDATA": str(state)}
-              env.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
-              inventory = subprocess.run(
-                  [sys.executable, str(source / "tools/agent_protocol_work_check.py"), "windows-inventory",
-                   "--root", str(source), "--output", str(report), "--commit", BASE,
-                   "--run-id", os.environ["GITHUB_RUN_ID"], "--run-attempt", os.environ["GITHUB_RUN_ATTEMPT"],
-                   "--event", "pull_request"],
-                  cwd=source, env=env, stdin=subprocess.DEVNULL, text=True, encoding="utf-8",
-                  stdout=subprocess.PIPE,
-                  stderr=subprocess.STDOUT, check=False, timeout=45,
-              )
-              if inventory.returncode:
-                  # Source/test diagnostics only. Keep matched failures and the bounded final summary.
-                  lines = inventory.stdout.splitlines()
-                  failures = [line for line in lines if "Error:" in line or line.startswith(('ERROR ', '{"result":'))]
-                  emit("git_batch_admission", admitted=False, reason="inventory_failed",
-                       inventory_exit=inventory.returncode, report_exists=report.is_file())
-                  for line in (failures[-12:] + lines[-16:]):
-                      print("inventory: " + line[:400], flush=True)
-                  raise RuntimeError(f"Reference inventory exited {inventory.returncode}")
-              record = json.loads(report.read_text(encoding="utf-8"))
-              durations = re.findall(r"(?m)^6078 tests collected in ([0-9]+[.][0-9]+)s\s*$", inventory.stdout)
-              nodes = record["inventory"]
-              if (len(durations) != 1 or record["mode"] != "inventory" or record["exit_code"] != 0
-                      or record["identity"]["tree"] != TREE or record["errors"]
-                      or len(nodes) != 6078 or len(set(nodes)) != 6078 or record["selected"] != nodes):
-                  raise RuntimeError("Invalid reference inventory")
-              seconds = float(durations[0])
-              if seconds < 13.00:
-                  emit("git_batch_admission", admitted=False, reason="inventory_not_slow", inventory_seconds=seconds)
-                  return False
-              cpu_ns = fixed_work()
-              admitted = cpu_ns >= 900_000_000
-              emit("git_batch_admission", admitted=admitted, inventory_seconds=seconds,
-                   cpu_ns=cpu_ns, minimum_inventory_seconds=13.00, minimum_cpu_ns=900_000_000)
-              return admitted
-
-
-          def count_git(trace):
-              counts = {}
-              for line in trace.read_text(encoding="utf-8").splitlines():
-                  entry = json.loads(line)
-                  if entry.get("event") == "cmd_name":
-                      name = entry["name"]
-                      counts[name] = counts.get(name, 0) + 1
-              if not counts:
-                  raise RuntimeError("Git invocation trace empty")
-              return counts
-
-
-          def measure(arm, source, scratch):
-              trace = scratch / (arm + ".trace2.json")
-              report = scratch / (arm + ".xml")
-              base_temp = scratch / (arm + "-tmp")
-              temp = scratch / (arm + "-env")
-              temp.mkdir()
-              env = {**os.environ, "PYTHONPATH": os.pathsep.join(
-                  (str(source / "core"), str(source), str(source / "tools"))),
-                  "PROVELUME_WINDOWS_SHARD_CHILD": "1", "GIT_TRACE2_EVENT": str(trace),
-                  "TMP": str(temp), "TEMP": str(temp), "LOCALAPPDATA": str(temp)}
-              emit("git_batch_arm_start", arm=arm, source=git("rev-parse", "HEAD", cwd=source),
-                   tree=git("rev-parse", "HEAD^{tree}", cwd=source))
-              env.pop("PROVELUME_WINDOWS_SHARD_FORCE", None)
-              started = time.perf_counter()
-              result = subprocess.run(
-                  [sys.executable, "-m", "pytest", "-q", "--durations=0",
-                   "--basetemp", str(base_temp), "-o", f"cache_dir={scratch / (arm + '-cache')}",
-                   "--junitxml", str(report), RECOVERY, TRANSFER],
-                  cwd=source, env=env,
-              )
-              seconds = time.perf_counter() - started
-              if result.returncode:
-                  raise RuntimeError(f"{arm} pytest returned {result.returncode}")
-              records = list(ET.parse(report).iter("testcase"))
-              if len(records) != 39 or any(list(case) for case in records):
-                  raise RuntimeError("Expected the same 39 passing top-level cases")
-              cases = [(case.attrib["classname"], case.attrib["name"]) for case in records]
-              if len(set(cases)) != len(cases):
-                  raise RuntimeError("Duplicate case in comparison result")
-              timings = {"recovery": 0.0, "transfer": 0.0}
-              for case in records:
-                  family = "recovery" if case.attrib["name"].startswith("test_recovery_conformance") else "transfer"
-                  timings[family] += float(case.attrib["time"])
-              counts = count_git(trace)
-              emit("git_batch_measurement", arm=arm, wall_seconds=seconds, cases=len(cases),
-                   recovery_seconds=timings["recovery"], transfer_seconds=timings["transfer"],
-                   git_commands=sum(counts.values()), ls_tree=counts.get("ls-tree", 0),
-                   cat_file=counts.get("cat-file", 0), show=counts.get("show", 0))
-              trace.unlink()
-              return sorted(cases)
+          def inspect_inventory(path):
+              report = json.loads(path.read_text(encoding="utf-8"))
+              samples = re.findall(r"(?m)^6078 tests collected in ([0-9]+[.][0-9]+)s[ \t]*$",
+                                   path.with_suffix(".log").read_text(encoding="utf-8"))
+              nodes = report["inventory"]
+              identity = report["identity"]
+              if (report["mode"] != "inventory" or report["exit_code"] != 0 or report["errors"]
+                      or len(nodes) != 6078 or len(set(nodes)) != 6078 or report["selected"] != nodes
+                      or identity["commit"] != SOURCE or identity["tree"] != TREE
+                      or identity["event"] != "push" or identity["run_id"] != os.environ["GITHUB_RUN_ID"]
+                      or identity["run_attempt"] != os.environ["GITHUB_RUN_ATTEMPT"] or len(samples) != 1):
+                  raise RuntimeError("Invalid source-bound Windows inventory for admission")
+              seconds = float(samples[0])
+              cpu_ns = fixed_work() if seconds >= 13.00 else None
+              admitted = cpu_ns is not None and cpu_ns >= 900_000_000
+              emit("protocol_slow_runner_admission", admitted=admitted, inventory_seconds=seconds,
+                   inventory_count=len(nodes), cpu_ns=cpu_ns, minimum_inventory_seconds=13.00,
+                   minimum_cpu_ns=900_000_000)
+              if not admitted:
+                  raise NotAdmitted("Assigned VM did not match the slow-runner diagnostic profile")
 
 
           def main():
-              if sys.platform != "win32" or struct.calcsize("P") != 8:
-                  raise SystemExit("Windows x64 is required")
-              source = Path.cwd()
-              if git("rev-parse", "HEAD", cwd=source) != BASE or git("rev-parse", "HEAD^{tree}", cwd=source) != TREE:
-                  raise RuntimeError("Baseline binding mismatch")
-              candidate = os.environ["GITHUB_SHA"]
-              if not re.fullmatch(r"[a-f0-9]{40}", candidate):
-                  raise RuntimeError("Candidate identity missing")
-              changed = set(git("diff", "--name-only", BASE, candidate, cwd=source).splitlines())
-              if changed != TARGETS:
-                  raise RuntimeError("Unexpected comparison delta")
-              scratch = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True) / "git-ab"
-              scratch.mkdir()
-              if not admit(source, scratch):
-                  return
-              emit("git_batch_sources", baseline=BASE, candidate=candidate, git=git("--version", cwd=source))
-              arms = []
+              if not check_runner():
+                  emit("protocol_slow_runner_admission", admitted=False, reason="runner_profile_mismatch")
+                  raise NotAdmitted("Reference image and full four-vCPU affinity are required")
               try:
-                  for name, ref in (("aa", BASE), ("bb", candidate)):
-                      arm = scratch / name
-                      git("worktree", "add", "--detach", str(arm), ref, cwd=source)
-                      arms.append(arm)
-                      if git("rev-parse", "HEAD", cwd=arm) != ref:
-                          raise RuntimeError("Comparison source binding mismatch")
-                  before = measure("aa", arms[0], scratch)
-                  after = measure("bb", arms[1], scratch)
-                  if before != after:
-                      raise RuntimeError("The two arms executed different cases")
-                  emit("git_batch_comparison", complete=True, matched_cases=len(before))
+                  calibrate()
+              except (RuntimeError, OSError, subprocess.TimeoutExpired):
+                  emit("protocol_slow_runner_admission", admitted=False, reason="calibration_failed")
+                  raise
+              checker = Path("tools/agent_protocol_work_check.py").resolve(strict=True)
+
+              def observe_inventory(*args, **kwargs):
+                  child = ORIGINAL_POPEN(*args, **kwargs)
+                  command = args[0] if args else kwargs.get("args")
+                  if (isinstance(command, list) and len(command) > 3 and command[1] == str(checker)
+                          and command[2] == "windows-inventory"):
+                      path = Path(command[command.index("--output") + 1])
+                      wait = child.wait
+
+                      def wait_for_inventory(*wait_args, **wait_kwargs):
+                          status = wait(*wait_args, **wait_kwargs)
+                          if status == 0:
+                              inspect_inventory(path)
+                          else:
+                              emit("protocol_slow_runner_admission", admitted=False,
+                                   reason="inventory_failed", inventory_exit=status)
+                          return status
+
+                      child.wait = wait_for_inventory
+                  return child
+
+              subprocess.Popen = observe_inventory
+              sys.argv[0] = str(checker)
+              sys.path.insert(0, str(checker.parent))
+              try:
+                  runpy.run_path(str(checker), run_name="__main__")
+              except NotAdmitted as error:
+                  raise SystemExit(str(error)) from None
               finally:
-                  for arm in arms:
-                      if arm.name not in {"aa", "bb"} or arm.resolve(strict=True) != scratch / arm.name:
-                          raise RuntimeError("Unexpected diagnostic worktree location")
-                      git("worktree", "remove", "--force", str(arm), cwd=source)
+                  subprocess.Popen = ORIGINAL_POPEN
 
 
           if __name__ == "__main__":
               main()
-          '@ | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-scheduler.py')
+          '@ | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'protocol-slow-runner.py')
 
-      - name: Admit the runner and compare unchanged PROTOCOL cases
-        run: python "${{ runner.temp }}/windows-scheduler.py"
+      - name: Execute two of four Windows shards within the unchanged deadline
+        if: matrix.group == 1
+        run: >-
+          python tools/agent_protocol_work_check.py windows-group
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
+          --group ${{ matrix.group }} --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
+          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
+          --event "${{ github.event_name }}"
+      - name: Admit the slow runner and execute the two original group 0 shards
+        if: matrix.group == 0
+        run: >-
+          python "${{ runner.temp }}/protocol-slow-runner.py" windows-group
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-${{ matrix.group }}"
+          --group ${{ matrix.group }} --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
+          --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}"
+          --event "${{ github.event_name }}"
+      - name: Retain exact-source Windows execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
+          path: |
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/*.log
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.json
+            ${{ runner.temp }}/windows-core-${{ matrix.group }}/shard-*/*.log
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-tests:
+    name: PROTOCOL Windows aggregate
+    if: ${{ always() && github.ref == 'refs/heads/codex/protocol-windows-git-batch' && github.event_name == 'push' && github.run_attempt == 1 }}
+    needs: windows-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 2e3d2a8bae7a5ae88d589c1f9792bbee13b74482
+          persist-credentials: false
+      - name: Verify source and workflow identity
+        shell: bash
+        run: |
+          sha=$(git rev-parse HEAD)
+          tree=$(git rev-parse 'HEAD^{tree}')
+          test "$sha" = "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482"
+          test "$tree" = "a3da49b184d3fe89a7e734c27885e1ebeb492b04"
+          printf '{"event":"protocol_qualification_source","source":"%s","tree":"%s","workflow":"%s","trigger":"%s"}\n' "$sha" "$tree" "$GITHUB_SHA" "$GITHUB_EVENT_NAME"
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Download this run and attempt's Windows evidence
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: windows-core-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/windows-core-evidence
+          merge-multiple: true
+      - name: Require complete disjoint Windows execution on the exact source
+        if: always()
+        run: >-
+          python tools/agent_protocol_work_check.py windows-verify
+          --root "${{ github.workspace }}"
+          --output "${{ runner.temp }}/windows-core-evidence"
+          --groups-result "${{ needs.windows-shards.result }}"
+          --commit "2e3d2a8bae7a5ae88d589c1f9792bbee13b74482" --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}" --event "${{ github.event_name }}"
