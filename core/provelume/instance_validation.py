@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from collections.abc import Mapping
 from datetime import datetime
@@ -1049,13 +1050,13 @@ def _canonical_records(
     errors: list[dict[str, str]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
     records: dict[str, dict[str, dict[str, Any]]] = {}
+    root = store.paths.root
+    reference_root = native_path(root) if os.name == "nt" else root
     for kind in CANONICAL_KINDS:
         directory = store.paths.canonical_dir(kind)
-        reference_root = store.paths.root
-        if kind in OBJECT_CANONICAL_KINDS:
-            # Object revision names can cross MAX_PATH inside a restore stage.
+        # Canonical file names can cross MAX_PATH inside a restore stage.
+        if os.name == "nt":
             directory = native_path(directory)
-            reference_root = native_path(reference_root)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
         if directory.is_symlink() or directory.is_junction():

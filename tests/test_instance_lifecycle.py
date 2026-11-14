@@ -310,6 +310,32 @@ def test_deep_validation_reads_long_object_revision_paths(tmp_path: Path) -> Non
     assert after["content_fingerprint"] == before["content_fingerprint"]
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows extended path handling")
+def test_backup_restore_preserves_long_canonical_paths(tmp_path: Path) -> None:
+    original_ref = Path("knowledge", "originals", f"sha256_{'0' * 64}.json")
+    revision_ref = Path("knowledge", "object-revisions", f"objrev_{'0' * 64}.json")
+    padding = max(1, 219 - len(str(tmp_path / "instance" / revision_ref)))
+    parent = tmp_path / ("i" * padding)
+    if len(str(parent / "instance" / revision_ref)) >= 248:
+        pytest.skip("temporary directories are too long to isolate the restore stage")
+    parent.mkdir()
+    instance, _ = _seed(parent)
+    area = instance.create_hierarchy_node("area", "Synthetic Area")
+    instance.create_hierarchy_node("project", "Synthetic Project", parent_id=area["id"])
+    stage = parent / (".instance.restore-stage-" + "0" * 32)
+    assert len(str(stage / original_ref)) > 260
+    assert len(str(stage / revision_ref)) > 260
+
+    before = inspect_instance(instance.root)
+    assert before["status"] == "valid"
+    backup = instance.backup(destination=parent / "snapshots")
+    assert instance.restore(backup["archive"])["status"] == "restored"
+    after = inspect_instance(instance.root)
+    assert after["status"] == "valid"
+    assert after["counts"] == before["counts"]
+    assert after["content_fingerprint"] == before["content_fingerprint"]
+
+
 def test_backup_and_verification_stream_files_without_path_read_bytes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
