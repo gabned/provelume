@@ -32,6 +32,7 @@ from .mirror_contract import (
     selection,
     sha,
 )
+from .paths import native_path
 from .review_decisions import checked_path, read_bytes
 from .storage import CANONICAL_KINDS, InstanceStore
 
@@ -372,8 +373,9 @@ class MirrorSnapshots:
         includes(manifest["include_rules"])
         inventory(manifest["inventory"])
         actual, actual_findings = [], []
-        for item in root.rglob("*"):
-            item_relative = item.relative_to(root).as_posix()
+        scan_root = native_path(root) if os.name == "nt" else root
+        for item in scan_root.rglob("*"):
+            item_relative = item.relative_to(scan_root).as_posix()
             checked_path(self.store, relative + "/" + item_relative)
             if item.is_dir():
                 continue
@@ -405,7 +407,7 @@ class MirrorSnapshots:
 
         require(type(generation) is str and HASH.fullmatch(generation))
         root = checked_path(self.store, "state/mirrors/generations/" + generation)
-        require(root.is_dir(), "incomplete")
+        require(native_path(root).is_dir(), "incomplete")
         return self._verify_root(root, generation)
 
     def drop_locked(self, generation):

@@ -1,6 +1,7 @@
 """Shared mirror contracts using synthetic local data; no transport qualification."""
 
 import json
+import os
 import re
 from copy import deepcopy
 
@@ -8,6 +9,7 @@ import pytest
 
 from provelume.mirror_contract import MirrorError, diff, inventory
 from provelume.mirrors import Mirrors
+from provelume.paths import native_path
 from provelume.service import ProvelumeInstance
 from provelume.tududi_qualification import SyntheticVault
 
@@ -209,8 +211,20 @@ def test_privacy_findings_block_without_echoing_values(tmp_path, body, code):
         engine.validate_preview_locked(plan["id"], **arguments(plan, observation))
 
 
-def test_exact_original_rule_and_no_implicit_attachments(tmp_path):
-    instance, engine, identity, destination, observation = seed(tmp_path)
+@pytest.mark.parametrize("long_path", [False, True], ids=["default", "windows-long-path"])
+def test_exact_original_rule_and_no_implicit_attachments(tmp_path, long_path):
+    parent = tmp_path
+    if long_path:
+        if os.name != "nt":
+            pytest.skip("Windows extended path handling")
+        # Keep the generated directory short and extend only the Original leaf.
+        original_ref = f"instance/state/mirrors/generations/{'0' * 64}/originals/"
+        padding = max(1, 265 - len(str(tmp_path / (original_ref + f"sha256_{'0' * 64}.bin"))))
+        parent = tmp_path / ("i" * padding)
+        if len(str(parent / original_ref)) >= 248:
+            pytest.skip("temporary directories are too long to isolate the Original leaf")
+        parent.mkdir()
+    instance, engine, identity, destination, observation = seed(parent)
     original = instance.store.list_canonical("originals")[0]
     rules = {"originals": [original["id"]], "attachments": [], "ai_receipts": []}
     destination = engine.configure(
@@ -226,10 +240,10 @@ def test_exact_original_rule_and_no_implicit_attachments(tmp_path):
     )
     plan = preview(engine, destination, observation)
     assert [row["category"] for row in plan["manifest"]["inventory"]].count("original") == 1
-    data = (
-        engine.snapshots.root() / plan["generation"] / ("originals/" + original["id"] + ".bin")
-    ).read_bytes()
-    assert data == instance.store.original_bytes(original["id"])
+    path = engine.snapshots.root() / plan["generation"] / ("originals/" + original["id"] + ".bin")
+    if long_path:
+        assert len(str(path)) > 260
+    assert native_path(path).read_bytes() == instance.store.original_bytes(original["id"])
 
 
 def test_claim_is_single_dispatch_and_final_receipt_requires_exact_inventory(tmp_path):
@@ -362,6 +376,30 @@ def test_real_same_root_backup_restore_cannot_reopen_an_external_dispatch_claim(
         with pytest.raises(MirrorError, match="outcome_unknown"):
             preview(restarted, destination, observation)
     assert restarted.operation_ledger(destination["id"])["serial"] == 1
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows extended path handling")
+def test_windows_mirror_restore_removes_long_previous_paths(tmp_path):
+    generation_doc = (
+        f"instance/state/mirrors/generations/{'0' * 64}/documents/doc_{'0' * 32}.md"
+    )
+    padding = max(1, 220 - len(str(tmp_path / generation_doc)))
+    parent = tmp_path / ("i" * padding)
+    if len(str(parent / generation_doc)) >= 248:
+        pytest.skip("temporary directories are too long to isolate restore cleanup")
+    parent.mkdir()
+    instance, engine, _, destination, observation = seed(parent)
+    plan = preview(engine, destination, observation)
+    manifest = engine.snapshots.verify(plan["generation"])
+    document = next(row for row in manifest["inventory"] if row["category"] == "markdown")
+    previous = parent / (".instance.restore-previous-" + "0" * 32)
+    previous_generation = previous / "state/mirrors/generations" / plan["generation"]
+    assert len(str(previous_generation / document["path"])) > 260
+
+    backup = instance.backup(destination=parent / "Backups")
+    assert instance.restore(backup["archive"])["status"] == "restored"
+    assert engine.snapshots.verify(plan["generation"]) == manifest
+    assert not list(parent.glob(".instance.restore-previous-*"))
 
 
 @pytest.mark.parametrize("phase", ["local_claim", "local_receipt"])
