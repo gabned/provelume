@@ -33,6 +33,7 @@ from .instance_schema import (
     build_instance_manifest,
 )
 from .instance_validation import inspect_instance
+from .paths import native_path
 from .storage import InstanceStore, utc_now
 
 LIFECYCLE_STATE_SCHEMA_VERSION = 1
@@ -454,7 +455,7 @@ class InstanceLifecycleManager:
             if moved_previous:
                 # Preserving read-only access metadata must not turn successful
                 # publication into destructive rollback merely to erase a residue.
-                shutil.rmtree(previous, ignore_errors=permission_profile is not None)
+                shutil.rmtree(native_path(previous), ignore_errors=permission_profile is not None)
                 moved_previous = False
             return {
                 "schema_version": LIFECYCLE_STATE_SCHEMA_VERSION,
