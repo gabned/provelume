@@ -13,7 +13,13 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
-from .google_contract import GOOGLE_CAPABILITY_SCOPES, GoogleAdapterError, GoogleAuthorizationError
+from .google_contract import (
+    GOOGLE_ADAPTER_VERSION,
+    GOOGLE_CAPABILITY_SCOPES,
+    GOOGLE_DEFINITION_KEY,
+    GoogleAdapterError,
+    GoogleAuthorizationError,
+)
 from .google_credentials import GoogleCredentialError, GoogleCredentialVault
 from .oauth_authorization import InstalledAppAuthorizationParameters, InstalledAppTokenExchange
 
@@ -27,6 +33,7 @@ CLIENT_AUTHORIZATION_ENDPOINTS = (
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 REVOCATION_ENDPOINT = "https://oauth2.googleapis.com/revoke"
 PROFILE_ENDPOINTS = {
+    "calendar": "https://www.googleapis.com/calendar/v3/users/me/calendarList/primary?fields=id",
     "gmail": "https://gmail.googleapis.com/gmail/v1/users/me/profile?fields=emailAddress",
     "drive": "https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",
 }
@@ -138,7 +145,7 @@ def _account_identity(transport, capability: str, access_token: str) -> str:
     email = (
         profile.get("emailAddress")
         if capability == "gmail"
-        else (
+        else profile.get("id") if capability == "calendar" else (
             profile.get("user", {}).get("emailAddress")
             if isinstance(profile.get("user"), dict)
             else None
@@ -155,8 +162,8 @@ def account_binding(transport, capability: str, access_token: str, instance_id: 
 
 
 class GoogleInstalledAppAdapter:
-    adapter_key = "google-readonly"
-    adapter_version = "1.0.0"
+    adapter_key = GOOGLE_DEFINITION_KEY
+    adapter_version = GOOGLE_ADAPTER_VERSION
     authorization_endpoint = AUTHORIZATION_ENDPOINT
     token_endpoint = TOKEN_ENDPOINT
 

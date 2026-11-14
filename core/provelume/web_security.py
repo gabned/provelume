@@ -19,6 +19,9 @@ CONTENT_SECURITY_POLICY = (
 GOOGLE_CONNECTION_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
     "form-action 'self';", "form-action 'self' https://accounts.google.com;"
 )
+ASANA_CONNECTION_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+    "form-action 'self';", "form-action 'self' https://app.asana.com;"
+)
 SECURITY_HEADERS = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "Cross-Origin-Opener-Policy": "same-origin",
@@ -124,6 +127,12 @@ class LocalWebSecurityMiddleware(BaseHTTPMiddleware):
             and response.status_code in {200, 303}
         ):
             response.headers["Content-Security-Policy"] = GOOGLE_CONNECTION_SECURITY_POLICY
+        if (
+            trusted_request_host(request.headers.get("host", ""))
+            and request.url.path == "/asana/connect"
+            and response.status_code in {200, 303}
+        ):
+            response.headers["Content-Security-Policy"] = ASANA_CONNECTION_SECURITY_POLICY
         integrities = [
             getattr(request.state, name, None)
             for name in (
