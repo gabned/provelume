@@ -1,4 +1,4 @@
-"""One S07 comparison of staging writer waits on the original failure source."""
+"""One S07 comparison of prepared marker durability on the original failure source."""
 
 import ctypes
 import errno
@@ -18,8 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
-from s07_flush_window import bind_waits
-from s07_prepare_window import PURPOSES, observe, summarize
+from s07_prepared_manifest_window import PURPOSES, bind_fsyncs, observe, summarize
 
 BASE = "a713f0141799fea60b7caa1a0e62826f3b373bf9"
 TREE = "8ae742fd7499f63cf7f70722166ef344c0cabda9"
@@ -27,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "5d0fae5afab5cbab82a0b6cb3c6d9b6fd2b8b41a"
+PREVIOUS = "457e0cd142c92dee2e98b1def95194e89ed39998"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {HISTORICAL_S06_CPU, "Intel(R) Xeon(R) 6975P-C"}
 WORKFLOW = ".github/workflows/s07-lifecycle-diagnostic.yml"
@@ -37,7 +36,7 @@ CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "s07_inventory_window.py", "s07_manifest_window.py", "s07_assure_window.py",
     "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
     "s07_flush_window.py", "s07_target_window.py", "s07_add_window.py",
-    "s07_prepare_window.py",
+    "s07_prepare_window.py", "s07_prepared_manifest_window.py",
 ))}
 # Three idle captures precede deterministic slot 1. All three deterministic
 # busy captures precede the governed S06 slots.
@@ -123,12 +122,12 @@ def original_modules():
     import qualify_ai_jobs as jobs
     import qualify_ai_runtime as qualifier
 
-    from provelume import atomic_commit, capture_adapter
+    from provelume import atomic_commit, capture_adapter, storage
 
-    for module in (jobs, qualifier, atomic_commit, capture_adapter):
+    for module in (jobs, qualifier, atomic_commit, capture_adapter, storage):
         if not Path(module.__file__).resolve().is_relative_to(SOURCE):
             raise ValueError("module loaded outside the original PRODUCT source")
-    return jobs, qualifier, atomic_commit, capture_adapter
+    return jobs, qualifier, atomic_commit, capture_adapter, storage
 
 
 def clock():
@@ -155,7 +154,7 @@ def worker(native, mode, output, inputs=None):
     if (git(SOURCE, "rev-parse", "HEAD", "HEAD^{tree}").splitlines() != [BASE, TREE]
             or git(SOURCE, "status", "--porcelain", "--untracked-files=all")):
         raise ValueError("worker source mismatch")
-    jobs, qualifier, atomic, adapter = original_modules()
+    jobs, qualifier, atomic, adapter, storage = original_modules()
     host = native.host()
     if mode == "startup":
         native.kernel.write(output / "startup.json", {"host": host, "native_inference": "NOT_RUN"})
@@ -174,7 +173,7 @@ def worker(native, mode, output, inputs=None):
         markers.append({"tid": threading.get_native_id(), "code": code, "before": before,
                         "after": time.clock_gettime_ns(time.CLOCK_BOOTTIME)})
 
-    def wrap(original, group, selected, *, writer_control=None):
+    def wrap(original, group, selected, *, manifest_control=None):
         def probe(instance, number):
             if number not in selected:
                 return original(instance, number)
@@ -192,7 +191,7 @@ def worker(native, mode, output, inputs=None):
 
             emit(9)
             with patch.object(adapter, "refresh_search_index", refresh), observe(
-                atomic, adapter, clock=clock, control=writer_control,
+                atomic, adapter, storage, clock=clock, control=manifest_control,
                 begin_entry=partial(emit, WINDOW_OPEN), end_entry=partial(emit, WINDOW_CLOSE),
             ) as rows:
                 emit(1)
@@ -205,9 +204,9 @@ def worker(native, mode, output, inputs=None):
                 raise ValueError("exactly one index refresh required")
             if len(instance.store.paths.root.parts) != len(TEMP.parts) + 2:
                 raise ValueError("Capture root differs from the matched probe depth")
-            windows, writes, summary = summarize(rows, start, end, spans[0])
+            windows, operations, summary = summarize(rows, start, end, spans[0])
             frames.append({"key": key, "summary": summary, "probe": result.copy(),
-                           "windows": windows, "writes": writes,
+                           "windows": windows, "operations": operations,
                            "probe_interval": (start, end)})
             return result
 
@@ -220,7 +219,7 @@ def worker(native, mode, output, inputs=None):
 
             injections = {}
 
-            def writer_hook(number, fixture, purpose, phase):
+            def manifest_hook(number, fixture, purpose, phase):
                 if (number, phase) in ((1, "inside"), (2, "after")):
                     start = time.monotonic_ns()
                     time.sleep(0.12)
@@ -235,7 +234,7 @@ def worker(native, mode, output, inputs=None):
                 ):
                     probe = wrap(
                         qualifier.deterministic_probe, "control", {number},
-                        writer_control=partial(writer_hook, number, syscall_fixture),
+                        manifest_control=partial(manifest_hook, number, syscall_fixture),
                     )
                     probe(ProvelumeInstance.initialise(Path(temp) / "synthetic-instance"), number)
                 if number in injections:
@@ -343,7 +342,6 @@ def account_window(native, events, tid, row, left, right, calls, offset):
             )
     for kind, total in totals.items():
         row[f"certain_{kind}_ns"] = total
-    return intervals
 
 
 def validate_syscall_pairs(events):
@@ -403,17 +401,19 @@ def kernel_binding(native, output, targets, host):
                 start <= opened <= left + low <= left + high <= right + low
                 <= right + high <= closed <= end
             ):
-                raise ValueError("kernel markers do not bind the staging writer window")
+                raise ValueError("kernel markers do not bind the prepared manifest window")
             windows.append((opened, closed))
             scoped = [event for event in events if opened <= event[1] <= closed]
             row = frame["summary"]["by_purpose"][purpose]
-            intervals = account_window(
+            account_window(
                 native, scoped, tid, row, left + high, right + low,
                 [((left, 0), (right, 0), None)], (low, high),
             )
-            writes = frame["writes"][purpose]
-            row["future_results"] = bind_waits(scoped, writes, intervals, (low, high))
-            if targets == CONTROL and index == 3 and purpose == PURPOSES[0]:
+            synthetic = targets == CONTROL and index == 3 and purpose == PURPOSES[0]
+            row["durability"] = bind_fsyncs(
+                scoped, tid, frame["operations"][purpose], (low, high), synthetic=synthetic,
+            )
+            if synthetic:
                 pairs = native.syscall_pairs(
                     [event for event in scoped if event[0] in ("U", "D") and event[2] == tid],
                     opened, closed,
@@ -425,7 +425,7 @@ def kernel_binding(native, output, targets, host):
             raise ValueError("original Capture semantics failed")
     for kind, stamp, *_ in events:
         if kind in ("S", "W") and not any(left <= stamp <= right for left, right in windows):
-            raise ValueError("scheduler event outside the staging writer windows")
+            raise ValueError("scheduler event outside the prepared manifest windows")
     return data["frames"]
 
 
@@ -492,7 +492,7 @@ def admit(native, output):
     control = output / "control"
     try:
         if native.collect(SOURCE, control, worker_args("control", control), 45):
-            raise ValueError("Capture staging writer kernel controls failed")
+            raise ValueError("Capture prepared manifest kernel controls failed")
     except (OSError, ValueError, subprocess.SubprocessError):
         for path in (control / "kernel.stderr", control / "execution.log"):
             if path.is_file():
@@ -505,18 +505,18 @@ def admit(native, output):
         negative = frames[2]["summary"]["by_purpose"][purpose]
         pos_start, pos_end = frames[1]["injection"][purpose]
         neg_start, neg_end = frames[2]["injection"][purpose]
-        (wait_left, _), (wait_right, _) = frames[1]["writes"][purpose][0]["wait"]
+        pos_left, pos_right = frames[1]["windows"][purpose]
         _, neg_right = frames[2]["windows"][purpose]
         if not (
-            wait_left <= pos_start <= pos_end <= wait_right
+            pos_left <= pos_start <= pos_end <= pos_right
             and pos_end - pos_start >= 120_000_000
             and neg_right <= neg_start <= neg_end <= frames[2]["probe_interval"][1]
             and neg_end - neg_start >= 120_000_000
-            and positive["wait_wall_ns"] >= 120_000_000
-            and positive["future_results"]["certain_blocked_ns"] > 0
+            and positive["wall_ns"] >= 120_000_000
+            and positive["certain_blocked_ns"] > 0
             and negative["wall_ns"] < 120_000_000
         ):
-            raise ValueError(f"known delay was not localized at the {purpose} writer wait")
+            raise ValueError(f"known delay was not localized at the {purpose} prepared manifest")
     if source != source_proof() or host != native.host():
         raise ValueError("source or host changed during admission")
     matched_idle = {str(frame["key"][1]): frame for frame in frames if (
@@ -532,19 +532,14 @@ def admit(native, output):
     }), flush=True)
 
 
-def compare_writers(frame, control, slot):
+def compare_manifests(frame, control, slot):
     comparison = {}
     for purpose in PURPOSES:
         busy = frame["summary"]["by_purpose"][purpose]
         idle = control["summary"]["by_purpose"][purpose]
-        if [kind for kind, _ in busy["staged_sizes"]] != [
-            kind for kind, _ in idle["staged_sizes"]
-        ]:
-            raise ValueError(f"{purpose} staging write counts differ from the matched control")
-        metrics = (
-            "wall_ns", "thread_cpu_ns", "wait_wall_ns", "wait_cpu_ns",
-            "certain_blocked_ns", "certain_ready_ns",
-        )
+        if any(busy[key] != idle[key] for key in ("manifest_bytes", "entries", "preimages")):
+            raise ValueError(f"{purpose} prepared manifest shape differs from the matched control")
+        metrics = ("wall_ns", "thread_cpu_ns", "certain_blocked_ns", "certain_ready_ns")
         comparison[purpose] = {metric: busy[metric] - idle[metric] for metric in metrics}
     return {
         "control_slot": slot,
@@ -609,15 +604,15 @@ def run(native, admission, inputs, output):
                      for purpose in PURPOSES}
         slot = MATCHED_SLOTS[(group, index)]
         control = receipt["matched_idle"][str(slot)]
-        frame["matched_idle"] = compare_writers(frame, control, slot)
+        frame["matched_idle"] = compare_manifests(frame, control, slot)
         frame.update(limit_seconds=limit, excess_ns=excess, observation=(
             "NON_REPRODUCTION" if excess <= 0 else
-            "PREPARE_WRITERS_INSUFFICIENT_IN_THIS_SAMPLE" if sum(durations.values()) < excess else
-            "PREPARE_WRITERS_COMPATIBLE_IN_THIS_SAMPLE"
+            "PREPARED_MANIFEST_INSUFFICIENT_IN_THIS_SAMPLE" if sum(durations.values()) < excess else
+            "PREPARED_MANIFEST_COMPATIBLE_IN_THIS_SAMPLE"
         ))
     result = {"status": "COMPLETE_DIAGNOSTIC_ONLY", "historical_cause": "NOT_ESTABLISHED",
-              "factor": "Capture staging writers in _prepare, submit and process",
-              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_STAGING_WRITE_COUNTS",
+              "factor": "Capture prepared manifest durability in submit and process",
+              "comparison": "SAME_RUNNER_MODEL_FREE_MATCHED_PREPARED_MANIFEST_SHAPE",
               "cpu_model": receipt["host"]["cpu_model"],
               "historical_cpu_model_matched": receipt["host"]["cpu_model"] == HISTORICAL_S06_CPU,
               "qualification_eligible": False, "original_status": report["status"],

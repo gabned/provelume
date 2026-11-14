@@ -139,3 +139,18 @@ The [Xeon-only attempt](https://github.com/gabned/provelume/actions/runs/4351249
 received an EPYC 9V45 and stopped before running the controls. This attempt accepts
 either of those two exact CPU profiles with four logical CPUs. Admission and the
 single original native sequence use the same runner, boot and placement.
+
+## Prepared manifest durability in submit and process
+
+The [staging writer run](https://github.com/gabned/provelume/actions/runs/43573044951/job/132381325229)
+ended without an exceedance in the selected samples. This experiment starts at
+the atomic write of the `prepared` manifest in `_prepare()` and stops when
+syncing the parent of the transaction directory returns. It binds the caller's
+file fsync and the two directory fsyncs to their individual operations. The
+submit and acquisition commits are timed separately, as is the search index.
+
+The same-runner model-free controls match Instance depth, prior Capture count,
+manifest size, entries and preimages. The inside and outside delay controls
+remain 120 ms for both phases. The two CPU profiles, tracing and network checks,
+input locks, original evaluator, workload and time bounds are retained. One
+admitted native run observes deterministic slot 1 and S06 slots 1, 2 and 5.
