@@ -26,7 +26,7 @@ MAIN = "2918c3968168e426986bd8fcd7d485f102c11f7b"
 OWNER = "efc915815bd5a1dcad3246c135043b6111394f47"
 BIND = "d046b9c9d4e77529dc17830df3a2eb23dcedc6e2"
 BRANCH = "codex/s07-cpu-lifecycle-diagnostic-20261111"
-PREVIOUS = "d3ff0b8eb543314933042f33dbb030381448f1ef"
+PREVIOUS = "ad9726c638d7febe20d52947ea28fde25a238014"
 HISTORICAL_S06_CPU = "AMD EPYC 9V45 96-Core Processor"
 COMPARISON_CPUS = {
     HISTORICAL_S06_CPU,
@@ -41,7 +41,7 @@ CHANGED = {WORKFLOW, *(f"{DIRECTORY}/{name}" for name in (
     "s07_cleanup_window.py", "s07_pool_window.py", "s07_publish_window.py",
     "s07_flush_window.py", "s07_target_window.py", "s07_add_window.py",
     "s07_prepare_window.py", "s07_prepared_manifest_window.py", "s07_bounded_read_window.py",
-    "s07_prepare_target_window.py",
+    "s07_prepare_target_window.py", "s07_capacity_probe.py",
 ))}
 # Three idle captures precede deterministic slot 1. All three deterministic
 # busy captures precede the governed S06 slots.

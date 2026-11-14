@@ -1,4 +1,4 @@
-name: S07 Capture destination validation in prepare
+name: S07 S06 sample 4 capacity policy reads
 on:
   push:
     branches: [codex/s07-cpu-lifecycle-diagnostic-20261111]
@@ -14,6 +14,7 @@ jobs:
     timeout-minutes: 30
     env:
       DRIVER: diagnostics/s07-lifecycle/s07_cpu.py
+      PROBE: diagnostics/s07-lifecycle/s07_capacity_probe.py
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -23,20 +24,47 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
-      - name: Reconcile the isolated commit, source trees and pin
+      - name: Reconcile isolated identity, owner and immutable PR 460 source
         shell: bash
         run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git show -s --format=%P HEAD)" = ad9726c638d7febe20d52947ea28fde25a238014
           git fetch --no-tags origin \
             +refs/heads/main:refs/remotes/origin/main \
-            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery
-          test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
-          test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery \
+            +refs/heads/product/0.15-s23-integrated-qualification:refs/remotes/origin/product/0.15-s23-integrated-qualification
+          test "$(git rev-parse origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
+          test "$(git rev-parse origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
+          test "$(git rev-parse origin/product/0.15-s23-integrated-qualification)" = 03aa36dd6cd1668174e860225a7a8a35cb40cb1e
+          test "$(git rev-parse '03aa36dd6cd1668174e860225a7a8a35cb40cb1e^{tree}')" = 014e77e30e10ebfaf19a7da29b36c36a0f0eade3
+          git diff --exit-code origin/main origin/product/0.15-s23-integrated-qualification -- .github/agent-protocol/pin.json
+          git diff --exit-code cafb32a50552f0b464dedad0870a116621f62f32 origin/product/0.15-s23-integrated-qualification -- \
+            core/provelume/capacity_admission.py core/provelume/resource_statistics.py \
+            core/provelume/capture_adapter.py core/provelume/capture_journal.py \
+            scripts/qualify_ai_runtime.py scripts/qualify_ai_jobs.py scripts/ai_runtime_report.py
           git worktree add --detach "$RUNNER_TEMP/s07-original" a713f0141799fea60b7caa1a0e62826f3b373bf9
           git worktree add --detach "$RUNNER_TEMP/s07-reviewed-observer" efc915815bd5a1dcad3246c135043b6111394f47
+          git worktree add --detach "$RUNNER_TEMP/s07-candidate" 03aa36dd6cd1668174e860225a7a8a35cb40cb1e
+          git diff --check origin/main HEAD
           python tools/agent_protocol_v2.py verify
-          git diff --check 2918c3968168e426986bd8fcd7d485f102c11f7b HEAD
-      - name: Set up the bounded observer on the ephemeral Linux runner
+      - name: Require the observed EPYC 9V74 and existing four-CPU controls
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          models = {
+              row.split(':', 1)[1].strip() for row in Path('/proc/cpuinfo').read_text().splitlines()
+              if row.startswith('model name')
+          }
+          affinity = sorted(os.sched_getaffinity(0))
+          print('S07_CAPACITY_HOST=' + json.dumps({'models': sorted(models), 'affinity': affinity}))
+          if models != {'AMD EPYC 9V74 80-Core Processor'} or len(affinity) != 4:
+              raise SystemExit('NOT_ADMITTED / NOT_RUN')
+          PY
+      - name: Set up the existing bounded observer on the ephemeral runner
         shell: bash
         run: |
           python scripts/bootstrap.py
@@ -47,32 +75,56 @@ jobs:
           if ! sudo test -f /sys/kernel/tracing/events/sched/sched_switch/format; then
             sudo mount -t tracefs tracefs /sys/kernel/tracing
           fi
-      - name: Admit Xeon 6975P-C, EPYC 9V45 or EPYC 9V74 and validate both windows
-        run: .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
-      - name: Acquire locked inputs after admission
+      - name: Admit the same runner with existing controls and capacity positive and negative controls
         shell: bash
         run: |
-          test -f "$RUNNER_TEMP/s07-admission/admission.json"
+          set -euo pipefail
+          .venv/bin/python "$DRIVER" admit "$RUNNER_TEMP/s07-admission"
+          strace -ff -tt -e trace=network -o "$RUNNER_TEMP/s06-capacity-controls-net" \
+            .venv/bin/python "$PROBE" controls "$RUNNER_TEMP/s07-candidate" \
+            "$RUNNER_TEMP/s07-admission" "$RUNNER_TEMP/s06-capacity"
+          .venv/bin/python "$PROBE" controls-network "$RUNNER_TEMP/s07-candidate" \
+            "$RUNNER_TEMP/s07-admission" "$RUNNER_TEMP/s06-capacity"
+      - name: Acquire locked candidate inputs after admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$RUNNER_TEMP/s06-capacity/controls-network.json"
           git fetch --no-tags origin \
             +refs/heads/main:refs/remotes/origin/main \
-            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery
-          test "$(git rev-parse refs/remotes/origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
-          test "$(git rev-parse refs/remotes/origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
-          .venv/bin/python "$RUNNER_TEMP/s07-original/scripts/ai_runtime_acquire.py" --directory "$RUNNER_TEMP/s07-inputs" --accept-licenses --include-model
-      - name: Execute one original sequence and compare destination validation in prepare
+            +refs/heads/product/0.15-s07-cpu-recovery:refs/remotes/origin/product/0.15-s07-cpu-recovery \
+            +refs/heads/product/0.15-s23-integrated-qualification:refs/remotes/origin/product/0.15-s23-integrated-qualification
+          test "$(git rev-parse origin/main)" = 2918c3968168e426986bd8fcd7d485f102c11f7b
+          test "$(git rev-parse origin/product/0.15-s07-cpu-recovery)" = efc915815bd5a1dcad3246c135043b6111394f47
+          test "$(git rev-parse origin/product/0.15-s23-integrated-qualification)" = 03aa36dd6cd1668174e860225a7a8a35cb40cb1e
+          .venv/bin/python "$RUNNER_TEMP/s07-candidate/scripts/ai_runtime_acquire.py" \
+            --directory "$RUNNER_TEMP/s07-inputs" --accept-licenses --include-model
+      - name: Observe sample 4 once with the immutable candidate evaluator
         shell: bash
         run: |
-          .venv/bin/python "$DRIVER" run "$RUNNER_TEMP/s07-admission" \
-            "$RUNNER_TEMP/s07-inputs" "$RUNNER_TEMP/s07-sequence"
-      - name: Record preparation and execution state
+          set -euo pipefail
+          python="$GITHUB_WORKSPACE/.venv/bin/python"
+          probe="$GITHUB_WORKSPACE/$PROBE"
+          candidate="$RUNNER_TEMP/s07-candidate"
+          outcome="$RUNNER_TEMP/s06-capacity"
+          cd "$candidate"
+          strace -ff -tt -e trace=network -o "$outcome/network" \
+            "$python" "$probe" native "$candidate" "$RUNNER_TEMP/s07-admission" \
+            "$outcome" --inputs "$RUNNER_TEMP/s07-inputs"
+          observer_exit=0
+          "$python" scripts/ai_runtime_network.py --report "$outcome/exact-report.json" \
+            --trace "$outcome/network" || observer_exit=$?
+          "$python" "$probe" summarize "$candidate" "$RUNNER_TEMP/s07-admission" "$outcome" \
+            --observer-exit "$observer_exit"
+      - name: Record preparation and observation state
         if: always()
         shell: bash
         run: |
-          if test -f "$RUNNER_TEMP/s07-sequence/analysis.json"; then
+          if test -f "$RUNNER_TEMP/s06-capacity/summary.json"; then
             echo 'COMPLETE_DIAGNOSTIC_ONLY'
-          elif test -f "$RUNNER_TEMP/s07-admission/started.json"; then
+          elif test -f "$RUNNER_TEMP/s06-capacity/native-started.json"; then
             echo 'STOPPED / UNKNOWN'
-          elif test -f "$RUNNER_TEMP/s07-admission/admission.json"; then
+          elif test -f "$RUNNER_TEMP/s06-capacity/controls-network.json"; then
             echo 'ADMITTED / NOT_RUN'
           else
             echo 'NOT_ADMITTED / NOT_RUN'
