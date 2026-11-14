@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -10,11 +9,10 @@ from scripts import compare_capture_path_guard as comparison
 
 
 def test_source_factor_rejects_an_extra_product_change_or_partial_inventory():
-    after = (Path(__file__).resolve().parents[1] / comparison.PRODUCT).read_bytes()
-    before = after.replace(b"from .local_path_guard import kernel_no_links\n", b"", 1)
-    start = before.index(b"    # On supported Linux hosts")
-    end = before.index(b"    for parent in (path, *path.parents):", start)
-    before = before[:start] + before[end:]
+    before, after = (
+        comparison.common.git(comparison.ROOT, "show", f"{revision}:{comparison.PRODUCT}")
+        for revision in (comparison.BASE, comparison.CHANGE)
+    )
     comparison.verify_factor(before, after, comparison.PATHS)
     for old, new in ((before + b"\n", after), (before, after + b"\n")):
         with pytest.raises(ValueError, match="declared factor"):
