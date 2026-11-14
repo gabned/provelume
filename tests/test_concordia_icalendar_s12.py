@@ -3,12 +3,17 @@
 import json
 import re
 import subprocess
+import time
 from copy import deepcopy
+from http.client import HTTPResponse
+from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from test_google_connection import MemoryVault
 
+from provelume import icalendar_feeds
 from provelume.icalendar_feeds import IcalendarFeeds, parse_isolated
 from provelume.icalendar_worker import MAX_FEED_BYTES, parse_feed
 from provelume.productivity_contract import ProductivityError
@@ -291,6 +296,32 @@ def test_installed_qualification_entry_exercises_actual_worker_and_transfer(tmp_
     assert report["result"] == "PASS" and not report["network_used"]
     assert report["parser_process"] == "REAL_ISOLATED_WORKER"
     assert report["portable_rebuild"] == "PASS" and vault.values == {}
+
+
+@pytest.mark.parametrize(("framing", "payload", "reason"), [
+    ("Content-Length: 5\r\n", b"hello", None),
+    ("Content-Length: 0\r\n", b"", None),
+    ("Content-Length: 6\r\n", b"hello", "incomplete"),
+    ("Content-Length: 5\r\nTransfer-Encoding: chunked\r\n",
+     b"5\r\nhello\r\n0\r\n\r\n", "response"),
+    ("", b"hello", None),
+])
+def test_https_worker_respects_response_body_framing(monkeypatch, framing, payload, reason):
+    wire = BytesIO((f"HTTP/1.1 200 OK\r\nContent-Type: text/calendar\r\n{framing}\r\n"
+                   ).encode("ascii") + payload)
+    wire.raw = SimpleNamespace(_sock=SimpleNamespace(settimeout=lambda _timeout: None))
+    response = HTTPResponse(SimpleNamespace(makefile=lambda *_args: wire))
+    response.begin()
+    opener = SimpleNamespace(open=lambda *_args, **_kwargs: response)
+    monkeypatch.setattr(icalendar_feeds, "build_opener", lambda *_handlers: opener)
+
+    location = {"location": "https://example.invalid/feed"}
+    deadline = time.monotonic() + 5
+    if reason:
+        with pytest.raises(ProductivityError, match=reason):
+            icalendar_feeds._fetch_https_direct(location, deadline)
+    else:
+        assert icalendar_feeds._fetch_https_direct(location, deadline) == payload
 
 
 def test_https_worker_owner_covers_dns_and_preserves_proxy_ca_without_logging(monkeypatch):

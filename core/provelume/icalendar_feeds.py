@@ -71,23 +71,31 @@ def _fetch_https_direct(location, deadline):
             require(response.headers.get_content_type() in {"text/calendar", "application/ics",
                     "application/octet-stream", "text/plain"}, "response")
             declared = response.headers.get("Content-Length")
+            expected = None
             if declared is not None:
-                require(len(response.headers.get_all("Content-Length")) == 1, "response")
-                require(declared.isdecimal() and int(declared) <= MAX_FEED_BYTES, "limit")
+                require(len(response.headers.get_all("Content-Length")) == 1
+                        and response.headers.get("Transfer-Encoding") is None, "response")
+                require(declared.isdecimal(), "limit")
+                expected = int(declared)
+                require(expected <= MAX_FEED_BYTES, "limit")
             chunks, size = [], 0
             while True:
                 require(time.monotonic() < deadline, "deadline")
+                # HTTPResponse closes its stream when the declared body is read.
+                if size == expected:
+                    break
                 sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
                 require(sock is not None, "unsupported")
                 sock.settimeout(min(30, deadline - time.monotonic()))
                 chunk = response.read1(min(65536, MAX_FEED_BYTES + 1 - size))
                 require(time.monotonic() < deadline, "deadline")
                 if not chunk:
-                    require(declared is None or int(declared) == size, "incomplete")
-                    return b"".join(chunks)
+                    break
                 chunks.append(chunk)
                 size += len(chunk)
                 require(size <= MAX_FEED_BYTES, "limit")
+            require(expected is None or expected == size, "incomplete")
+            return b"".join(chunks)
     except HTTPError as error:
         code = "authorization_required" if error.code in {401, 403} else (
             "rate_limited" if error.code == 429 else "response")
