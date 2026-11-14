@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import stat
 from contextlib import nullcontext
@@ -12,6 +13,7 @@ from typing import Any
 
 from .action_center_model import bounded_json, digest, json_bytes, request_identifier, revision
 from .instance_lifecycle import InstanceLifecycleManager
+from .paths import native_path
 from .review_effects import (
     ABSENT,
     MAX_ENTRY_BYTES,
@@ -33,6 +35,11 @@ _RECEIPT = re.compile(r"review_[0-9a-f]{32}\.json\Z")
 _MODES = {"disabled", "proposal-only", "confirm-each", "controlled-automatic"}
 
 
+def _io_path(path: Path) -> Path:
+    # Normalize access only. Callers retain the original path for relative references.
+    return native_path(path) if os.name == "nt" and len(str(path)) >= 248 else path
+
+
 def checked_path(store, relative: str) -> Path:
     """Resolve without creating anything; reject links in every existing component."""
     relative_path(relative)
@@ -42,7 +49,7 @@ def checked_path(store, relative: str) -> Path:
         if part is not None:
             current = current / part
         try:
-            observed = current.lstat()
+            observed = _io_path(current).lstat()
         except (FileNotFoundError, NotADirectoryError):
             continue
         # Observe each component once, without following links or caching it
@@ -57,7 +64,7 @@ def checked_path(store, relative: str) -> Path:
 
 
 def read_bytes(store, relative: str, *, maximum: int = MAX_ENTRY_BYTES) -> bytes | None:
-    path = checked_path(store, relative)
+    path = _io_path(checked_path(store, relative))
     try:
         try:
             observed = path.lstat()
