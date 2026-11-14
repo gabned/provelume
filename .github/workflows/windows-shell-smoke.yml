@@ -1,4 +1,4 @@
-name: Windows group 0 temporary cleanup diagnostic
+name: Windows group 0 CPU scheduling diagnostic
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ env:
 
 jobs:
   timing:
-    name: Diagnostic timing for Windows Core group 0
+    name: Diagnostic CPU scheduling for Windows Core group 0
     if: github.ref == 'refs/heads/codex/windows-group0-temp-20fb2d4' && github.run_attempt == 1
     runs-on: windows-latest
     timeout-minutes: 10
@@ -58,9 +58,304 @@ jobs:
           if result.returncode != 0 or "publication expiry contracts passed" not in result.stdout:
               raise SystemExit("Windows JavaScript contract failed before shard execution")
 
+      - name: Stage the scheduler sampler outside the source checkout
+        shell: pwsh
+        run: |
+          @'
+          """Diagnostic sampler for the unchanged Windows group command."""
+          import ctypes as ct
+          from ctypes import wintypes as wt
+          import json
+          import os
+          from pathlib import Path
+          import random
+          import re
+          import runpy
+          import struct
+          import subprocess
+          import sys
+          import threading
+          import time
+
+          NT = ct.WinDLL("ntdll")
+          K32 = ct.WinDLL("kernel32", use_last_error=True)
+          NT.NtQuerySystemInformation.argtypes = [wt.ULONG, ct.c_void_p, wt.ULONG, ct.POINTER(wt.ULONG)]
+          NT.NtQuerySystemInformation.restype = ct.c_uint32
+          K32.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
+          K32.OpenProcess.restype = wt.HANDLE
+          K32.CloseHandle.argtypes = [wt.HANDLE]
+          K32.GetProcessTimes.argtypes = [wt.HANDLE] + [ct.POINTER(wt.FILETIME)] * 4
+          K32.GetProcessTimes.restype = wt.BOOL
+          K32.GetProcessAffinityMask.argtypes = [wt.HANDLE, ct.POINTER(ct.c_size_t), ct.POINTER(ct.c_size_t)]
+          K32.GetProcessAffinityMask.restype = wt.BOOL
+          K32.GetCurrentProcess.restype = wt.HANDLE
+          K32.SetProcessAffinityMask.argtypes = [wt.HANDLE, ct.c_size_t]
+          K32.SetProcessAffinityMask.restype = wt.BOOL
+          ORIGINAL_POPEN = subprocess.Popen
+
+
+          def emit(event, **fields):
+              print(json.dumps({"event": event, **fields}, sort_keys=True), flush=True)
+
+
+          def process_times(handle):
+              creation, exit_time, kernel, user = (wt.FILETIME() for _ in range(4))
+              if not K32.GetProcessTimes(handle, ct.byref(creation), ct.byref(exit_time), ct.byref(kernel), ct.byref(user)):
+                  raise ct.WinError(ct.get_last_error())
+              return tuple((x.dwHighDateTime << 32) | x.dwLowDateTime for x in (creation, exit_time, kernel, user))
+
+
+          def open_process(pid):
+              return K32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+
+
+          class Sampler:
+              def __init__(self):
+                  self.proc = {}
+                  self.summary = {}
+                  self.stop = threading.Event()
+                  self.thread = threading.Thread(target=self.poll, daemon=True)
+                  self.error = None
+                  self.buffer = ct.create_string_buffer(2 * 1024 * 1024)
+                  self.max_interval = 0.0
+                  self.query_cpu = 0.0
+                  self.samples = 0
+                  self.last = None
+
+              def add_root(self, label, pid):
+                  handle = open_process(pid)
+                  if not handle:
+                      raise ct.WinError(ct.get_last_error())
+                  created, _, _, _ = process_times(handle)
+                  self.summary[label] = dict(root_cpu=0.0, tree_cpu=0.0, ready=0.0, root_ready=0.0,
+                                             running=0.0, blocked=0.0, deferred_ready=0.0, samples=0, processes=0,
+                                             unobserved_descendant_handles=0, observed_wall=0.0,
+                                             concurrent_ready=0.0, concurrent_wall=0.0,
+                                             runnable_without_running_wall=0.0)
+                  self.summary[label]["root"] = (pid, created)
+                  self.proc[(pid, created)] = (label, handle)
+
+              def snapshots(self):
+                  used = wt.ULONG()
+                  while True:
+                      rc = NT.NtQuerySystemInformation(5, self.buffer, len(self.buffer), ct.byref(used))
+                      if rc != 0xC0000004:
+                          break
+                      size = max(len(self.buffer) * 2, used.value)
+                      if size > 32 * 1024 * 1024:
+                          raise RuntimeError("Process snapshot exceeds diagnostic bound")
+                      self.buffer = ct.create_string_buffer(size)
+                  if rc:
+                      raise RuntimeError(f"Process snapshot returned {rc:#x}")
+                  # x64 SYSTEM_PROCESS_INFORMATION followed by SYSTEM_THREAD_INFORMATION.
+                  # Verify own PID/layout and each owned handle's creation time.
+                  offset = 0
+                  rows = {}
+                  data = memoryview(self.buffer)
+                  while True:
+                      next_entry, count = struct.unpack_from("<II", data, offset)
+                      created = struct.unpack_from("<Q", data, offset + 32)[0]
+                      pid, parent = struct.unpack_from("<QQ", data, offset + 80)
+                      end = offset + next_entry if next_entry else used.value
+                      if end > used.value or offset + 256 + 80 * count > end:
+                          raise RuntimeError("Unexpected x64 process snapshot layout")
+                      rows[pid] = (created, parent, offset, count)
+                      if not next_entry:
+                          break
+                      offset = end
+                  if os.getpid() not in rows:
+                      raise RuntimeError("Own PID absent from scheduler snapshot")
+                  return rows
+
+              def sample(self):
+                  started = time.thread_time()
+                  rows = self.snapshots()
+                  now = time.perf_counter()
+                  interval = now - self.last if self.last is not None else 0.0
+                  self.last = now
+                  self.max_interval = max(self.max_interval, interval)
+                  # Bound attribution during pauses of the observer itself.
+                  weight = interval if interval < 0.25 else 0.0
+                  data = memoryview(self.buffer)
+                  owner = {pid: (created, label) for (pid, created), (label, _) in list(self.proc.items())
+                           if pid in rows and rows[pid][0] == created}
+                  pending = {pid for pid in rows if pid not in owner}
+                  while pending:
+                      found = set()
+                      for pid in pending:
+                          created, parent, _, _ = rows[pid]
+                          if parent not in owner or created < owner[parent][0]:
+                              continue
+                          label = owner[parent][1]
+                          handle = open_process(pid)
+                          if handle and process_times(handle)[0] != created:
+                              K32.CloseHandle(handle)
+                              handle = None
+                          if not handle:
+                              self.summary[label]["unobserved_descendant_handles"] += 1
+                              continue
+                          self.proc[(pid, created)] = (label, handle)
+                          owner[pid] = (created, label)
+                          found.add(pid)
+                      if not found:
+                          break
+                      pending -= found
+                  active = set()
+                  concurrent = {label for pid, (created, label) in owner.items()
+                                if (pid, created) == self.summary[label]["root"]} == {"shard_0", "shard_1"}
+                  running = set()
+                  ready = set()
+                  for pid, (created, label) in owner.items():
+                      _, _, offset, count = rows[pid]
+                      info = self.summary[label]
+                      for n in range(count):
+                          thread = offset + 256 + 80 * n
+                          if struct.unpack_from("<Q", data, thread + 40)[0] != pid:
+                              raise RuntimeError("Thread ownership does not match snapshot layout")
+                          state = struct.unpack_from("<I", data, thread + 68)[0]
+                          if state == 1:
+                              ready.add(label)
+                              info["ready"] += weight
+                              if concurrent:
+                                  info["concurrent_ready"] += weight
+                              if (pid, created) == info["root"]:
+                                  info["root_ready"] += weight
+                          elif state == 2:
+                              running.add(label)
+                              info["running"] += weight
+                          elif state == 5:
+                              info["blocked"] += weight
+                          elif state in (3, 7):
+                              info["deferred_ready"] += weight
+                      active.add(label)
+                  for label in active:
+                      self.summary[label]["samples"] += 1
+                      self.summary[label]["observed_wall"] += weight
+                      if concurrent:
+                          self.summary[label]["concurrent_wall"] += weight
+                          if label in ready and label not in running:
+                              self.summary[label]["runnable_without_running_wall"] += weight
+                  self.samples += 1
+                  self.query_cpu += time.thread_time() - started
+
+              def poll(self):
+                  rng = random.Random(460)
+                  try:
+                      while not self.stop.is_set():
+                          self.sample()
+                          self.stop.wait(rng.uniform(0.070, 0.110))
+                  except Exception as error:
+                      self.error = type(error).__name__ + ": " + str(error)
+
+              def finish(self, label):
+                  self.stop.set()
+                  if self.thread.is_alive():
+                      self.thread.join()
+                  for identity, (key, handle) in self.proc.items():
+                      entry = self.summary[key]
+                      try:
+                          creation, exit_time, kernel, user = process_times(handle)
+                          cpu = (kernel + user) / 10_000_000
+                          entry["tree_cpu"] += cpu
+                          entry["processes"] += 1
+                          if identity == entry["root"]:
+                              entry["root_cpu"] = cpu
+                              entry["root_exited"] = bool(exit_time)
+                              entry["root_wall"] = (exit_time - creation) / 10_000_000 if exit_time else None
+                      finally:
+                          K32.CloseHandle(handle)
+                  for row in self.summary.values():
+                      row.pop("root")
+                  emit(label, measurements=self.summary, snapshots=self.samples, observer_cpu_seconds=self.query_cpu,
+                       max_snapshot_gap_seconds=self.max_interval, error=self.error)
+
+
+          def calibrate():
+              mask, available = ct.c_size_t(), ct.c_size_t()
+              if not K32.GetProcessAffinityMask(K32.GetCurrentProcess(), ct.byref(mask), ct.byref(available)) or not mask.value:
+                  raise RuntimeError("Cannot determine calibration affinity")
+              one_core = mask.value & -mask.value
+              source = ("import ctypes as c,sys,time; from ctypes import wintypes as w\n"
+                        "k=c.WinDLL('kernel32'); k.GetCurrentProcess.restype=w.HANDLE\n"
+                        "k.SetProcessAffinityMask.argtypes=[w.HANDLE, c.c_size_t]\n"
+                        "if not k.SetProcessAffinityMask(k.GetCurrentProcess(), int(sys.argv[1])): raise SystemExit(3)\n"
+                        "if sys.argv[2]=='sleep': time.sleep(2.0)\n"
+                        "else:\n"
+                        " end=time.perf_counter()+2.0\n"
+                        " while time.perf_counter()<end: pass\n")
+              observer = Sampler()
+              children = []
+              try:
+                  for label in ("spin0", "spin1", "sleep"):
+                      p = ORIGINAL_POPEN([sys.executable, "-c", source, str(one_core), label])
+                      children.append(p)
+                      observer.add_root(label, p.pid)
+                  observer.thread.start()
+                  for p in children:
+                      if p.wait(timeout=8):
+                          raise RuntimeError("Calibration child failed")
+              finally:
+                  for p in children:
+                      if p.poll() is None:
+                          p.terminate()
+                          p.wait(timeout=3)
+                  observer.finish("scheduler_calibration")
+              rows = observer.summary
+              if (observer.error or rows["sleep"]["samples"] < 10 or rows["sleep"]["blocked"] < 0.4
+                      or rows["sleep"]["ready"] > 0.25 or min(rows[x]["ready"] for x in ("spin0", "spin1")) < 0.25
+                      or min(rows[x]["tree_cpu"] for x in ("spin0", "spin1")) < 0.4):
+                  raise RuntimeError("Scheduler sampler did not distinguish CPU competition from blocked sleep")
+
+
+          def main():
+              if sys.platform != "win32" or struct.calcsize("P") != 8:
+                  raise SystemExit("Windows x64 is required")
+              calibrate()
+              if sys.argv[1:] == ["--calibration-only"]:
+                  return
+              checker = Path("tools/agent_protocol_work_check.py").resolve(strict=True)
+              observer = Sampler()
+
+              def record_popen(*args, **kwargs):
+                  proc = ORIGINAL_POPEN(*args, **kwargs)
+                  command = args[0] if args else kwargs.get("args")
+                  if (isinstance(command, list) and len(command) > 3 and command[1] == str(checker)
+                          and command[2] == "windows-shard"):
+                      shard = command[command.index("--shard") + 1]
+                      try:
+                          observer.add_root("shard_" + shard, proc.pid)
+                      except OSError as error:
+                          observer.error = "Cannot open shard process: " + str(error.winerror)
+                  return proc
+
+              subprocess.Popen = record_popen
+              sys.argv[0] = str(checker)
+              sys.path.insert(0, str(checker.parent))
+              observer.thread.start()
+              exit_result = None
+              try:
+                  runpy.run_path(str(checker), run_name="__main__")
+              except SystemExit as error:
+                  exit_result = error.code
+              finally:
+                  subprocess.Popen = ORIGINAL_POPEN
+                  observer.finish("scheduler_shards")
+              if exit_result != 0:
+                  raise SystemExit(exit_result)
+              if (observer.error or set(observer.summary) != {"shard_0", "shard_1"}
+                      or any(not row.get("root_exited") or not row["samples"]
+                             or row["observed_wall"] < 0.90 * row["root_wall"]
+                             for row in observer.summary.values())):
+                  raise RuntimeError("Incomplete scheduler measurement")
+
+
+          if __name__ == "__main__":
+              main()
+          '@ | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-scheduler.py')
+
       - name: Execute two of four Windows shards within the unchanged deadline
         run: >-
-          python tools/agent_protocol_work_check.py windows-group
+          python "${{ runner.temp }}/windows-scheduler.py" windows-group
           --root "${{ github.workspace }}"
           --output "${{ runner.temp }}/windows-core-0"
           --group 0 --commit "ccdb94d811d28ede7d6972be57306128bff4323c"
@@ -78,131 +373,3 @@ jobs:
             ${{ runner.temp }}/windows-core-0/shard-*/*.log
           if-no-files-found: error
           retention-days: 14
-
-      - name: Identify the first denied deletion in shard 1
-        shell: python
-        run: |
-          import json
-          import os
-          import re
-          import shutil
-          import stat
-          import time
-          from pathlib import Path
-
-          def emit(event, **fields):
-              print(json.dumps({"event": event, **fields}, sort_keys=True), flush=True)
-
-          def real_directory(path):
-              info = path.lstat()
-              if (not stat.S_ISDIR(info.st_mode)
-                  or info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT):
-                  raise SystemExit("Unexpected diagnostic directory type")
-              return path
-
-          root = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
-          output = real_directory(root / "windows-core-0")
-          shard = real_directory(output / "shard-1")
-          target = real_directory(shard / "pytest-tmp")
-          result = json.loads((output / "group-0.json").read_text(encoding="utf-8"))
-          if (result["exit_code"] != 0 or result["group"] != 0 or result["timed_out"]
-              or result["timeout_seconds"] != 540
-              or result["identity"]["tree"] != "95eb63daf19b3c98d5aa7adaf46868d331cfc295"):
-              raise SystemExit("Group did not finish successfully with the original controls")
-
-          # Mirror the first probe and stop at its first error. Leave the failed
-          # entry in place, with its attributes unchanged, for the native method.
-          observed = None
-
-          def stop_on_error(function, path, error):
-              candidate = Path(path)
-              relative = candidate.relative_to(target)
-              if not candidate.resolve(strict=False).is_relative_to(target):
-                  raise SystemExit("Unexpected deletion path")
-              fields = {"operation": function.__name__,
-                        "winerror": getattr(error, "winerror", None),
-                        "errno": error.errno, "relative_depth": len(relative.parts)}
-              # Only publish names fixed by known synthetic test fixtures.
-              known_test = re.compile(r"test_(?:permission_only_postpubli|migration_preserves_windo|windows_canonical_config_)[a-z_]*\d+")
-              if relative.parts and known_test.fullmatch(relative.parts[0]):
-                  fields["fixture"] = relative.parts[0]
-              if candidate.name in {"operator.txt", "provelume.yml"}:
-                  fields["fixture_leaf"] = candidate.name
-              try:
-                  attrs = candidate.lstat().st_file_attributes
-              except OSError as metadata_error:
-                  fields["metadata_winerror"] = getattr(metadata_error, "winerror", None)
-              else:
-                  fields["read_only"] = bool(attrs & stat.FILE_ATTRIBUTE_READONLY)
-                  fields["reparse_point"] = bool(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
-                  fields["directory"] = bool(attrs & stat.FILE_ATTRIBUTE_DIRECTORY)
-              emit("python_delete_error", **fields)
-              raise error
-
-          started = time.perf_counter()
-          try:
-              shutil.rmtree(target, onexc=stop_on_error)
-          except PermissionError as error:
-              if error.winerror != 5:
-                  raise
-              observed = error.winerror
-          emit("python_delete_end", seconds=time.perf_counter() - started,
-               winerror=observed, residual=target.exists())
-
-      - name: Apply the active runner's native cleanup to the observed residual
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          function Assert-PlainDirectory([string]$Path) {
-            $item = Get-Item -LiteralPath $Path -Force
-            if (-not $item.PSIsContainer -or
-                ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected directory type' }
-            return $item.FullName
-          }
-          $root = Assert-PlainDirectory ([IO.Path]::GetFullPath($env:RUNNER_TEMP))
-          $group = Assert-PlainDirectory (Join-Path $root 'windows-core-0')
-          $shard = Assert-PlainDirectory (Join-Path $group 'shard-1')
-          $target = Join-Path $shard 'pytest-tmp'
-          if (-not (Test-Path -LiteralPath $target)) {
-            @{event='native_delete_not_needed'; reason='no Python deletion error'} | ConvertTo-Json -Compress
-            exit 0
-          }
-          $target = Assert-PlainDirectory $target
-          if ([IO.Path]::GetRelativePath($root, $target) -ne 'windows-core-0\shard-1\pytest-tmp') {
-            throw 'Target outside the diagnostic directory'
-          }
-
-          $processId = $PID
-          $worker = $null
-          for ($depth = 0; $depth -lt 12 -and $processId; $depth++) {
-            $process = Get-CimInstance Win32_Process -Filter "ProcessId=$processId"
-            if ($process.Name -eq 'Runner.Worker.exe') { $worker = $process.ExecutablePath; break }
-            $processId = $process.ParentProcessId
-          }
-          if (-not $worker) { throw 'Cannot identify the active GitHub runner worker' }
-          $bin = [IO.Path]::GetDirectoryName($worker)
-          $sdk = Join-Path $bin 'Runner.Sdk.dll'
-          $assembly = [Reflection.Assembly]::LoadFrom($sdk)
-          if ($assembly.Location -ne $sdk) { throw 'Runner cleanup assembly location mismatch' }
-          $class = $assembly.GetType('GitHub.Runner.Sdk.IOUtil', $true)
-          $method = $class.GetMethod('DeleteDirectory', [type[]]@([string], [bool], [bool], [Threading.CancellationToken]))
-          if (-not $method) { throw 'Native runner cleanup signature missing' }
-          @{
-            event='native_method_bound'; assembly_sha256=(Get-FileHash -LiteralPath $sdk).Hash;
-            worker_product_version=[Diagnostics.FileVersionInfo]::GetVersionInfo($worker).ProductVersion;
-            framework=[Runtime.InteropServices.RuntimeInformation]::FrameworkDescription
-          } | ConvertTo-Json -Compress
-          $watch = [Diagnostics.Stopwatch]::StartNew()
-          try {
-            [void]$method.Invoke($null, [object[]]@($target, $true, $true, [Threading.CancellationToken]::None))
-            $watch.Stop()
-            $left = @(Get-ChildItem -Force -LiteralPath $target | Select-Object -First 1).Count -ne 0
-            @{event='native_delete_end'; seconds=$watch.Elapsed.TotalSeconds; residual=$left} | ConvertTo-Json -Compress
-            if ($left) { exit 1 }
-          } catch {
-            $watch.Stop()
-            $errorInfo = $_.Exception.GetBaseException()
-            @{event='native_delete_error'; seconds=$watch.Elapsed.TotalSeconds;
-              kind=$errorInfo.GetType().Name; hresult=$errorInfo.HResult} | ConvertTo-Json -Compress
-            exit 1
-          }
