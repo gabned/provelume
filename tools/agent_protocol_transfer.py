@@ -14,6 +14,7 @@ import json
 import os
 import re
 import subprocess
+from itertools import batched
 from pathlib import Path, PurePosixPath
 
 
@@ -447,31 +448,18 @@ def materialize(manifest, source_root, destination, *, trusted_manifest, accepte
             p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()
         }
         require(actual <= expected, "Unrelated destination material preserved")
+    sources = [row for row in manifest["files"] if row["source_revision"] == "SOURCE"]
+    git = git_reader(source_root, safe_directory=True)
+    verify_tree_rows(git, manifest["source_commit"],
+                     [(row["source_path"], row["mode"], row["git_blob"]) for row in sources],
+                     "Source executable mode or blob mismatch")
+    blobs = read_git_blobs(git, (row["git_blob"] for row in sources))
     payloads = []
     for row in manifest["files"]:
         if row["source_revision"] == "AUTHORED":
             data = base64.b64decode(row["content_base64"], validate=True)
         else:
-            command = [
-                "git",
-                "--no-replace-objects",
-                "-c",
-                "protocol.allow=never",
-                "-c",
-                "safe.directory=" + source_root.as_posix(),
-                "-C",
-                str(source_root),
-            ]
-            environment = {**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
-            data = subprocess.check_output(
-                [*command, "show", manifest["source_commit"] + ":" + row["source_path"]],
-                env=environment,
-            )
-            tree = subprocess.check_output(
-                [*command, "ls-tree", manifest["source_commit"], "--", row["source_path"]],
-                env=environment,
-            )
-            require(tree.decode().split()[0] == row["mode"], "Source executable mode mismatch")
+            data = blobs[row["git_blob"]]
         verify_bytes(row, data)
         target = destination / row["destination_path"]
         require(
@@ -519,17 +507,60 @@ def read_maintenance_record(document):
     return json.loads(payload[0], object_pairs_hook=unique_fields)
 
 
-def maintenance_git(root, *arguments):
+def git_reader(root, *, safe_directory=False):
     """Offline object reads only, never lazy fetches or replacement ancestry."""
-    try:
-        return subprocess.check_output(
-            ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(root),
-             *arguments],
-            env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"},
-            stderr=subprocess.PIPE,
-        )
-    except subprocess.CalledProcessError as error:
-        raise ValueError("Required Git evidence unavailable") from error
+    command = ["git", "--no-replace-objects", "-c", "protocol.allow=never"]
+    if safe_directory:
+        command.extend(["-c", "safe.directory=" + root.as_posix()])
+    command.extend(["-C", str(root)])
+    environment = {**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
+
+    def read(*arguments, input=None):
+        try:
+            return subprocess.check_output([*command, *arguments], input=input,
+                                           env=environment, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as error:
+            raise ValueError("Required Git evidence unavailable") from error
+
+    return read
+
+
+def maintenance_git(root, *arguments):
+    return git_reader(root)(*arguments)
+
+
+def verify_tree_rows(git, revision, rows, message):
+    for batch in batched(rows, 32):
+        paths = [path for path, _mode, _oid in batch]
+        expected = {f"{mode} blob {oid}\t{path}".encode() for path, mode, oid in batch}
+        listing = git("--literal-pathspecs", "ls-tree", "-z", "--full-tree", revision, "--", *paths)
+        entries = listing.split(b"\0")
+        require(entries[-1] == b"" and len(entries) == len(expected) + 1
+                and set(entries[:-1]) == expected, message)
+
+
+def read_git_blobs(git, oids):
+    oids = list(dict.fromkeys(oids))
+    if not oids:
+        return {}
+    require(all(re.fullmatch(r"[0-9a-f]{40}", oid) for oid in oids), "Invalid Git blob identity")
+    output = git("cat-file", "--batch", input="".join(oid + "\n" for oid in oids).encode())
+    blobs, offset = {}, 0
+    for oid in oids:
+        end = output.find(b"\n", offset, offset + 80)
+        require(end >= 0, "Invalid Git batch header")
+        header = re.fullmatch(rb"([0-9a-f]{40}) blob (0|[1-9][0-9]*)", output[offset:end])
+        require(header is not None and header[1] == oid.encode(), "Invalid Git batch header")
+        start = end + 1
+        end = start + int(header[2])
+        require(output[end:end + 1] == b"\n", "Incomplete Git batch blob")
+        data = output[start:end]
+        identity = hashlib.sha1(b"blob " + header[2] + b"\0" + data).hexdigest()
+        require(identity == oid, "Git batch blob identity mismatch")
+        blobs[oid] = data
+        offset = end + 1
+    require(offset == len(output), "Unexpected Git batch output")
+    return blobs
 
 
 def verify_maintenance(predecessor_root, destination_root, *, accepted_predecessor,
@@ -585,13 +616,16 @@ def verify_maintenance(predecessor_root, destination_root, *, accepted_predecess
         require(path.casefold() not in {p.casefold() for p in paths}, "Duplicate maintenance path")
         paths.append(path)
         require(row["mode"] in {"100644", "100755"}, "Unsafe maintenance mode")
-        for revision, blob in ((expected_base, row["before_blob"]),
-                               (expected_head, row["after_blob"])):
-            observed = maintenance_git(destination_root, "ls-tree", revision, "--", path)
-            require(observed == f"{row['mode']} blob {blob}\t{path}\n".encode(),
-                    "Maintenance blob/mode mismatch")
-        content = maintenance_git(destination_root, "show", expected_head + ":" + path)
-        require(hashlib.sha256(content).hexdigest() == row["sha256"],
+    git = git_reader(destination_root)
+    verify_tree_rows(git, expected_base,
+                     [(row["path"], row["mode"], row["before_blob"]) for row in rows],
+                     "Maintenance blob/mode mismatch")
+    verify_tree_rows(git, expected_head,
+                     [(row["path"], row["mode"], row["after_blob"]) for row in rows],
+                     "Maintenance blob/mode mismatch")
+    blobs = read_git_blobs(git, (row["after_blob"] for row in rows))
+    for row in rows:
+        require(hashlib.sha256(blobs[row["after_blob"]]).hexdigest() == row["sha256"],
                 "Maintenance content mismatch")
     delta = maintenance_git(destination_root, "diff", "--no-renames", "--name-status", "-z",
                             expected_base, expected_head).decode().rstrip("\0").split("\0")
@@ -680,23 +714,27 @@ def verify_dependency_update(predecessor_root, destination_root, *, accepted_pre
         require(path in paths and path not in seen, "Out-of-scope or duplicate dependency path")
         seen.add(path)
         require(row["mode"] == "100644", "Dependency file mode must remain 100644")
-        for revision, blob in ((expected_base, row["before_blob"]),
-                               (expected_head, row["after_blob"])):
-            observed = maintenance_git(destination_root, "ls-tree", revision, "--", path)
-            require(observed == f"100644 blob {blob}\t{path}\n".encode(),
-                    "Dependency blob/mode mismatch")
-        before = maintenance_git(destination_root, "show", expected_base + ":" + path)
-        after = maintenance_git(destination_root, "show", expected_head + ":" + path)
+    require(seen == paths, "Incomplete dependency inventory")
+    git = git_reader(destination_root)
+    verify_tree_rows(git, expected_base,
+                     [(row["path"], row["mode"], row["before_blob"]) for row in rows],
+                     "Dependency blob/mode mismatch")
+    verify_tree_rows(git, expected_head,
+                     [(row["path"], row["mode"], row["after_blob"]) for row in rows],
+                     "Dependency blob/mode mismatch")
+    blobs = read_git_blobs(git, (row[field] for row in rows
+                                for field in ("before_blob", "after_blob")))
+    for row in rows:
+        before, after = blobs[row["before_blob"]], blobs[row["after_blob"]]
         require(hashlib.sha256(after).hexdigest() == row["sha256"],
                 "Dependency content mismatch")
-        if path == "requirements-test.txt":
+        if row["path"] == "requirements-test.txt":
             require(before == b"pytest==8.4.2\nruff==0.16.9\n"
                     and after == b"pytest==9.0.3\nruff==0.16.9\n",
                     "Only the exact patched pytest requirement is allowed")
         else:
             require(b"1.5.1" in before and after == before.replace(b"1.5.1", b"1.5.2"),
                     "Only mechanical distribution identity changes are allowed")
-    require(seen == paths, "Incomplete dependency inventory")
     delta = maintenance_git(destination_root, "diff", "--no-renames", "--name-status", "-z",
                             expected_base, expected_head).decode().rstrip("\0").split("\0")
     require(len(delta) == 2 * len(paths)

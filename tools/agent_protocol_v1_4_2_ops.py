@@ -678,13 +678,13 @@ def manifest(source: Path, commit: str) -> dict:
     sha(commit)
     source = source.resolve(strict=True)
 
-    def git(*args: str) -> bytes:
+    def git(*args: str, input_bytes: bytes | None = None) -> bytes:
         # Fixed read-only local commands; no fetch, hooks, filters or shell.
         result = subprocess.run(
             ["git", "--no-replace-objects", "-c", f"safe.directory={source.as_posix()}",
              "-c", "core.fsmonitor=false",
              "-c", "protocol.allow=never", "-C", str(source), *args],
-            capture_output=True, check=False,
+            input=input_bytes, capture_output=True, check=False,
             env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_ALLOW_PROTOCOL": "",
                  "GIT_OPTIONAL_LOCKS": "0"},
         )
@@ -702,22 +702,43 @@ def manifest(source: Path, commit: str) -> dict:
     require(not git("status", "--porcelain=v1", "--untracked-files=normal").strip(),
             "canonical source checkout is dirty")
     entries = {}
-    tree = git("ls-tree", "-r", "--full-tree", commit, "--", *VENDOR_FILES)
-    for line in tree.decode().splitlines():
+    tree = git("--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", commit,
+               "--", *VENDOR_FILES)
+    require(tree.endswith(b"\0"), "invalid canonical source tree response")
+    for line in tree.decode().split("\0")[:-1]:
         metadata, name = line.split("\t", 1)
         mode, kind, oid = metadata.split()
-        require(kind == "blob", "canonical source entry is not a blob")
-        entries[name] = (mode, oid)
+        require(kind == "blob" and name in VENDOR_FILES and name not in entries,
+                "unexpected canonical source tree entry")
+        entries[name] = (mode, sha(oid))
     rows = []
+    expected = []
     for relative, mode in VENDOR_FILES.items():
         target = safe_file(source, relative)
         require(target.is_file(), f"missing canonical file: {relative}")
         data = target.read_bytes()
-        require(entries.get(relative) == (mode, blob(data)) and
-                git("cat-file", "blob", f"{commit}:{relative}") == data,
+        oid = blob(data)
+        require(entries.get(relative) == (mode, oid),
                 f"source bytes/mode differ from canonical commit: {relative}")
         rows.append({"path": relative, "mode": mode, "sha256": hashlib.sha256(data).hexdigest(),
-                     "git_blob": blob(data)})
+                     "git_blob": oid})
+        expected.append((relative, oid, data))
+    batch = git("cat-file", "--batch", input_bytes=b"".join(
+        oid.encode("ascii") + b"\n" for _, oid, _ in expected
+    ))
+    offset = 0
+    for relative, oid, data in expected:
+        # Unlike single-object cat-file, batch reports a missing object in-band.
+        require(not batch.startswith(f"{oid} missing\n".encode("ascii"), offset),
+                "canonical Git source verification failed")
+        header = f"{oid} blob {len(data)}\n".encode("ascii")
+        start = offset + len(header)
+        end = start + len(data)
+        require(batch[offset:start] == header and batch[start:end] == data
+                and batch[end:end + 1] == b"\n",
+                f"source bytes/mode differ from canonical commit: {relative}")
+        offset = end + 1
+    require(offset == len(batch), "unexpected canonical Git blob batch data")
     return {"protocol_version": VERSION, "source_repository": "gabned/provelume",
             "source_commit": commit, "files": rows}
 

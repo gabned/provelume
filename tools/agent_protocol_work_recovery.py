@@ -262,6 +262,26 @@ def git(root, *args):
     return result.stdout
 
 
+def committed_tree(root, commit, paths, message):
+    source.valid_sha(commit)
+    selected = {source.valid_path(path) for path in paths}
+    if not selected:
+        return {}
+    tree = git(root, "--literal-pathspecs", "ls-tree", "-rz", "--full-tree", commit,
+               "--", *sorted(selected))
+    source.require(tree.endswith(b"\0"), message)
+    entries = {}
+    for row in tree.split(b"\0")[:-1]:
+        metadata, delimiter, raw_name = row.partition(b"\t")
+        name = raw_name.decode("utf-8")
+        fields = metadata.split()
+        source.require(delimiter and name in selected and name not in entries
+                       and len(fields) == 3 and fields[:2] == [b"100644", b"blob"], message)
+        entries[name] = source.valid_sha(fields[2].decode("ascii"))
+    source.require(entries.keys() == selected, message)
+    return entries
+
+
 def replace_assignment(text, name, value):
     matches = [
         node
@@ -282,27 +302,31 @@ def replace_assignment(text, name, value):
 
 def accepted_routing(canonical, commit):
     """Read current guidance only from the selected immutable canonical source."""
-    def committed(path):
+    message = "canonical routing bytes/mode drift"
+
+    def committed(path, entries):
         data = source.read_regular(regular(canonical, path))
-        entry = git(canonical, "ls-tree", commit, "--", path).decode().split()
-        source.require(len(entry) == 4 and entry[:2] == ["100644", "blob"]
-                       and entry[2] == ops.blob(data), "canonical routing bytes/mode drift")
+        source.require(entries[path] == ops.blob(data), message)
         return data
 
-    agents = committed("AGENTS.md").decode()
+    entries = committed_tree(canonical, commit, ("AGENTS.md",), message)
+    agents = committed("AGENTS.md", entries).decode()
     versions = re.findall(r"(?m)^AGENT_DEVELOPMENT_PROTOCOL: (1[.]4[.][789])$", agents)
     source.require(len(versions) == 1, "one supported accepted Protocol version required")
     version = versions[0]
     guide = f"docs/agent-development-v{version}.md"
     manifest_path = f".github/agent-protocol/documents-v{version}.json"
     source.require(guide in agents and manifest_path in agents, "accepted instruction routing")
-    manifest = json.loads(committed(manifest_path))
+    entries = committed_tree(canonical, commit, (manifest_path,), message)
+    manifest = json.loads(committed(manifest_path, entries))
     source.require(manifest.get("protocol_version") == version, "accepted routing version")
     execution = sibling("agent_protocol_v1_4_7")
     selected = execution.select_documents(
         canonical, manifest, ops.digest(manifest), workstream="PROTOCOL", phase="IMPLEMENT")
-    for row in manifest["documents"]:
-        committed(row["path"])
+    paths = tuple(row["path"] for row in manifest["documents"])
+    entries = committed_tree(canonical, commit, paths, message)
+    for path in paths:
+        committed(path, entries)
     source.require({"AGENTS.md", guide} <= {r["path"] for r in selected["documents"]}
                    and all(any(r["path"] == path and r["role"] == "ALWAYS"
                                for r in manifest["documents"]) for path in ("AGENTS.md", guide)),
@@ -349,21 +373,18 @@ def adoption_plan(canonical, target, commit, repository, *, work=None):
         source.candidate_delta(snapshot, baseline, target, repository, snapshot["commit_sha"])
     manifest = ops.manifest(canonical, commit)
     version, _ = accepted_routing(canonical, commit)
+    message = "canonical Work bytes/mode drift"
+    entries = committed_tree(canonical, commit, WORK_FILES, message)
     work = []
     for path in WORK_FILES:
         data = source.read_regular(regular(canonical, path))
-        observed = git(canonical, "ls-tree", commit, "--", path).decode().split()
-        source.require(
-            len(observed) == 4
-            and observed[:2] == ["100644", "blob"]
-            and observed[2] == ops.blob(data),
-            "canonical Work bytes/mode drift",
-        )
+        oid = ops.blob(data)
+        source.require(entries[path] == oid, message)
         work.append(
             {
                 "path": path,
                 "mode": "100644",
-                "git_blob": ops.blob(data),
+                "git_blob": oid,
                 "sha256": hashlib.sha256(data).hexdigest(),
             }
         )
