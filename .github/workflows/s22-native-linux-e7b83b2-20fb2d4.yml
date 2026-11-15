@@ -17,12 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: e7b83b2
-            source: e7b83b2d86e03061ad3234e1dc0e500ac0524bc1
-            tree: 675ca551037028131790e797de8a98111224c0b1
-          - label: 20fb2d4
-            source: 20fb2d428eb49020868a6170a1bb40476ee3afd2
-            tree: 95eb63daf19b3c98d5aa7adaf46868d331cfc295
+          - label: 5044fb6
+            source: 5044fb698a5d231a4f1faf68794af611950a05a1
+            tree: 2a0b4aaee42d6bb05346f88c62a46d9d0147243e
     env:
       SOURCE_COMMIT: '${{ matrix.source }}'
       SOURCE_TREE: '${{ matrix.tree }}'
