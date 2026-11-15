@@ -104,18 +104,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --network host \
+          docker run --rm --interactive --network host \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/source,readonly" \
             --mount "type=bind,src=$(command -v docker),dst=/usr/local/bin/docker,readonly" \
             --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
             --env SOURCE_COMMIT --env SOURCE_TREE \
-            s22-native-ready bash -se <<'S22'
+            s22-native-ready bash -se <<'S22' | tee "$RUNNER_TEMP/s22-native-result.log"
           set -euo pipefail
           work="$(mktemp -d)"
-          export HOME="$work/home" XDG_RUNTIME_DIR="$work/runtime" XDG_CONFIG_HOME="$work/config"
+          export XDG_RUNTIME_DIR="$work/runtime" XDG_CONFIG_HOME="$work/config"
           export XDG_DATA_HOME="$work/data" PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/source/core
           export S22_WORKSPACE="$work"
-          mkdir -m 700 "$HOME" "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+          mkdir -m 700 "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
           git config --global --add safe.directory /source
           cd /source
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
@@ -189,3 +189,4 @@ jobs:
             python "$S22_WORKSPACE/verify_and_run.py"
           '
           S22
+          grep -qE '^\{.*"record": "S22_NATIVE_EXACT_SOURCE".*"result": "PASS"' "$RUNNER_TEMP/s22-native-result.log"
