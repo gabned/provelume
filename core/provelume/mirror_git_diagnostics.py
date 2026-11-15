@@ -20,7 +20,7 @@ def git_failure_evidence(error):
         "--version", "init", "config", "hash-object", "cat-file", "mktree",
         "commit-tree", "rev-parse", "update-ref", "symbolic-ref", "show-ref",
         "for-each-ref", "ls-tree", "ls-remote", "fetch", "push", "write-tree",
-        "read-tree", "update-index", "check-ref-format",
+        "read-tree", "update-index", "check-ref-format", "credential",
     }
     kinds = {
         OSError: "OSError", FileNotFoundError: "FileNotFoundError",

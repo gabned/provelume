@@ -228,6 +228,13 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
 
                     if isinstance(exc, GiteaMirrorQualificationFailure):
                         failure["qualification_evidence"] = exc.evidence
+                if (
+                    options.command == "gitlab-mirror-qualify"
+                    and failure["code"] == "git_unavailable"
+                ):
+                    from .mirror_git_diagnostics import git_failure_evidence
+
+                    failure["qualification_evidence"] = git_failure_evidence(exc)
                 if options.command == "gitea-server-qualify":
                     from .mirror_gitea_server_qualification import GiteaQualificationFailure
 
