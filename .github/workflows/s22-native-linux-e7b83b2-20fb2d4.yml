@@ -1,0 +1,191 @@
+name: S22 exact-source isolated Linux SSH and rsync
+
+on:
+  push:
+    branches: ['codex/s22-native-linux-e7b83b2-20fb2d4']
+    paths: ['.github/workflows/s22-native-linux-e7b83b2-20fb2d4.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: S22 native Linux (${{ matrix.label }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: e7b83b2
+            source: e7b83b2d86e03061ad3234e1dc0e500ac0524bc1
+            tree: 675ca551037028131790e797de8a98111224c0b1
+          - label: 20fb2d4
+            source: 20fb2d428eb49020868a6170a1bb40476ee3afd2
+            tree: 95eb63daf19b3c98d5aa7adaf46868d331cfc295
+    env:
+      SOURCE_COMMIT: '${{ matrix.source }}'
+      SOURCE_TREE: '${{ matrix.tree }}'
+      PYTHON_IMAGE: docker.io/library/python@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: '${{ matrix.source }}'
+          persist-credentials: false
+      - name: Reconcile source and check Docker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test -z "$(git status --porcelain)"
+          git show -s --format='source_commit=%H source_tree=%T'
+          docker --host=unix:///var/run/docker.sock version --format '{{.Server.Version}}'
+      - name: Build disposable tool image from public inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          context="$(mktemp -d)"
+          cat > "$context/Dockerfile" <<'DOCKERFILE'
+          ARG PYTHON_IMAGE
+          FROM $PYTHON_IMAGE
+          RUN set -eux; \
+              sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+              printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d; \
+              chmod 0755 /usr/sbin/policy-rc.d; \
+              apt-get -o APT::Update::Error-Mode=any update; \
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                'openssh-client=1:10.0p1-7+deb13u4' 'openssh-server=1:10.0p1-7+deb13u4' \
+                'openssh-sftp-server=1:10.0p1-7+deb13u4' \
+                bash build-essential curl git gnupg dbus gnome-keyring libsecret-tools \
+                libacl1-dev libattr1-dev liblz4-dev libpopt-dev libssl-dev libxxhash-dev libzstd-dev zlib1g-dev; \
+              rm -f /etc/ssh/ssh_host_*; \
+              rm -rf /var/lib/apt/lists/*
+          RUN set -eux; \
+              cd /tmp; \
+              curl --fail --silent --show-error --location --retry 2 --max-time 75 \
+                -o rsync-3.5.2.tar.gz https://download.samba.org/pub/rsync/src/rsync-3.5.2.tar.gz; \
+              printf '%s  %s\n' a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8 rsync-3.5.2.tar.gz | sha256sum -c -; \
+              curl --fail --silent --show-error --location --retry 2 --max-time 75 \
+                -o rsync-3.5.2.tar.gz.asc https://download.samba.org/pub/rsync/src/rsync-3.5.2.tar.gz.asc; \
+              curl --fail --silent --show-error --location --retry 2 --max-time 75 \
+                -o signing.asc https://keys.openpgp.org/vks/v1/by-fingerprint/C0E1054505704F757D925AB26A64E8AA2EFBCF5D; \
+              export GNUPGHOME="$(mktemp -d)"; \
+              gpg --batch --with-colons --show-keys signing.asc \
+                | grep -F 'fpr:::::::::C0E1054505704F757D925AB26A64E8AA2EFBCF5D:'; \
+              gpg --batch --dearmor -o "$GNUPGHOME/release.gpg" signing.asc; \
+              gpgv --keyring "$GNUPGHOME/release.gpg" rsync-3.5.2.tar.gz.asc rsync-3.5.2.tar.gz; \
+              tar -xf rsync-3.5.2.tar.gz; \
+              cd rsync-3.5.2; \
+              ./configure --disable-md2man; \
+              make -j2; \
+              install -m 0755 rsync /usr/local/bin/rsync
+          DOCKERFILE
+          docker --host=unix:///var/run/docker.sock build --progress=plain \
+            --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE" --tag s22-native-tools "$context"
+      - name: Verify component admission and prepare declared dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --name s22-preparation --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/source,readonly" \
+            s22-native-tools bash -euo pipefail -c '
+              python --version | grep -Fx "Python 3.12.14"
+              ssh -V 2>&1 | grep -E "^OpenSSH_10[.]0p2 Debian-7[+]deb13u4, OpenSSL "
+              /usr/sbin/sshd -V 2>&1 | grep -E "^OpenSSH_10[.]0p2 Debian-7[+]deb13u4, OpenSSL "
+              rsync --version | sed -n "1p" | grep -Fx "rsync  version 3.5.2  protocol version 33"
+              python -m pip install --disable-pip-version-check --require-hashes \
+                --only-binary=:all: -r /source/build-lock/sbom-runtime-pip.requirements.txt
+              python -m pip install --disable-pip-version-check /source
+              python -m pip check
+            '
+          docker commit s22-preparation s22-native-ready >/dev/null
+          docker rm s22-preparation
+      - name: Run nine cases with an ephemeral Secret Service and internal fixture network
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/source,readonly" \
+            --mount "type=bind,src=$(command -v docker),dst=/usr/local/bin/docker,readonly" \
+            --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+            --env SOURCE_COMMIT --env SOURCE_TREE \
+            s22-native-ready bash -se <<'S22'
+          set -euo pipefail
+          work="$(mktemp -d)"
+          export HOME="$work/home" XDG_RUNTIME_DIR="$work/runtime" XDG_CONFIG_HOME="$work/config"
+          export XDG_DATA_HOME="$work/data" PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/source/core
+          export S22_WORKSPACE="$work"
+          mkdir -m 700 "$HOME" "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+          git config --global --add safe.directory /source
+          cd /source
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test -z "$(git status --porcelain)"
+          python tools/agent_protocol_v2.py verify
+          python scripts/build_concordia_rsync_fixture.py \
+            --work "$work/build" --python-root /usr/local --rsync-binary /usr/local/bin/rsync \
+            || { if test -f "$work/build/docker-build-original.log"; then tail -60 "$work/build/docker-build-original.log"; fi; exit 1; }
+          cat > "$work/verify_and_run.py" <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          from provelume.ocr_desktop import run_ocr_command
+
+          work = Path(os.environ["S22_WORKSPACE"])
+          commit = os.environ["SOURCE_COMMIT"]
+          tree = os.environ["SOURCE_TREE"]
+          manifest = json.loads((work / "build/fixture-build-original.json").read_bytes())
+          assert (manifest["head"], manifest["tree"]) == (commit, tree)
+          assert manifest["credentials_in_image"] is False and manifest["build_network"] == "NONE"
+          names = subprocess.check_output(["git", "ls-tree", "-rz", "--name-only", commit, "core/provelume"]).decode().split("\x00")
+          source = {name for name in names if name.endswith(".py")}
+          packed = {row["path"].removeprefix("/opt/product/"): row["sha256"] for row in manifest["inputs"] if row["path"].startswith("/opt/product/core/")}
+          assert source == packed.keys()
+          for name in sorted(source):
+              content = subprocess.check_output(["git", "show", f"{commit}:{name}"])
+              assert hashlib.sha256(content).hexdigest() == packed[name], name
+
+          report_file = work / "report.json"
+          root = work / "instance-fixture"
+          status = run_ocr_command(
+              ["rsync-mirror-qualify", str(root), "--fixture-image", manifest["image_id"],
+               "--expected-source-commit", commit],
+              report_file,
+          )
+          report = json.loads(report_file.read_bytes())
+          progress = root / "case-results-original.jsonl"
+          cases = report.get("cases", [])
+          if not cases and progress.is_file():
+              cases = [json.loads(line) for line in progress.read_text().splitlines()]
+          cleanup = [row for p in root.glob("*/cleanup-original.json") for row in json.loads(p.read_bytes())]
+          fixtures = report.get("fixtures", [])
+          print(json.dumps({
+              "record": "S22_NATIVE_EXACT_SOURCE",
+              "source_commit": commit, "source_tree": tree,
+              "image": manifest["image_id"], "fixture_core_files_verified": len(source),
+              "result": report.get("result"), "error": report.get("error"),
+              "native_vault": report.get("native_vault"),
+              "native_server": sorted({row["native_server"] for row in fixtures}),
+              "fixture_network": sorted({row["network"] for row in fixtures}),
+              "cases": [{"case": row["case"], "result": row["result"]} for row in cases],
+              "cleanup": [row["result"] for row in cleanup],
+          }, sort_keys=True), flush=True)
+          assert status == 0 and report["result"] == "PASS"
+          assert report["declared_expected_source_commit"] == commit
+          assert len(cases) == 9 and all(row["result"] == "PASS" for row in cases)
+          assert report["native_vault"] == "NATIVE_SECRET_SERVICE"
+          assert len(fixtures) == 6 and all(row["network"] == "OWNED_INTERNAL_DOCKER_NO_EGRESS_NO_PUBLISHED_PORT" for row in fixtures)
+          assert len(cleanup) == 12 and all(row["result"] == "OWNED_REMOVAL_CONFIRMED" for row in cleanup)
+          PY
+          dbus-run-session -- bash -euo pipefail -c '
+            python -c "import secrets; print(secrets.token_urlsafe())" \
+              | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            printf "%s" synthetic-probe | secret-tool store --label "S22 synthetic admission" run s22-admission
+            test "$(secret-tool lookup run s22-admission)" = synthetic-probe
+            secret-tool clear run s22-admission
+            python "$S22_WORKSPACE/verify_and_run.py"
+          '
+          S22
