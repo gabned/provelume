@@ -423,6 +423,8 @@ def legacy_base_case(tmp_path, request):
     git("config", "core.autocrlf", "false")
     git("remote", "add", "origin", "https://github.com/gabned/provelume.git")
     (repo / "marker").write_text("original\n")
+    (repo / "scripts").mkdir()
+    (repo / "scripts/ai_runtime_report.py").write_text("# synthetic evaluator\n")
     git("add", ".")
     git("commit", "-m", "synthetic birth base")
     original = git("rev-parse", "HEAD")
@@ -588,6 +590,156 @@ def test_legacy_base_advance_preserves_original_failure_and_all_input_bytes(lega
     assert result["new_capabilities"] == [] and result["binding_mutated"] is False
     assert result["lifecycle_v2_activated"] is False
     assert {k: json.dumps(case[k], sort_keys=True) for k in before} == before
+
+
+@pytest.fixture
+def s07_base_case(legacy_base_case, monkeypatch):
+    case = legacy_base_case
+    adapter = case["adapter"]
+    # Set synthetic ownership coordinates without replacing or resealing a live BIND.
+    workstream = "concordia-s07-cpu-recovery"
+    binding = case["native"].seal(
+        {
+            **case["binding"],
+            "active_pr": "#439",
+            "workstream": workstream,
+            "policy_resolution": {**case["binding"]["policy_resolution"], "workstream": workstream},
+        }
+    )
+    case["binding"] = binding
+    case["trusted_binding"] = binding["report_sha256"]
+    monkeypatch.setattr(adapter, "S07_BIND", case["trusted_binding"])
+    monkeypatch.setattr(
+        adapter, "S07_EVALUATOR", case["git"]("rev-parse", "HEAD:scripts/ai_runtime_report.py"),
+    )
+    case["snapshot"] = case["native"].seal(
+        {**case["snapshot"], "owner_pr": "#439", "technical_finding": "CURRENT"}
+    )
+    observations = case["observations"]
+    observations["pr"]["number"] = 439
+    observations["schema"] = "provelume-base-observations/v2"
+    observations["s07_qualification"] = {
+        "decision": {"reference": "synthetic maintainer approval", "sha256": "1" * 64},
+        "snapshot_sha256": case["snapshot"]["report_sha256"],
+        "historical_findings": {
+            commit: {
+                "run_id": run, "job_id": job, "result": "FAIL",
+                "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+            }
+            for commit, (run, job) in adapter.S07_ORIGINAL_RUNS.items()
+        },
+        "current_finding": "NONE",
+        "cpu_jobs": {
+            runner: {
+                "source_commit": case["expected_head"],
+                "run_id": 1,
+                "attempt": 1,
+                "job_id": job,
+                "result": "PASS",
+                "gates": dict.fromkeys(adapter.S07_CPU_GATES, "PASS"),
+                "report_sha256": str(job) * 64,
+                "workflow_path": ".github/workflows/ai-runtime-candidate.yml",
+                "event": "pull_request",
+                "job_name": f"measure ({runner})",
+            }
+            for job, runner in enumerate(("ubuntu-24.04", "windows-2025"), start=2)
+        },
+        "matrix": {
+            "source_commit": case["expected_head"], "automatic": "PASS",
+            "installed_runtime": "PASS", "sha256": "4" * 64,
+        },
+    }
+    case["trusted_observations"] = adapter.digest(observations)
+    return case
+
+
+def test_s07_preflight_keeps_original_snapshot_findings_and_refusal(s07_base_case):
+    case = s07_base_case
+    before = {
+        key: json.dumps(case[key], sort_keys=True)
+        for key in ("binding", "snapshot", "observations")
+    }
+    result = base_preflight(case)
+    assert result["schema"] == "provelume-legacy-base-preflight/v2"
+    assert result["merge_ready"] is True
+    assert result["binding_mutated"] is False
+    assert result["binding_sha256"] == case["trusted_binding"]
+    assert result["snapshot_sha256"] == case["snapshot"]["report_sha256"]
+    assert result["s07_qualification"] == case["observations"]["s07_qualification"]
+    assert result["historical_preflight"]["merge_ready"] is False
+    assert "current technical finding blocks" in result["historical_preflight"]["errors"]
+    assert {key: json.dumps(case[key], sort_keys=True) for key in before} == before
+    case["native"].verify_seal(result)
+
+
+@pytest.mark.parametrize("finding", ["CURRENT", "UNKNOWN"])
+def test_s07_preflight_blocks_current_or_unknown_candidate_findings(s07_base_case, finding):
+    case = s07_base_case
+    case["observations"]["s07_qualification"]["current_finding"] = finding
+    case["trusted_observations"] = case["adapter"].digest(case["observations"])
+    assert base_preflight(case)["merge_ready"] is False
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("checks", "FAILURE"), ("unresolved_threads", 1), ("codex_review_state", "FINDINGS")],
+)
+def test_s07_preflight_leaves_ordinary_gate_blocking(s07_base_case, field, value):
+    case = s07_base_case
+    case["snapshot"] = case["native"].seal({**case["snapshot"], field: value})
+    case["observations"]["s07_qualification"]["snapshot_sha256"] = case["snapshot"]["report_sha256"]
+    case["trusted_observations"] = case["adapter"].digest(case["observations"])
+    assert base_preflight(case)["merge_ready"] is False
+
+
+@pytest.mark.parametrize(
+    "mutation,expected",
+    [
+        ("missing_finding", "All four original S07 findings"),
+        ("historical_pass", "All four original S07 findings"),
+        ("other_binding", "original #439 BIND"),
+        ("stale_snapshot", "bind the current snapshot"),
+        ("other_head", "nonpassing S07 CPU"),
+        ("nonpassing_gate", "nonpassing S07 CPU"),
+        ("diagnostic_run", "nonpassing S07 CPU"),
+        ("matrix_incomplete", "S07 automatic and installed runtime"),
+        ("missing_platform", "Both ordinary S07 CPU jobs"),
+        ("changed_evaluator", "evaluator differs"),
+        ("changed_digest", "Observed source bytes changed"),
+    ],
+)
+def test_s07_preflight_refuses_unbound_or_incomplete_evidence(
+    s07_base_case, monkeypatch, mutation, expected,
+):
+    case = s07_base_case
+    evidence = case["observations"]["s07_qualification"]
+    linux = evidence["cpu_jobs"]["ubuntu-24.04"]
+    if mutation == "missing_finding":
+        evidence["historical_findings"].popitem()
+    elif mutation == "historical_pass":
+        next(iter(evidence["historical_findings"].values()))["result"] = "PASS"
+    elif mutation == "other_binding":
+        monkeypatch.setattr(case["adapter"], "S07_BIND", "0" * 64)
+    elif mutation == "stale_snapshot":
+        evidence["snapshot_sha256"] = "0" * 64
+    elif mutation == "other_head":
+        linux["source_commit"] = "0" * 40
+    elif mutation == "nonpassing_gate":
+        linux["gates"]["network"] = "FAIL"
+    elif mutation == "diagnostic_run":
+        linux["event"] = "workflow_dispatch"
+    elif mutation == "matrix_incomplete":
+        evidence["matrix"]["installed_runtime"] = "NOT_RUN"
+    elif mutation == "missing_platform":
+        del evidence["cpu_jobs"]["windows-2025"]
+    elif mutation == "changed_evaluator":
+        monkeypatch.setattr(case["adapter"], "S07_EVALUATOR", "0" * 40)
+    if mutation != "changed_digest":
+        case["trusted_observations"] = case["adapter"].digest(case["observations"])
+    else:
+        evidence["decision"]["reference"] = "changed decision"
+    with pytest.raises(ValueError, match=expected):
+        base_preflight(case)
 
 
 @pytest.mark.parametrize(

@@ -436,6 +436,108 @@ def acquire(pin, *, offline=False, fetch_source=None):
     }
 
 
+S07_BIND = "042658d5c4c92f37efea0a0830a40431599b8acedb0b74cb7e40835db84a6f9d"
+S07_EVALUATOR = "67f72f2e493779daa38a1d97c263e60c5126cb45"
+S07_ORIGINAL_RUNS = {
+    "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2": (41928461608, 126918981396),
+    "a713f0141799fea60b7caa1a0e62826f3b373bf9": (42109002130, 127531293383),
+    "da25e28564f70fc1bad59f624c5947e9fe2a3924": (42115157949, 127552733141),
+    "4cfbec445f7582130802f753b2dc186dc8903142": (42119880008, 127569128458),
+}
+S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
+
+
+def validate_s07_finding_applicability(evidence, snapshot, binding, review, native, git):
+    """Interpret independently authenticated S07 observations for this candidate only."""
+    require(
+        (binding["active_pr"], binding["workstream"], binding["report_sha256"])
+        == ("#439", "concordia-s07-cpu-recovery", S07_BIND)
+        and review["adapter"] == "V1_3_NATIVE"
+        and review["technical_finding"] == "CURRENT",
+        "S07 finding applicability requires the original #439 BIND and CURRENT snapshot",
+    )
+    require(
+        isinstance(evidence, dict)
+        and set(evidence) == {
+            "decision", "snapshot_sha256", "historical_findings",
+            "current_finding", "cpu_jobs", "matrix",
+        }
+        and evidence["snapshot_sha256"] == snapshot["report_sha256"],
+        "S07 evidence must bind the current snapshot",
+    )
+
+    def is_digest(value):
+        return isinstance(value, str) and native.SHA256_PATTERN.fullmatch(value) is not None
+
+    decision = evidence["decision"]
+    require(
+        isinstance(decision, dict)
+        and set(decision) == {"reference", "sha256"}
+        and isinstance(decision["reference"], str)
+        and bool(decision["reference"].strip())
+        and is_digest(decision["sha256"]),
+        "Authenticated S07 maintainer decision reference and digest required",
+    )
+    original_findings = {
+        commit: {
+            "run_id": run, "job_id": job, "result": "FAIL",
+            "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+        }
+        for commit, (run, job) in S07_ORIGINAL_RUNS.items()
+    }
+    require(
+        evidence["historical_findings"] == original_findings,
+        "All four original S07 findings and their outcomes are required",
+    )
+    require(
+        evidence["current_finding"] in ("NONE", "CURRENT", "UNKNOWN"),
+        "S07 candidate finding assessment missing",
+    )
+    matrix = evidence["matrix"]
+    require(
+        isinstance(matrix, dict)
+        and set(matrix) == {"source_commit", "automatic", "installed_runtime", "sha256"}
+        and matrix["source_commit"] == snapshot["head_sha"]
+        and matrix["automatic"] == matrix["installed_runtime"] == "PASS"
+        and is_digest(matrix["sha256"]),
+        "Accepted S07 automatic and installed runtime matrix evidence required",
+    )
+    require(
+        git("rev-parse", snapshot["head_sha"] + ":scripts/ai_runtime_report.py") == S07_EVALUATOR,
+        "S07 qualification evaluator differs from the original",
+    )
+    jobs = evidence["cpu_jobs"]
+    require(
+        isinstance(jobs, dict) and set(jobs) == {"ubuntu-24.04", "windows-2025"},
+        "Both ordinary S07 CPU jobs are required",
+    )
+    for runner, job in jobs.items():
+        require(
+            isinstance(job, dict)
+            and set(job) == {
+                "source_commit", "run_id", "attempt", "job_id", "result", "gates",
+                "report_sha256", "workflow_path", "event", "job_name",
+            }
+            and job["source_commit"] == snapshot["head_sha"]
+            and job["workflow_path"] == ".github/workflows/ai-runtime-candidate.yml"
+            and job["event"] == "pull_request"
+            and job["job_name"] == f"measure ({runner})"
+            and all(
+                type(job[key]) is int and job[key] > 0
+                for key in ("run_id", "attempt", "job_id")
+            )
+            and job["result"] == "PASS"
+            and job["gates"] == dict.fromkeys(S07_CPU_GATES, "PASS")
+            and is_digest(job["report_sha256"]),
+            "Incomplete or nonpassing S07 CPU qualification on the candidate",
+        )
+    require(
+        len({job["job_id"] for job in jobs.values()}) == len(jobs),
+        "S07 platform jobs must be distinct",
+    )
+    return evidence["current_finding"]
+
+
 def legacy_base_preflight(
     snapshot,
     binding,
@@ -466,20 +568,17 @@ def legacy_base_preflight(
         "Original authority unavailable or current capabilities increased",
     )
     require(digest(observations) == trusted_observations, "Observed source bytes changed")
+    observation_fields = {
+        "schema", "observed_at", "repository", "pr", "default", "candidate",
+        "test_merge", "files", "files_complete",
+    }
+    schema = observations.get("schema")
+    s07_scope = schema == "provelume-base-observations/v2"
+    if s07_scope:
+        observation_fields.add("s07_qualification")
     require(
-        set(observations)
-        == {
-            "schema",
-            "observed_at",
-            "repository",
-            "pr",
-            "default",
-            "candidate",
-            "test_merge",
-            "files",
-            "files_complete",
-        }
-        and observations["schema"] == "provelume-base-observations/v1",
+        schema in ("provelume-base-observations/v1", "provelume-base-observations/v2")
+        and set(observations) == observation_fields,
         "Unknown base-advance observations",
     )
     native.require_fresh(observations["observed_at"])
@@ -722,6 +821,11 @@ def legacy_base_preflight(
     if type(snapshot.get("unresolved_threads")) is not int or snapshot["unresolved_threads"] != 0:
         errors.append("Current unresolved thread count blocks")
     review = native.normalize_review_snapshot(snapshot)
+    candidate_finding = review["technical_finding"]
+    if s07_scope:
+        candidate_finding = validate_s07_finding_applicability(
+            observations["s07_qualification"], snapshot, binding, review, native, git,
+        )
     review_result = native.evaluate_review_gate(
         source=review["source"],
         codex_state=review["codex_state"],
@@ -730,7 +834,7 @@ def legacy_base_preflight(
         current_head=head,
         reviewed_head=review["reviewed_head"],
         repository_review=review["repository_review"],
-        technical_finding=review["technical_finding"],
+        technical_finding=candidate_finding,
         withdrawal=review["withdrawal"],
     )
     errors.extend(review_result["errors"])
@@ -741,7 +845,11 @@ def legacy_base_preflight(
     require(not git("status", "--porcelain", "--untracked-files=all"), "Candidate became dirty")
     result = native.seal(
         {
-            "schema": "provelume-legacy-base-preflight/v1",
+            "schema": (
+                "provelume-legacy-base-preflight/v2" if s07_scope
+                else "provelume-legacy-base-preflight/v1"
+            ),
+            **({"s07_qualification": observations["s07_qualification"]} if s07_scope else {}),
             "mode": "PREFLIGHT_BASE_ADVANCE",
             "repository": REPOSITORY,
             "observed_at": native.now_utc(),

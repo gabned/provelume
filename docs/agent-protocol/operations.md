@@ -187,6 +187,51 @@ between heads. A later main advancement needs a new observation and receipt,
 retaining every earlier FAIL and receipt. Actual integration, release and
 post-merge reconciliation keep their existing independent requirements.
 
+### S07 CPU findings on a new candidate
+
+The legacy adapter accepts `provelume-base-observations/v2` for the original
+#439 BIND. The snapshot retains `technical_finding: CURRENT`. The authenticated
+host adds `s07_qualification` to the observations and independently retains the
+complete observations digest before invoking `legacy-base-preflight`. The
+host authenticates the maintainer's decision for Concordia 0.15 and the raw
+finding, run, review and matrix records before attesting. A reference or a
+self-computed digest alone does not establish authority.
+
+The `s07_qualification` object contains:
+
+- `decision` with `reference` and `sha256` of the retained maintainer approval.
+- `snapshot_sha256` equal to the current snapshot seal. It binds the assessment
+  to its base, exact candidate head and original BIND coordinates.
+- `historical_findings` keyed by the four original source commits. Each entry
+  retains its `run_id`, `job_id`, `result: FAIL`, `status: CURRENT` and
+  `cause: NOT_DEMONSTRATED`. The original jobs link to the retained logs.
+- `current_finding` records `NONE`, `CURRENT` or `UNKNOWN` from the complete
+  finding inventory applicable to the candidate under the approved criterion.
+- `cpu_jobs` contains `ubuntu-24.04` and `windows-2025`. For each, retain
+  `source_commit`, `run_id`, `attempt`, `job_id`, `result: PASS`,
+  `report_sha256`, `workflow_path` of the ordinary CPU workflow,
+  `event: pull_request`, the platform's `job_name` and the `gates` map with
+  `deterministic`, `s06_governed`,
+  `s07_setup` and `network` all `PASS`. The host checks both are completed jobs
+  of the ordinary CPU workflow for the PR with the exact source checkout, full
+  reports, original inputs and unchanged measurement rules. The adapter checks
+  the evaluator blob against the original.
+- `matrix` holds the same `source_commit`, `automatic: PASS`,
+  `installed_runtime: PASS` and the `sha256` of the retained S07 matrix evidence.
+
+The v2 receipt carries the full S07 evidence and the unmodified native
+preflight evaluation with its original refusal. Only the current review
+evaluation uses the finding assessment for the candidate. Current or unknown
+findings, failed checks, pending reviews, unresolved threads and other ordinary
+gates still block. Azure and other diagnostic reports cannot supply CPU
+qualification. Earlier receipts keep their original outcome.
+
+After an authorized merge the host records separate ordinary CPU and applicable
+matrix evidence on the observed resulting `main` SHA before accepting S07.
+The candidate receipt grants no acceptance on `main`. The four original FAILs
+stay open in the #439 ledger, with the BIND and all prior receipts preserved.
+The S07/S08/S23 acceptance order and independent artifact gate still apply.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review
