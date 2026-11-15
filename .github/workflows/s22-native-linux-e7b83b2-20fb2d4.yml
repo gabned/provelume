@@ -160,8 +160,14 @@ jobs:
           cases = report.get("cases", [])
           if not cases and progress.is_file():
               cases = [json.loads(line) for line in progress.read_text().splitlines()]
-          cleanup = [row for p in root.glob("*/cleanup-original.json") for row in json.loads(p.read_bytes())]
+          cleanup = [row for p in root.glob("*/Fixture/cleanup-original.json") for row in json.loads(p.read_bytes())]
           fixtures = report.get("fixtures", [])
+          docker = ["docker", "--host=unix:///var/run/docker.sock"]
+          ownership = "label=org.provelume.qualification.owner"
+          remaining = {
+              kind: len(subprocess.check_output(docker + arguments + ["--filter", ownership], text=True).splitlines())
+              for kind, arguments in (("containers", ["ps", "-aq"]), ("networks", ["network", "ls", "-q"]))
+          }
           print(json.dumps({
               "record": "S22_NATIVE_EXACT_SOURCE",
               "source_commit": commit, "source_tree": tree,
@@ -171,7 +177,7 @@ jobs:
               "native_server": sorted({row["native_server"] for row in fixtures}),
               "fixture_network": sorted({row["network"] for row in fixtures}),
               "cases": [{"case": row["case"], "result": row["result"]} for row in cases],
-              "cleanup": [row["result"] for row in cleanup],
+              "cleanup": [row["result"] for row in cleanup], "remaining_fixture_resources": remaining,
           }, sort_keys=True), flush=True)
           assert status == 0 and report["result"] == "PASS"
           assert report["declared_expected_source_commit"] == commit
@@ -179,6 +185,7 @@ jobs:
           assert report["native_vault"] == "NATIVE_SECRET_SERVICE"
           assert len(fixtures) == 6 and all(row["network"] == "OWNED_INTERNAL_DOCKER_NO_EGRESS_NO_PUBLISHED_PORT" for row in fixtures)
           assert len(cleanup) == 12 and all(row["result"] == "OWNED_REMOVAL_CONFIRMED" for row in cleanup)
+          assert not any(remaining.values())
           PY
           dbus-run-session -- bash -euo pipefail -c '
             python -c "import secrets; print(secrets.token_urlsafe())" \
