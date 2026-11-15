@@ -58,7 +58,7 @@ jobs:
                 'openssh-client=1:10.0p1-7+deb13u4' 'openssh-server=1:10.0p1-7+deb13u4' \
                 'openssh-sftp-server=1:10.0p1-7+deb13u4' \
                 bash build-essential curl git gnupg gpgv dbus gnome-keyring libsecret-tools \
-                libacl1-dev libattr1-dev liblz4-dev libpopt-dev libssl-dev libxxhash-dev libzstd-dev zlib1g-dev; \
+                libacl1-dev libattr1-dev libidn2-dev liblz4-dev libpopt-dev libssl-dev libxxhash-dev libzstd-dev zlib1g-dev; \
               rm -f /etc/ssh/ssh_host_*; \
               rm -rf /var/lib/apt/lists/*
           RUN set -eux; \
