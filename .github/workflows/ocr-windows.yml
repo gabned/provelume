@@ -1,6 +1,7 @@
 name: Concordia installed offline Windows OCR kit
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -23,6 +24,18 @@ permissions:
   actions: read
 jobs:
   installed-ocr:
+    if: >-
+      ${{
+        !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: windows-2025
     timeout-minutes: 90
     env:
