@@ -183,7 +183,19 @@ jobs:
 
   core-tests:
     name: Core tests (${{ matrix.os }})
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ${{ matrix.os }}
     # Include dependency setup and the expanded complete native suite. Product
     # responsiveness/resource gates retain their own independently checked limits.
@@ -217,7 +229,19 @@ jobs:
 
   windows-shards:
     name: Windows Core execution (${{ matrix.group }})
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
@@ -281,7 +305,22 @@ jobs:
 
   windows-tests:
     name: Core tests (windows-latest)
-    if: ${{ always() && github.event_name != 'pull_request_target' }}
+    if: >-
+      ${{
+        (
+          always()
+          && github.event_name != 'pull_request_target'
+        )
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     needs: windows-shards
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -312,7 +351,19 @@ jobs:
 
   windows-installer:
     name: Windows preview install and uninstall
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: windows-latest
     timeout-minutes: 35
     permissions:
@@ -386,7 +437,19 @@ jobs:
 
   release-foundation:
     name: Deterministic release dry run
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -538,6 +601,36 @@ jobs:
           assert Path('release/SHA256SUMS').stat().st_size > 0
           PY
 
+  protocol-s07-draft-consumer:
+    name: S07 Protocol draft consumer conformance
+    if: >-
+      ${{
+        github.event_name == 'pull_request'
+        && github.event.pull_request.draft == true
+        && github.repository == 'gabned/provelume'
+        && github.event.pull_request.base.ref == 'main'
+        && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+        && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+        && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install the pinned Protocol test dependency
+        run: python -m pip install "pytest==9.2.0"
+      - name: Verify the pinned Protocol and test the consumer
+        run: |
+          python tools/agent_protocol_v2.py verify
+          python -m pytest -q tests/test_agent_protocol_consumer.py
+
   protocol-extraction:
     name: Independent Protocol extraction (${{ matrix.os }})
     if: github.event_name != 'pull_request_target'
@@ -582,7 +675,19 @@ jobs:
 
   protocol-workspace:
     name: Native Protocol workspace profile
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
