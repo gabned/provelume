@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -75,6 +76,60 @@ def test_short_lived_git_wakes_early_and_still_checks_final_output(
         )
     assert waits == [0.01] and session.commands == 1
     assert not list(tmp_path.glob("*.out")) and not list(tmp_path.glob("*.err"))
+
+
+@pytest.mark.parametrize(
+    ("during_fetch", "temporary_name", "winerror", "accepted"),
+    [
+        (True, "tmp_obj_aBc123", 2, True),
+        (False, "tmp_obj_aBc123", 2, False),
+        (True, "unknown", 2, False),
+        (True, "tmp_obj_aBc123", 3, False),
+    ],
+)
+def test_windows_git_storage_scan_handles_temporary_object_promotion(
+    tmp_path, monkeypatch, during_fetch, temporary_name, winerror, accepted
+):
+    session = runtime.GitSession(tmp_path)
+    objects = session.repository / "objects"
+    temporary = objects / "ab" / temporary_name
+    temporary.parent.mkdir(parents=True)
+    temporary.write_bytes(b"synthetic loose object")
+    promoted = temporary.with_name("1" * 38)
+    stat = Path.stat
+
+    def promote_before_stat(path, *, follow_symlinks=True):
+        if path != temporary or not follow_symlinks:
+            return stat(path, follow_symlinks=follow_symlinks)
+        temporary.rename(promoted)
+        try:
+            return stat(path)
+        except FileNotFoundError as error:
+            error.winerror = winerror
+            raise
+
+    class Child:
+        returncode = None if during_fetch else 0
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, *, timeout):
+            self.returncode = 0
+            return 0
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(Path, "stat", promote_before_stat)
+    monkeypatch.setattr(runtime, "os", SimpleNamespace(name="nt", devnull=runtime.os.devnull))
+    monkeypatch.setattr(windows, "WindowsGitProcess", lambda *_args, **_kwargs: Child())
+    if accepted:
+        assert session.run(["fetch"], monitor_storage=True) == (0, b"")
+    else:
+        with pytest.raises(MirrorError, match="git_unavailable"):
+            session.run(["fetch"], monitor_storage=True)
+    assert promoted.read_bytes() == b"synthetic loose object"
 
 
 @pytest.mark.parametrize("status", [0, 258, 0xFFFFFFFF])

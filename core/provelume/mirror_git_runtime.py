@@ -64,14 +64,26 @@ def child_environment(work):
     return env
 
 
-def tree_storage_bound(root):
+def tree_storage_bound(root, *, allow_loose_object_promotion=False):
     count, size = 0, 0
     if not root.exists():
         return
     require(not root.is_symlink() and not root.is_junction(), "unsafe_git_storage")
     for item in root.rglob("*"):
         require(not item.is_symlink() and not item.is_junction(), "unsafe_git_storage")
-        info = item.stat()
+        try:
+            info = item.stat()
+        except FileNotFoundError as error:
+            # Git can rename a temporary loose object after the live scan lists it.
+            if (
+                allow_loose_object_promotion
+                and getattr(error, "winerror", None) == 2
+                and item.parent.parent == root
+                and re.fullmatch(r"[0-9a-f]{2}", item.parent.name)
+                and re.fullmatch(r"tmp_obj_[0-9A-Za-z]{6}", item.name)
+            ):
+                continue
+            raise
         if stat.S_ISDIR(info.st_mode):
             continue
         require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1, "unsafe_git_storage")
@@ -194,7 +206,10 @@ class GitSession:
                         "git_output_limit",
                     )
                     if monitor_storage and time.monotonic() >= next_storage_check:
-                        tree_storage_bound(self.repository / "objects")
+                        tree_storage_bound(
+                            self.repository / "objects",
+                            allow_loose_object_promotion=os.name == "nt",
+                        )
                         next_storage_check = time.monotonic() + 0.25
                     with suppress(subprocess.TimeoutExpired):
                         process.wait(timeout=0.01)
