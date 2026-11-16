@@ -690,10 +690,12 @@ jobs:
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
     outputs:
       artifact-id: ${{ steps.upload-image.outputs.artifact-id }}
       archive-sha256: ${{ steps.build-image.outputs.archive-sha256 }}
-      image-id: ${{ steps.build-image.outputs.image-id }}
+      image-config-digest: ${{ steps.build-image.outputs.image-config-digest }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -705,18 +707,21 @@ jobs:
           set -euo pipefail
           context="$(mktemp -d)"
           archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
+          metadata="$RUNNER_TEMP/protocol-profile-image.json"
           mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
           mkdir -p "$(dirname "$archive")"
           cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
           cp pyproject.toml "$context/pyproject.toml"
           cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
-          docker build --pull --no-cache --iidfile "$RUNNER_TEMP/protocol-profile-image" \
+          # Export one image config digest, with no attestation index for this temporary image.
+          docker buildx build --load --pull --no-cache --platform linux/amd64 --provenance=false \
+            --tag "$IMAGE_REF" --metadata-file "$metadata" \
             --file "$context/.github/agent-protocol/Dockerfile" "$context"
-          image_id="$(cat "$RUNNER_TEMP/protocol-profile-image")"
-          [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
-          docker image save "$image_id" | gzip -1 > "$archive"
+          config_digest="$(python3 -c 'import json, sys; print(json.load(sys.stdin)["containerimage.config.digest"])' < "$metadata")"
+          [[ "$config_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker image save --platform linux/amd64 "$IMAGE_REF" | gzip -1 > "$archive"
           checksum="$(sha256sum "$archive")"
-          printf 'image-id=%s\narchive-sha256=%s\n' "$image_id" "${checksum%% *}" >> "$GITHUB_OUTPUT"
+          printf 'image-config-digest=%s\narchive-sha256=%s\n' "$config_digest" "${checksum%% *}" >> "$GITHUB_OUTPUT"
       - name: Upload the dependency image for this workflow run
         id: upload-image
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4762f3646cd9 # v7.0.2
@@ -734,10 +739,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
       IMAGE_BUILD_RESULT: ${{ needs.protocol-workspace-image.result }}
       IMAGE_ARTIFACT_ID: ${{ needs.protocol-workspace-image.outputs.artifact-id }}
       IMAGE_ARCHIVE_SHA256: ${{ needs.protocol-workspace-image.outputs.archive-sha256 }}
-      IMAGE_ID: ${{ needs.protocol-workspace-image.outputs.image-id }}
+      IMAGE_CONFIG_DIGEST: ${{ needs.protocol-workspace-image.outputs.image-config-digest }}
     steps:
       - name: Require the prepared dependency image
         shell: bash
@@ -746,7 +752,7 @@ jobs:
           test "$IMAGE_BUILD_RESULT" = success
           [[ "$IMAGE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$IMAGE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
-          [[ "$IMAGE_ID" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$IMAGE_CONFIG_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
       - name: Download the dependency image by artifact ID
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -760,8 +766,33 @@ jobs:
           archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
           checksum="$(sha256sum "$archive")"
           test "${checksum%% *}" = "$IMAGE_ARCHIVE_SHA256"
+          # Verify the config of the single tagged image, independently of the local Docker ID.
+          python3 - "$archive" "$IMAGE_REF" "$IMAGE_CONFIG_DIGEST" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference, expected = sys.argv[1:]
+          digest = expected.removeprefix("sha256:")
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+              with image.extractfile(config_path) as config:
+                  if hashlib.file_digest(config, "sha256").hexdigest() != digest:
+                      raise SystemExit("Dependency image config digest does not match its contents")
+          PY
+          if docker image inspect "$IMAGE_REF" >/dev/null 2>&1; then
+            echo 'Dependency image reference already exists on this runner' >&2
+            exit 1
+          fi
           docker image load --input "$archive"
-          test "$(docker image inspect --format '{{.Id}}' "$IMAGE_ID")" = "$IMAGE_ID"
+          docker image inspect "$IMAGE_REF" >/dev/null
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
@@ -779,7 +810,7 @@ jobs:
           docker run --rm --pull never --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --env HOME=/tmp/native-home \
             --env RUFF_CACHE_DIR=/workspace/.agent/ruff-cache \
-            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$IMAGE_ID" \
+            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$IMAGE_REF" \
             bash -c 'set -euo pipefail
               python3 tools/agent_protocol_v2.py workspace prepare
               python3 tools/agent_protocol_v2.py workspace prepare
