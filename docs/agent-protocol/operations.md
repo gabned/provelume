@@ -187,6 +187,59 @@ between heads. A later main advancement needs a new observation and receipt,
 retaining every earlier FAIL and receipt. Actual integration, release and
 post-merge reconciliation keep their existing independent requirements.
 
+### S07 CPU findings on a new candidate
+
+For the original #439 BIND, the authenticated host uses
+`provelume-base-observations/v2` and adds `s07_qualification` with two objects.
+
+- `approval` is the retained, authenticated maintainer decision. It contains
+  `schema: provelume-s07-approval/v1`, `repository`, `owner_pr`,
+  `binding_sha256`, `release: 0.15.0`,
+  `criterion: QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS`, the original
+  decision `reference`, and `historical_findings` with the four sorted GitHub
+  job URLs covered by that decision.
+- `evidence` contains `snapshot_sha256`, `findings_complete: true`, `findings`,
+  `cpu_jobs` and `matrix`. The snapshot retains `technical_finding: CURRENT`.
+  The inventory includes every open or unresolved finding relevant to the
+  snapshot and uses stable evidence references as keys. Each of the four job
+  URLs retains `source_commit`, `run_id`, `job_id`, `result: FAIL`,
+  `status: CURRENT` and `cause: NOT_DEMONSTRATED`. Other entries retain at
+  least `status: CURRENT` or `status: UNKNOWN` and their original evidence.
+  The adapter compares the four authorized records in full and derives the
+  candidate finding state from every remaining entry.
+
+The host independently selects the canonical JSON digests of the authenticated
+maintainer decision and evidence from the existing ledger. Supply them through
+`--s07-approval-sha256` and `--s07-evidence-sha256` in addition to
+`--observations-sha256`. These expected digests come from independently
+authenticated records and the host's approved collection of the complete
+inventory and qualification reports. A digest computed from submitted
+observations supplies integrity, and the authority comes from those records.
+A missing or mismatched digest or a decision with broader scope refuses v2.
+
+The `cpu_jobs` object has `ubuntu-24.04` and `windows-2025` entries. Each
+contains `run_id`, `attempt`, `job_id`, `workflow_path`, `event: pull_request`,
+`job_name`, `conclusion: success`, the retained JSON `report` and its canonical
+JSON `report_sha256`. The host authenticates ordinary workflow provenance,
+original inputs and the complete report for each job. The adapter checks the
+report digest, candidate source, overall outcome and `deterministic`,
+`s06_governed`, `s07_setup` and `network` gates. It separately checks the
+evaluator blob against the original. `matrix` contains the retained `report`
+and its canonical JSON `sha256`, with `source_commit`, `automatic: PASS` and
+`installed_runtime: PASS` in the report.
+
+The v2 receipt retains both authenticated digests, the original finding
+records, the remaining inventory entries and the derived finding state. It
+embeds the native preflight evaluation with its original refusal. Current or
+unknown findings, failed checks, pending reviews, unresolved threads and the
+other ordinary gates continue to block.
+
+After an authorized merge the host records separate ordinary CPU and applicable
+matrix evidence on the observed resulting `main` SHA before accepting S07.
+The four original FAILs stay open in the #439 ledger, with the BIND and all
+prior receipts preserved. The S07/S08/S23 acceptance order and independent
+artifact gate still apply.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review

@@ -436,6 +436,153 @@ def acquire(pin, *, offline=False, fetch_source=None):
     }
 
 
+S07_BIND = "042658d5c4c92f37efea0a0830a40431599b8acedb0b74cb7e40835db84a6f9d"
+S07_EVALUATOR = "67f72f2e493779daa38a1d97c263e60c5126cb45"
+S07_ORIGINAL_RUNS = {
+    "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2": (41928461608, 126918981396),
+    "a713f0141799fea60b7caa1a0e62826f3b373bf9": (42109002130, 127531293383),
+    "da25e28564f70fc1bad59f624c5947e9fe2a3924": (42115157949, 127552733141),
+    "4cfbec445f7582130802f753b2dc186dc8903142": (42119880008, 127569128458),
+}
+S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
+
+
+def verify_s07_cpu_jobs(jobs, head):
+    require(
+        isinstance(jobs, dict) and set(jobs) == {"ubuntu-24.04", "windows-2025"},
+        "Both ordinary S07 CPU jobs are required",
+    )
+    for runner, job in jobs.items():
+        require(
+            isinstance(job, dict)
+            and set(job) == {
+                "run_id", "attempt", "job_id", "report", "report_sha256",
+                "workflow_path", "event", "job_name", "conclusion",
+            }
+            and job["workflow_path"] == ".github/workflows/ai-runtime-candidate.yml"
+            and job["event"] == "pull_request"
+            and job["job_name"] == f"measure ({runner})"
+            and job["conclusion"] == "success"
+            and all(
+                type(job[key]) is int and job[key] > 0
+                for key in ("run_id", "attempt", "job_id")
+            ),
+            "Incomplete or nonpassing ordinary S07 CPU job",
+        )
+        report = job["report"]
+        require(
+            isinstance(report, dict)
+            and digest(report) == job["report_sha256"]
+            and report.get("source_commit") == head
+            and report.get("status") == "PASS"
+            and isinstance(report.get("gates"), dict)
+            and all(report["gates"].get(gate) == "PASS" for gate in S07_CPU_GATES),
+            "Missing, altered or nonpassing S07 CPU report on the candidate",
+        )
+    require(
+        len({job["job_id"] for job in jobs.values()}) == len(jobs),
+        "S07 platform jobs must be distinct",
+    )
+
+
+def validate_s07_finding_applicability(
+    qualification, snapshot, binding, review, git, *, trusted_approval, trusted_evidence,
+):
+    """Verify the independently selected approval and authenticated observations offline."""
+    require(
+        (binding["active_pr"], binding["workstream"], binding["report_sha256"])
+        == ("#439", "concordia-s07-cpu-recovery", S07_BIND)
+        and review["adapter"] == "V1_3_NATIVE"
+        and review["technical_finding"] == "CURRENT",
+        "S07 finding applicability requires the original #439 BIND and CURRENT snapshot",
+    )
+    require(
+        isinstance(qualification, dict) and set(qualification) == {"approval", "evidence"},
+        "S07 qualification requires the authenticated approval and evidence",
+    )
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    require(
+        isinstance(approval, dict) and digest(approval) == trusted_approval,
+        "Independently authenticated S07 approval differs or is missing",
+    )
+    require(
+        isinstance(evidence, dict) and digest(evidence) == trusted_evidence,
+        "Independently authenticated S07 evidence differs or is missing",
+    )
+    original_findings = {
+        f"https://github.com/{REPOSITORY}/actions/runs/{run}/job/{job}": {
+            "source_commit": commit, "run_id": run, "job_id": job, "result": "FAIL",
+            "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+        }
+        for commit, (run, job) in S07_ORIGINAL_RUNS.items()
+    }
+    approval_scope = {
+        "schema": "provelume-s07-approval/v1",
+        "repository": REPOSITORY,
+        "owner_pr": "#439",
+        "binding_sha256": S07_BIND,
+        "release": "0.15.0",
+        "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+        "historical_findings": sorted(original_findings),
+    }
+    reference = approval.get("reference")
+    require(
+        isinstance(reference, str) and bool(reference.strip())
+        and approval == {**approval_scope, "reference": reference},
+        "S07 approval must cover exactly the four original findings and the approved criterion",
+    )
+    require(
+        set(evidence) == {"snapshot_sha256", "findings_complete", "findings", "cpu_jobs", "matrix"}
+        and evidence["snapshot_sha256"] == snapshot["report_sha256"]
+        and evidence["findings_complete"] is True,
+        "S07 evidence must bind the current snapshot and complete finding inventory",
+    )
+    findings = evidence["findings"]
+    require(
+        isinstance(findings, dict)
+        and all(findings.get(key) == value for key, value in original_findings.items()),
+        "All four original S07 findings and their outcomes are required",
+    )
+    remaining_findings = {
+        key: value for key, value in findings.items() if key not in original_findings
+    }
+    require(
+        all(
+            key.strip() and isinstance(value, dict)
+            and value.get("status") in ("CURRENT", "UNKNOWN")
+            for key, value in remaining_findings.items()
+        ),
+        "Invalid open or unresolved S07 finding",
+    )
+    statuses = {finding["status"] for finding in remaining_findings.values()}
+    finding_state = "UNKNOWN" if "UNKNOWN" in statuses else "CURRENT" if statuses else "NONE"
+
+    head = snapshot["head_sha"]
+    matrix = evidence["matrix"]
+    require(
+        isinstance(matrix, dict)
+        and set(matrix) == {"report", "sha256"}
+        and isinstance(matrix["report"], dict)
+        and digest(matrix["report"]) == matrix["sha256"]
+        and matrix["report"].get("source_commit") == head
+        and matrix["report"].get("automatic") == "PASS"
+        and matrix["report"].get("installed_runtime") == "PASS",
+        "Verified S07 automatic and installed runtime matrix evidence required",
+    )
+    require(
+        git("rev-parse", head + ":scripts/ai_runtime_report.py") == S07_EVALUATOR,
+        "S07 qualification evaluator differs from the original",
+    )
+    verify_s07_cpu_jobs(evidence["cpu_jobs"], head)
+    return {
+        "approval_sha256": trusted_approval,
+        "evidence_sha256": trusted_evidence,
+        "historical_findings": original_findings,
+        "remaining_findings": remaining_findings,
+        "candidate_finding": finding_state,
+    }
+
+
 def legacy_base_preflight(
     snapshot,
     binding,
@@ -446,6 +593,8 @@ def legacy_base_preflight(
     expected_head,
     trusted_binding,
     trusted_observations,
+    trusted_s07_approval=None,
+    trusted_s07_evidence=None,
     output_path=None,
 ):
     """Provelume PR-local extension; never projects or edits a historical receipt."""
@@ -466,20 +615,22 @@ def legacy_base_preflight(
         "Original authority unavailable or current capabilities increased",
     )
     require(digest(observations) == trusted_observations, "Observed source bytes changed")
+    observation_fields = {
+        "schema", "observed_at", "repository", "pr", "default", "candidate",
+        "test_merge", "files", "files_complete",
+    }
+    schema = observations.get("schema")
+    s07_scope = schema == "provelume-base-observations/v2"
+    if s07_scope:
+        observation_fields.add("s07_qualification")
+    else:
+        require(
+            trusted_s07_approval is None and trusted_s07_evidence is None,
+            "S07 trust anchors require v2 observations",
+        )
     require(
-        set(observations)
-        == {
-            "schema",
-            "observed_at",
-            "repository",
-            "pr",
-            "default",
-            "candidate",
-            "test_merge",
-            "files",
-            "files_complete",
-        }
-        and observations["schema"] == "provelume-base-observations/v1",
+        schema in ("provelume-base-observations/v1", "provelume-base-observations/v2")
+        and set(observations) == observation_fields,
         "Unknown base-advance observations",
     )
     native.require_fresh(observations["observed_at"])
@@ -722,6 +873,13 @@ def legacy_base_preflight(
     if type(snapshot.get("unresolved_threads")) is not int or snapshot["unresolved_threads"] != 0:
         errors.append("Current unresolved thread count blocks")
     review = native.normalize_review_snapshot(snapshot)
+    candidate_finding = review["technical_finding"]
+    if s07_scope:
+        s07_receipt = validate_s07_finding_applicability(
+            observations["s07_qualification"], snapshot, binding, review, git,
+            trusted_approval=trusted_s07_approval, trusted_evidence=trusted_s07_evidence,
+        )
+        candidate_finding = s07_receipt["candidate_finding"]
     review_result = native.evaluate_review_gate(
         source=review["source"],
         codex_state=review["codex_state"],
@@ -730,7 +888,7 @@ def legacy_base_preflight(
         current_head=head,
         reviewed_head=review["reviewed_head"],
         repository_review=review["repository_review"],
-        technical_finding=review["technical_finding"],
+        technical_finding=candidate_finding,
         withdrawal=review["withdrawal"],
     )
     errors.extend(review_result["errors"])
@@ -741,7 +899,11 @@ def legacy_base_preflight(
     require(not git("status", "--porcelain", "--untracked-files=all"), "Candidate became dirty")
     result = native.seal(
         {
-            "schema": "provelume-legacy-base-preflight/v1",
+            "schema": (
+                "provelume-legacy-base-preflight/v2" if s07_scope
+                else "provelume-legacy-base-preflight/v1"
+            ),
+            **({"s07_qualification": s07_receipt} if s07_scope else {}),
             "mode": "PREFLIGHT_BASE_ADVANCE",
             "repository": REPOSITORY,
             "observed_at": native.now_utc(),
@@ -1038,6 +1200,8 @@ def main(argv=None):
         legacy.add_argument("--" + name, type=Path, required=True)
     for name in ("expected-head", "binding-sha256", "observations-sha256"):
         legacy.add_argument("--" + name, required=True)
+    legacy.add_argument("--s07-approval-sha256")
+    legacy.add_argument("--s07-evidence-sha256")
     legacy.add_argument("--output", type=Path)
     native_workspace = sub.add_parser("workspace")
     native_workspace.add_argument("action", choices=["prepare", "check", "start"])
@@ -1068,6 +1232,8 @@ def main(argv=None):
                 expected_head=args.expected_head,
                 trusted_binding=args.binding_sha256,
                 trusted_observations=args.observations_sha256,
+                trusted_s07_approval=args.s07_approval_sha256,
+                trusted_s07_evidence=args.s07_evidence_sha256,
                 output_path=args.output,
             )
             print(json.dumps(result, sort_keys=True))
