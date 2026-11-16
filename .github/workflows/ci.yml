@@ -168,6 +168,113 @@ jobs:
           git checkout --detach "$BASE_SHA"
           git -c http.extraheader= fetch --no-tags --depth=1 origin \
             "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
+          s07_name_status=""
+          if [ "$HEAD_SHA" = f0b9445b2f5cd9f18ede776a311fe80e2bba799b ]; then
+            s07_name_status="$(python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          repository = "gabned/provelume"
+          repository_id = 1343746770
+          branch = "codex/protocol-s07-finding-applicability"
+          pinned_head = "f0b9445b2f5cd9f18ede776a311fe80e2bba799b"
+          base, head = os.environ["BASE_SHA"], os.environ["HEAD_SHA"]
+          number = int(os.environ["PR_NUMBER"])
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())
+          event_pr = event["pull_request"]
+          if not (
+              event_pr["draft"] is True
+              and event_pr["base"]["ref"] == "main"
+              and (event_pr["head"]["repo"] or {}).get("full_name") == repository
+              and event_pr["head"]["ref"] == branch
+          ):
+              raise SystemExit(0)
+          current = json.loads(Path(".agent/current-pr.json").read_bytes())
+
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+
+          require(
+              re.fullmatch(r"[0-9a-f]{40}", base) and head == pinned_head
+              and event["repository"]["full_name"] == repository
+              and event["repository"]["id"] == repository_id
+              and number > 0 and event["number"] == current["number"] == number,
+              "S07 draft event identity is incomplete or stale",
+          )
+          for pr in (event["pull_request"], current):
+              require(
+                  pr["state"] == "open" and pr["draft"] is True
+                  and pr["base"]["ref"] == "main" and pr["base"]["sha"] == base
+                  and pr["head"]["ref"] == branch and pr["head"]["sha"] == head
+                  and all(
+                      pr[side]["repo"]["full_name"] == repository
+                      and pr[side]["repo"]["id"] == repository_id
+                      for side in ("base", "head")
+                  ),
+                  "S07 draft base, head or state changed",
+              )
+          merge = current.get("merge_commit_sha")
+          require(
+              current.get("mergeable") is True
+              and isinstance(merge, str) and re.fullmatch(r"[0-9a-f]{40}", merge),
+              "S07 draft test merge is unavailable or conflicted",
+          )
+
+          environment = {
+              key: value for key, value in os.environ.items()
+              if key.upper() in {"PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG"}
+          }
+          environment.update(
+              GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+              GIT_ALLOW_PROTOCOL="https", GIT_NO_LAZY_FETCH="1", GIT_TERMINAL_PROMPT="0",
+          )
+
+
+          def git(*args):
+              return subprocess.check_output(["git", "--no-replace-objects", *args], env=environment)
+
+
+          history = (
+              ["--unshallow"] if git("rev-parse", "--is-shallow-repository").strip() == b"true" else []
+          )
+          git(
+              "-c", "http.extraheader=", "fetch", "--no-tags", *history, "origin", base,
+              f"+refs/pull/{number}/head:refs/remotes/origin/pr-head",
+              f"+refs/pull/{number}/merge:refs/remotes/origin/pr-merge",
+          )
+          require(
+              git("rev-parse", "--is-shallow-repository").strip() == b"false"
+              and git("rev-parse", "refs/remotes/origin/pr-head").decode().strip() == head
+              and git("rev-parse", "refs/remotes/origin/pr-merge").decode().strip() == merge,
+              "S07 draft test merge or head ref moved, or complete history is unavailable",
+          )
+          require(
+              git("show", "-s", "--format=%P", merge).decode().split() == [base, head],
+              "S07 draft test merge must have the observed base and head as ordered parents",
+          )
+
+          # Reproduce the clean merge with trusted Git plumbing. Checkout stays on the base.
+          tree = git("rev-parse", merge + "^{tree}").decode().strip()
+          reproduced = git("merge-tree", "--write-tree", base, head).decode().strip()
+          require(tree == reproduced, "S07 draft test merge tree differs from the clean replay")
+          proof = Path(".agent/s07-name-status.z")
+          proof.write_bytes(
+              git("diff", "--no-ext-diff", "--no-textconv", "--name-status", "-M", "-z", base, tree)
+          )
+          print(json.dumps({
+              "mode": "S07_DRAFT_SCOPE_ONLY", "base": base, "head": head, "test_merge": merge, "tree": tree,
+          }), file=sys.stderr)
+          print(proof.as_posix())
+          PY
+          )"
+          fi
           observed_head="$(git rev-parse refs/remotes/origin/pr-head)"
           test "$observed_head" = "$HEAD_SHA"
           mkdir -p .agent
@@ -175,7 +282,7 @@ jobs:
           python tools/agent_protocol_v2.py event-guard \
             --event "$GITHUB_EVENT_PATH" \
             --current-pr .agent/current-pr.json \
-            --name-status .agent/name-status.z \
+            --name-status "${s07_name_status:-.agent/name-status.z}" \
             --expected-base-sha "$BASE_SHA" \
             --expected-head-sha "$HEAD_SHA" \
             --complete \
