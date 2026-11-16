@@ -673,8 +673,8 @@ jobs:
           python tools/check.py
 
 
-  protocol-workspace:
-    name: Native Protocol workspace profile
+  protocol-workspace-image:
+    name: Prepare native Protocol workspace image
     if: >-
       ${{
         github.event_name != 'pull_request_target'
@@ -690,7 +690,125 @@ jobs:
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
+    outputs:
+      artifact-id: ${{ steps.upload-image.outputs.artifact-id }}
+      archive-sha256: ${{ steps.build-image.outputs.archive-sha256 }}
+      image-config-digest: ${{ steps.build-image.outputs.image-config-digest }}
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Build isolated native dependencies from the exact profile inputs
+        id: build-image
+        shell: bash
+        run: |
+          set -euo pipefail
+          context="$(mktemp -d)"
+          archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
+          mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
+          mkdir -p "$(dirname "$archive")"
+          cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
+          cp pyproject.toml "$context/pyproject.toml"
+          cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
+          # Export a single-platform image without an attestation index.
+          docker buildx build --load --pull --no-cache --platform linux/amd64 --provenance=false \
+            --tag "$IMAGE_REF" --file "$context/.github/agent-protocol/Dockerfile" "$context"
+          docker image save --platform linux/amd64 "$IMAGE_REF" | gzip -1 > "$archive"
+          config_digest="$(python3 - "$archive" "$IMAGE_REF" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference = sys.argv[1:]
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              with image.extractfile(config_path) as config:
+                  digest = hashlib.file_digest(config, "sha256").hexdigest()
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+          print(f"sha256:{digest}")
+          PY
+          )"
+          checksum="$(sha256sum "$archive")"
+          printf 'image-config-digest=%s\narchive-sha256=%s\n' "$config_digest" "${checksum%% *}" >> "$GITHUB_OUTPUT"
+      - name: Upload the dependency image for this workflow run
+        id: upload-image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: protocol-workspace-image-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/protocol-workspace-image/image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  protocol-workspace:
+    name: Native Protocol workspace profile
+    needs: protocol-workspace-image
+    # Fail this check when preparation fails and inherit intentional skips.
+    if: ${{ !cancelled() && needs.protocol-workspace-image.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
+      IMAGE_BUILD_RESULT: ${{ needs.protocol-workspace-image.result }}
+      IMAGE_ARTIFACT_ID: ${{ needs.protocol-workspace-image.outputs.artifact-id }}
+      IMAGE_ARCHIVE_SHA256: ${{ needs.protocol-workspace-image.outputs.archive-sha256 }}
+      IMAGE_CONFIG_DIGEST: ${{ needs.protocol-workspace-image.outputs.image-config-digest }}
+    steps:
+      - name: Require the prepared dependency image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$IMAGE_BUILD_RESULT" = success
+          [[ "$IMAGE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$IMAGE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$IMAGE_CONFIG_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+      - name: Download the dependency image by artifact ID
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          artifact-ids: ${{ env.IMAGE_ARTIFACT_ID }}
+          path: ${{ runner.temp }}/protocol-workspace-image
+          merge-multiple: true
+      - name: Verify the archive and load the exact image
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
+          checksum="$(sha256sum "$archive")"
+          test "${checksum%% *}" = "$IMAGE_ARCHIVE_SHA256"
+          # Verify the config of the single tagged image, independently of the local Docker ID.
+          python3 - "$archive" "$IMAGE_REF" "$IMAGE_CONFIG_DIGEST" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference, expected = sys.argv[1:]
+          digest = expected.removeprefix("sha256:")
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+              with image.extractfile(config_path) as config:
+                  if hashlib.file_digest(config, "sha256").hexdigest() != digest:
+                      raise SystemExit("Dependency image config digest does not match its contents")
+          PY
+          if docker image inspect "$IMAGE_REF" >/dev/null 2>&1; then
+            echo 'Dependency image reference already exists on this runner' >&2
+            exit 1
+          fi
+          docker image load --input "$archive"
+          docker image inspect "$IMAGE_REF" >/dev/null
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
@@ -701,26 +819,14 @@ jobs:
           set -euo pipefail
           python3 tools/agent_protocol_v2.py acquire
           python3 tools/agent_protocol_v2.py acquire --offline
-      - name: Build isolated native dependencies from the exact profile inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          context="$(mktemp -d)"
-          mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
-          cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
-          cp pyproject.toml "$context/pyproject.toml"
-          cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
-          docker build --pull --no-cache --iidfile "$RUNNER_TEMP/protocol-profile-image" \
-            --file "$context/.github/agent-protocol/Dockerfile" "$context"
       - name: Prepare, run native checks, start, stop and resume synthetic instance
         shell: bash
         run: |
           set -euo pipefail
-          image="$(cat "$RUNNER_TEMP/protocol-profile-image")"
-          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+          docker run --rm --pull never --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --env HOME=/tmp/native-home \
             --env RUFF_CACHE_DIR=/workspace/.agent/ruff-cache \
-            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$image" \
+            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$IMAGE_REF" \
             bash -c 'set -euo pipefail
               python3 tools/agent_protocol_v2.py workspace prepare
               python3 tools/agent_protocol_v2.py workspace prepare
