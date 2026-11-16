@@ -724,7 +724,7 @@ jobs:
           printf 'image-config-digest=%s\narchive-sha256=%s\n' "$config_digest" "${checksum%% *}" >> "$GITHUB_OUTPUT"
       - name: Upload the dependency image for this workflow run
         id: upload-image
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4762f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: protocol-workspace-image-${{ github.run_attempt }}
           path: ${{ runner.temp }}/protocol-workspace-image/image.tar.gz
