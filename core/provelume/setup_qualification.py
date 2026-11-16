@@ -14,14 +14,15 @@ from .maintenance_local_files import prepare_local_directory
 from .review_effects import ReviewUnavailable
 from .service import ProvelumeInstance
 from .setup_coordinator import SetupCoordinator
-from .setup_trial_http import _get, verify_trial_http
+from .setup_trial_http import _get, verify_trial_http, verify_trial_recovery
 from .setup_trial_inputs import FIXTURES
 from .setup_trials import SetupTrials
 from .shell_settings import ShellSettingsManager, default_settings
 from .web import create_app
 
 
-def qualify_setup(root, *, retention, ocr_required=True, languages=None, kit=None, kit_sha256=None):
+def qualify_setup(root, *, retention, ocr_required=True, languages=None, kit=None, kit_sha256=None,
+                  exercise_recovery=False):
     root = Path(root)
     if (kit is None) != (kit_sha256 is None):
         raise ReviewUnavailable("Select the exact kit and its independently verified fingerprint")
@@ -69,6 +70,8 @@ def qualify_setup(root, *, retention, ocr_required=True, languages=None, kit=Non
         observed = asyncio.run(verify_trial_http(app, instance.store, trial_id, port=44851))
         if not observed["complete"]:
             raise ReviewUnavailable("The synthetic consultation trial failed")
+        consultation_history = (asyncio.run(verify_trial_recovery(app, instance.store, trial_id))
+                                if exercise_recovery else [True])
         # Exercise actual frozen templates and catalogs, not resource presence alone.
         responses = {}
         for step in ("space", "folders", "ocr", "automation", "test", "summary"):
@@ -130,6 +133,7 @@ def qualify_setup(root, *, retention, ocr_required=True, languages=None, kit=Non
                                "inbox_outcome": row["inbox_outcome"]}
                               for row in observed["documents"]],
                 "six_template_responses": responses, "selected_settings_readback": True,
+                "consultation_history": consultation_history,
                 "kit_preparation": kit_preparation,
                 "future_native": {"acquired": True, "original_verified": True,
                                   "input_retained": future.exists(), "backlog_acquired": False},

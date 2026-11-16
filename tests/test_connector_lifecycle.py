@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from provelume.cli import main
-from provelume.connectors import ConnectorConflictError
+from provelume.connectors import ConnectorConflictError, ConnectorIntegrityError
 from provelume.domain import Acquisition, Document, DocumentVersion
 from provelume.instance_validation import inspect_instance
 from provelume.service import ProvelumeInstance
@@ -42,6 +42,48 @@ def _configured(tmp_path: Path) -> tuple[ProvelumeInstance, dict[str, object]]:
     instance = ProvelumeInstance.initialise(tmp_path / "instance")
     definition = instance.register_connector_definition(_manifest())
     return instance, definition
+
+
+def test_policy_reads_keep_fresh_authority_and_graph_validation_without_archive_counts(
+    tmp_path, monkeypatch
+):
+    instance, definition = _configured(tmp_path)
+    connector = instance.create_connector_instance(
+        str(definition["id"]), name="Policy fixture", provider_identity="fixture-provider"
+    )
+    identity = str(connector["id"])
+    source = instance.add_connector_source(
+        identity, name="Policy source", source_kind="web", external_id="fixture:policy"
+    )
+    _attach_original(instance, str(source["id"]))
+    manager = instance.connectors
+    full = manager.get_instance(identity)
+    policy = manager.get_instance_policy(identity)
+    assert "sources" not in policy and "source_count" not in policy
+    assert policy == {key: full[key] for key in policy}
+    assert full["sources"][0]["document_count"] == 1
+    original = instance.store.list_canonical
+
+    def read(kind):
+        assert kind not in {"documents", "acquisitions"}, "policy scanned archive counts"
+        return original(kind)
+
+    with monkeypatch.context() as guarded:
+        guarded.setattr(instance.store, "list_canonical", read)
+        assert manager.get_instance_policy(identity) == policy
+        assert manager.get_instance_policy("missing") is None
+    instance.disable_connector_instance(identity)
+    with monkeypatch.context() as guarded:
+        guarded.setattr(instance.store, "list_canonical", read)
+        current = manager.get_instance_policy(identity)
+        assert current["configured_enabled"] is False and current != policy
+        # An unrelated malformed connector still invalidates the complete graph.
+        path = instance.store.paths.canonical_dir("sources") / f"{source['id']}.json"
+        payload = json.loads(path.read_text())
+        payload["connector_instance_id"] = "connector_instance_" + "0" * 32
+        path.write_text(json.dumps(payload))
+        with pytest.raises(ConnectorIntegrityError):
+            manager.get_instance_policy(identity)
 
 
 def _attach_original(

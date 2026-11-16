@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from collections.abc import Mapping
 from datetime import datetime
@@ -1049,8 +1050,13 @@ def _canonical_records(
     errors: list[dict[str, str]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
     records: dict[str, dict[str, dict[str, Any]]] = {}
+    root = store.paths.root
+    reference_root = native_path(root) if os.name == "nt" else root
     for kind in CANONICAL_KINDS:
         directory = store.paths.canonical_dir(kind)
+        # Canonical file names can cross MAX_PATH inside a restore stage.
+        if os.name == "nt":
+            directory = native_path(directory)
         selected: dict[str, dict[str, Any]] = {}
         records[kind] = selected
         if directory.is_symlink() or directory.is_junction():
@@ -1094,7 +1100,7 @@ def _canonical_records(
                 )
                 continue
         for path in sorted(directory.glob("*.json")):
-            relative = path.relative_to(store.paths.root).as_posix()
+            relative = path.relative_to(reference_root).as_posix()
             if path.is_symlink() or path.is_junction():
                 errors.append(
                     _finding(
