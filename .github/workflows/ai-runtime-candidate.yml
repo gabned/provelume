@@ -50,25 +50,7 @@ permissions:
   contents: read
 jobs:
   measure:
-    if: >-
-      ${{
-        (
-          inputs.concordia_kernel_control != true
-          && inputs.concordia_diagnostic != true
-          && inputs.concordia_observer_study != true
-          && inputs.concordia_smt_study != true
-          && inputs.concordia_tracer_study != true
-        )
-        && !(
-          github.event_name == 'pull_request'
-          && github.event.pull_request.draft == true
-          && github.repository == 'gabned/provelume'
-          && github.event.pull_request.base.ref == 'main'
-          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
-          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
-          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
-        )
-      }}
+    if: ${{ inputs.concordia_kernel_control != true && (( inputs.concordia_diagnostic != true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true ) && !( github.event_name == 'pull_request' && github.event.pull_request.draft == true && github.repository == 'gabned/provelume' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == 'gabned/provelume' && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability' && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b' )) }}
     strategy:
       fail-fast: false
       matrix:
