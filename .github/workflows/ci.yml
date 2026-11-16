@@ -707,19 +707,35 @@ jobs:
           set -euo pipefail
           context="$(mktemp -d)"
           archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
-          metadata="$RUNNER_TEMP/protocol-profile-image.json"
           mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
           mkdir -p "$(dirname "$archive")"
           cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
           cp pyproject.toml "$context/pyproject.toml"
           cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
-          # Export one image config digest, with no attestation index for this temporary image.
+          # Export a single-platform image without an attestation index.
           docker buildx build --load --pull --no-cache --platform linux/amd64 --provenance=false \
-            --tag "$IMAGE_REF" --metadata-file "$metadata" \
-            --file "$context/.github/agent-protocol/Dockerfile" "$context"
-          config_digest="$(python3 -c 'import json, sys; print(json.load(sys.stdin)["containerimage.config.digest"])' < "$metadata")"
-          [[ "$config_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            --tag "$IMAGE_REF" --file "$context/.github/agent-protocol/Dockerfile" "$context"
           docker image save --platform linux/amd64 "$IMAGE_REF" | gzip -1 > "$archive"
+          config_digest="$(python3 - "$archive" "$IMAGE_REF" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference = sys.argv[1:]
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              with image.extractfile(config_path) as config:
+                  digest = hashlib.file_digest(config, "sha256").hexdigest()
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+          print(f"sha256:{digest}")
+          PY
+          )"
           checksum="$(sha256sum "$archive")"
           printf 'image-config-digest=%s\narchive-sha256=%s\n' "$config_digest" "${checksum%% *}" >> "$GITHUB_OUTPUT"
       - name: Upload the dependency image for this workflow run
