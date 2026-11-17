@@ -240,6 +240,59 @@ The four original FAILs stay open in the #439 ledger, with the BIND and all
 prior receipts preserved. The S07/S08/S23 acceptance order and independent
 artifact gate still apply.
 
+#### Separately authenticated approval for five additional findings
+
+`provelume-s07-approval/v1` retains its original four-record scope and receipt
+shape. Preparing, reviewing or installing support for the following extension
+does not approve its use. An authenticated maintainer decision is required
+separately; a proposed decision, this document or a locally computed digest
+cannot supply that authority.
+
+`provelume-s07-approval/v2` retains the v1 fields and adds
+`additional_historical_findings`: the sorted GitHub job URLs for exactly these
+five records. `historical_findings` still contains only the four original URLs.
+The repository, owner #439, original BIND, release 0.15.0 and
+`QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS` criterion are unchanged.
+`reference` must identify the separate authenticated decision covering this
+exact extension; the host independently selects its trusted approval digest.
+
+| Owner | Source commit | Run / job | Original finding |
+| --- | --- | --- | --- |
+| #443 | `f2cb84a60f3e5a268d8547285b5a360cbaef8a47` | `42368608397 / 128391869733` | Deterministic Capture sample 2 |
+| #444 | `adb276c663007921658fb5dfc4173b7d62ace31d` | `42369730479 / 128395169479` | Deterministic Capture sample 2 |
+| #445 | `3790f8afc50ef3a0c7162894e366b7e19b4ddc34` | `42378818835 / 128421899209` | Governed Capture sample 4 |
+| #446 | `0cf30899fdf2c5b0607dc1ab6c7a5fe97f37f83f` | `42382541331 / 128433012483` | Deterministic Capture sample 2 |
+| #448 | `61e8694dd7904de4de8c9295ca8301edf4a358df` | `42389259695 / 128453164193` | S08 warm Capture 811 |
+
+The unchanged evidence envelope contains all nine records. The adapter compares
+each additional record in full: `source_commit`, `run_id`, `job_id`,
+`result: FAIL`, `status: CURRENT`, `cause: NOT_DEMONSTRATED`. A URL alone is
+insufficient. Missing or altered records and a broader approval are refused.
+Only after that comparison can the five additional records be treated like
+the original four when deriving the candidate finding state. Their original
+FAILs stay open; the v2 approval does not establish historical causality.
+Only the resulting v2 qualification adds `additional_historical_findings` to
+the receipt, retaining all five records separately from the four originals
+and the remaining inventory. The original snapshot and refusal stay intact.
+
+The complete ledger also retains preparatory failures and diagnostic outcomes.
+The authenticated host must reconcile applicability to the exact candidate
+from their original evidence before collecting the relevant finding inventory.
+For example, the related S09 and S13 Windows model-acquisition failures retain
+FAIL / inference NOT_RUN, and the distinct S13 Linux PASS stays on its source;
+they are not covered by the five Linux job URLs above. Neither the label
+"preparation" nor `qualification_eligible=false` justifies omission. Every
+other applicable or uncertain finding remains `CURRENT` or `UNKNOWN` and
+blocks. No `HISTORY_ONLY` or `applicable=false` field bypasses that reduction.
+
+The independent approval, evidence and observation digests, ordinary CPU jobs,
+unchanged evaluator, matrix, review and other gates remain mandatory. A current
+S08 FAIL still fails the required overall ordinary report; an Azure diagnostic
+PASS cannot substitute for ordinary PR qualification. Acceptance still requires
+separate qualification of the resulting main after an authorized integration.
+This approval schema does not activate Lifecycle v2, change the legacy owner,
+grant execution or publication authority, or authorize a new run or merge.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review
