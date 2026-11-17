@@ -572,7 +572,12 @@ def validate_s07_finding_applicability(
         "All four original S07 findings and their outcomes are required",
     )
     require(
-        all(findings.get(key) == value for key, value in additional_findings.items()),
+        all(
+            findings.get(key) == value
+            and type(findings[key]["run_id"]) is int
+            and type(findings[key]["job_id"]) is int
+            for key, value in additional_findings.items()
+        ),
         "All five additional S07 findings and their original outcomes are required",
     )
     remaining_findings = {

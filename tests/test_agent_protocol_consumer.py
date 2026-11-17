@@ -928,6 +928,18 @@ def test_s07_addendum_refuses_changed_record_even_with_trusted_digest(
         base_preflight(case)
 
 
+@pytest.mark.parametrize("field", ["run_id", "job_id"])
+def test_s07_addendum_requires_integer_ids(s07_additional_case, field):
+    case = s07_additional_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["approval"]["additional_historical_findings"][0]
+    record = qualification["evidence"]["findings"][reference]
+    record[field] = float(record[field])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="All five additional S07 findings"):
+        base_preflight(case)
+
+
 def test_s07_addendum_requires_every_fixed_record(s07_additional_case):
     case = s07_additional_case
     qualification = case["observations"]["s07_qualification"]
