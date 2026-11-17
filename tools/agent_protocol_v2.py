@@ -444,6 +444,13 @@ S07_ORIGINAL_RUNS = {
     "da25e28564f70fc1bad59f624c5947e9fe2a3924": (42115157949, 127552733141),
     "4cfbec445f7582130802f753b2dc186dc8903142": (42119880008, 127569128458),
 }
+S07_ADDITIONAL_RUNS = {
+    "f2cb84a60f3e5a268d8547285b5a360cbaef8a47": (42368608397, 128391869733),
+    "adb276c663007921658fb5dfc4173b7d62ace31d": (42369730479, 128395169479),
+    "3790f8afc50ef3a0c7162894e366b7e19b4ddc34": (42378818835, 128421899209),
+    "0cf30899fdf2c5b0607dc1ab6c7a5fe97f37f83f": (42382541331, 128433012483),
+    "61e8694dd7904de4de8c9295ca8301edf4a358df": (42389259695, 128453164193),
+}
 S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
 
 
@@ -525,11 +532,32 @@ def validate_s07_finding_applicability(
         "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
         "historical_findings": sorted(original_findings),
     }
+    additional_findings = {}
+    approval_error = (
+        "S07 approval must cover exactly the four original findings and the approved criterion"
+    )
+    if approval.get("schema") == "provelume-s07-approval/v2":
+        additional_findings = {
+            f"https://github.com/{REPOSITORY}/actions/runs/{run}/job/{job}": {
+                "source_commit": commit, "run_id": run, "job_id": job, "result": "FAIL",
+                "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+            }
+            for commit, (run, job) in S07_ADDITIONAL_RUNS.items()
+        }
+        approval_scope = {
+            **approval_scope,
+            "schema": "provelume-s07-approval/v2",
+            "additional_historical_findings": sorted(additional_findings),
+        }
+        approval_error = (
+            "S07 approval must cover exactly the four original and five additional findings "
+            "and the approved criterion"
+        )
     reference = approval.get("reference")
     require(
         isinstance(reference, str) and bool(reference.strip())
         and approval == {**approval_scope, "reference": reference},
-        "S07 approval must cover exactly the four original findings and the approved criterion",
+        approval_error,
     )
     require(
         set(evidence) == {"snapshot_sha256", "findings_complete", "findings", "cpu_jobs", "matrix"}
@@ -543,8 +571,13 @@ def validate_s07_finding_applicability(
         and all(findings.get(key) == value for key, value in original_findings.items()),
         "All four original S07 findings and their outcomes are required",
     )
+    require(
+        all(findings.get(key) == value for key, value in additional_findings.items()),
+        "All five additional S07 findings and their original outcomes are required",
+    )
     remaining_findings = {
-        key: value for key, value in findings.items() if key not in original_findings
+        key: value for key, value in findings.items()
+        if key not in original_findings and key not in additional_findings
     }
     require(
         all(
@@ -574,13 +607,16 @@ def validate_s07_finding_applicability(
         "S07 qualification evaluator differs from the original",
     )
     verify_s07_cpu_jobs(evidence["cpu_jobs"], head)
-    return {
+    result = {
         "approval_sha256": trusted_approval,
         "evidence_sha256": trusted_evidence,
         "historical_findings": original_findings,
         "remaining_findings": remaining_findings,
         "candidate_finding": finding_state,
     }
+    if additional_findings:
+        result["additional_historical_findings"] = additional_findings
+    return result
 
 
 def legacy_base_preflight(
