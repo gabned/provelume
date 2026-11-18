@@ -293,6 +293,42 @@ separate qualification of the resulting main after an authorized integration.
 This approval schema does not activate Lifecycle v2, change the legacy owner,
 grant execution or publication authority, or authorize a new run or merge.
 
+#### Separately authenticated approval for diagnostic cold Capture 810
+
+`provelume-s07-approval/v3` adds only `cold_810_finding` to the approval fields
+and exact nine job references from v2. The additional field contains the job URL
+for run `42290059975`, attempt `1`, job `128140838845`. The owner, original BIND,
+release and criterion stay the same. A separate authenticated maintainer
+decision must cover this exact scope and supply the trusted approval digest.
+Its `reference` is the canonical GitHub comment permalink in this repository.
+The existing v2 decision cannot supply the new `reference`.
+
+The job URL is reserved for this single finding in `evidence.findings`. The
+host authenticates the original report `capture-guard-comparison/arm-3/report.json`
+in artifact `13541917919`. The adapter requires the exact record for arm A3,
+cold sample 810, on application `d5b2cc9` and driver `358a194`. Its source and
+driver SHAs, attempt, job, artifact and report byte digests must match. All
+numeric identity fields are integers and `qualification_eligible` is the
+boolean `false`. The diagnostic job's `success` and the report's
+`s08_performance` finding `FAIL / CURRENT / NOT_DEMONSTRATED` are both retained.
+
+The host assigns a distinct, stable evidence reference to each authenticated
+finding, including other findings from the same job or artifact. A collision
+or ambiguous record identity stops collection before the host builds
+`evidence.findings` or seals its digest. The adapter rejects duplicate JSON keys
+in v3 observations before using the parsed inventory. Other applicable or
+uncertain `CURRENT` and `UNKNOWN` findings still block, including findings
+sharing the diagnostic job. Only the exact cold 810 record is added to the
+outcomes covered by the criterion.
+
+The v3 receipt retains `cold_810_finding` separately alongside the original
+four findings, the five additional findings, the remaining findings, all
+trusted digests and the original preflight refusal. v1 and v2 keep their
+existing inputs, receipts and gate behavior. The ordinary CPU and matrix gates
+on the exact candidate and separate qualification on the resulting `main`
+remain required at existing thresholds. This extension keeps all findings
+open and does not supply adoption or integration authority.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review
