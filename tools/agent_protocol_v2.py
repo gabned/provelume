@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -451,7 +452,58 @@ S07_ADDITIONAL_RUNS = {
     "0cf30899fdf2c5b0607dc1ab6c7a5fe97f37f83f": (42382541331, 128433012483),
     "61e8694dd7904de4de8c9295ca8301edf4a358df": (42389259695, 128453164193),
 }
+S07_COLD_810_APPROVAL_SCHEMA = "provelume-s07-approval/v3"
+S07_V2_APPROVAL_COMMENT = "issuecomment-6960833812"
+S07_COLD_810_FINDING = f"https://github.com/{REPOSITORY}/actions/runs/42290059975/job/128140838845"
+S07_COLD_810_RECORD = {
+    "source_commit": "d5b2cc9f06c14be8c51a082d309dbde0358552e8",
+    "driver_commit": "358a19468f1e2db58b72212e8e36c102cbf522f6",
+    "run_id": 42290059975,
+    "attempt": 1,
+    "job_id": 128140838845,
+    "event": "workflow_dispatch",
+    "workflow_path": ".github/workflows/ai-runtime-candidate.yml",
+    "job_name": "concordia-capture-guard",
+    "job_conclusion": "success",
+    "arm": "A",
+    "arm_index": 3,
+    "phase": "cold",
+    "sample": 810,
+    "failed_gate": "s08_performance",
+    "qualification_eligible": False,
+    "result": "FAIL",
+    "status": "CURRENT",
+    "cause": "NOT_DEMONSTRATED",
+    "artifact_id": 13541917919,
+    "artifact_sha256": "5248db15078cf441570f114390e8030dc79e4f0065caa6b87172580f00cc7c2a",
+    "report_member": "capture-guard-comparison/arm-3/report.json",
+    "report_bytes_sha256": "63bc821aec9ad304da7e0fae0b09e57b4cf13d70758a54bd832d44977bd2ef83",
+}
 S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
+
+
+def parse_legacy_observations(data):
+    """Reject v3 collisions before normalized observations can enter the gate."""
+    duplicate_keys = False
+
+    def collect(pairs):
+        nonlocal duplicate_keys
+        obj = {}
+        for key, value in pairs:
+            duplicate_keys |= key in obj
+            obj[key] = value
+        return obj
+
+    observations = json.loads(data, object_pairs_hook=collect)
+    if duplicate_keys:
+        try:
+            schema = observations["s07_qualification"]["approval"]["schema"]
+        except (KeyError, TypeError):
+            pass
+        else:
+            require(schema != S07_COLD_810_APPROVAL_SCHEMA,
+                    "Duplicate JSON keys in S07 v3 observations")
+    return observations
 
 
 def verify_s07_cpu_jobs(jobs, head):
@@ -533,10 +585,12 @@ def validate_s07_finding_applicability(
         "historical_findings": sorted(original_findings),
     }
     additional_findings = {}
+    schema = approval.get("schema")
+    cold_810_approved = schema == S07_COLD_810_APPROVAL_SCHEMA
     approval_error = (
         "S07 approval must cover exactly the four original findings and the approved criterion"
     )
-    if approval.get("schema") == "provelume-s07-approval/v2":
+    if schema in ("provelume-s07-approval/v2", S07_COLD_810_APPROVAL_SCHEMA):
         additional_findings = {
             f"https://github.com/{REPOSITORY}/actions/runs/{run}/job/{job}": {
                 "source_commit": commit, "run_id": run, "job_id": job, "result": "FAIL",
@@ -554,11 +608,27 @@ def validate_s07_finding_applicability(
             "and the approved criterion"
         )
     reference = approval.get("reference")
+    if cold_810_approved:
+        approval_scope.update(schema=S07_COLD_810_APPROVAL_SCHEMA,
+                              cold_810_finding=S07_COLD_810_FINDING)
+        approval_error = (
+            "S07 v3 approval must cover exactly the nine S07 findings and the cold 810 finding"
+        )
     require(
         isinstance(reference, str) and bool(reference.strip())
         and approval == {**approval_scope, "reference": reference},
         approval_error,
     )
+    if cold_810_approved:
+        decision_comment = re.fullmatch(
+            rf"https://github\.com/{re.escape(REPOSITORY)}/(?:issues|pull)/[1-9][0-9]*"
+            r"#(issuecomment-[1-9][0-9]*)",
+            reference,
+        )
+        require(
+            decision_comment is not None and decision_comment[1] != S07_V2_APPROVAL_COMMENT,
+            "S07 v3 requires a separate authenticated cold 810 decision",
+        )
     require(
         set(evidence) == {"snapshot_sha256", "findings_complete", "findings", "cpu_jobs", "matrix"}
         and evidence["snapshot_sha256"] == snapshot["report_sha256"]
@@ -580,9 +650,21 @@ def validate_s07_finding_applicability(
         ),
         "All five additional S07 findings and their original outcomes are required",
     )
+    if cold_810_approved:
+        cold_810 = findings.get(S07_COLD_810_FINDING)
+        require(
+            cold_810 == S07_COLD_810_RECORD
+            and all(
+                type(cold_810[key]) is int
+                for key in ("run_id", "attempt", "job_id", "arm_index", "sample", "artifact_id")
+            )
+            and cold_810["qualification_eligible"] is False,
+            "The exact S07 cold 810 finding and its original outcome are required",
+        )
     remaining_findings = {
         key: value for key, value in findings.items()
         if key not in original_findings and key not in additional_findings
+        and (not cold_810_approved or key != S07_COLD_810_FINDING)
     }
     require(
         all(
@@ -621,6 +703,8 @@ def validate_s07_finding_applicability(
     }
     if additional_findings:
         result["additional_historical_findings"] = additional_findings
+    if cold_810_approved:
+        result["cold_810_finding"] = {S07_COLD_810_FINDING: findings[S07_COLD_810_FINDING]}
     return result
 
 
@@ -1268,7 +1352,7 @@ def main(argv=None):
                 json.loads(read(args.snapshot)),
                 json.loads(read(args.binding)),
                 json.loads(read(args.effects)),
-                json.loads(read(args.observations)),
+                parse_legacy_observations(read(args.observations)),
                 repository_path=args.repository_path,
                 expected_head=args.expected_head,
                 trusted_binding=args.binding_sha256,
