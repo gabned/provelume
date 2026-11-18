@@ -10,6 +10,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from copy import deepcopy
 from datetime import UTC
 from pathlib import Path
 from types import SimpleNamespace
@@ -388,8 +389,7 @@ elif __name__ == "__main__":
     print("Native Agent Protocol dependency and engine conformance: PASS")
 
 
-@pytest.fixture
-def legacy_base_case(tmp_path, request):
+def create_legacy_base_case(tmp_path, *, production=False):
     """A real synthetic normal merge, with immutable birth and live base anchors."""
     import importlib.util
 
@@ -429,7 +429,6 @@ def legacy_base_case(tmp_path, request):
     git("commit", "-m", "synthetic birth base")
     original = git("rev-parse", "HEAD")
     git("checkout", "-b", "work")
-    production = getattr(request, "param", False)
     workstream_class = "PRODUCT" if production else "PROTOCOL"
     policy = "REPOSITORY_POLICY" if production else "NO_PRODUCTION"
     changed_name = "core/synthetic.txt" if production else "tests/test_agent_protocol_consumer.py"
@@ -565,6 +564,11 @@ def legacy_base_case(tmp_path, request):
     }
 
 
+@pytest.fixture
+def legacy_base_case(tmp_path, request):
+    return create_legacy_base_case(tmp_path, production=getattr(request, "param", False))
+
+
 def base_preflight(case):
     return case["adapter"].legacy_base_preflight(
         **{k: v for k, v in case.items() if k not in {"adapter", "native", "git"}}
@@ -592,9 +596,7 @@ def test_legacy_base_advance_preserves_original_failure_and_all_input_bytes(lega
     assert {k: json.dumps(case[k], sort_keys=True) for k in before} == before
 
 
-@pytest.fixture
-def s07_base_case(legacy_base_case, monkeypatch):
-    case = legacy_base_case
+def prepare_s07_base_case(case, monkeypatch):
     adapter = case["adapter"]
     # Set synthetic ownership coordinates without replacing or resealing a live BIND.
     workstream = "concordia-s07-cpu-recovery"
@@ -669,6 +671,11 @@ def s07_base_case(legacy_base_case, monkeypatch):
     return case
 
 
+@pytest.fixture
+def s07_base_case(legacy_base_case, monkeypatch):
+    return prepare_s07_base_case(legacy_base_case, monkeypatch)
+
+
 def seal_s07_evidence(case):
     observations = case["observations"]
     case["trusted_observations"] = case["adapter"].digest(observations)
@@ -677,9 +684,7 @@ def seal_s07_evidence(case):
     )
 
 
-@pytest.fixture
-def s07_additional_case(s07_base_case):
-    case = s07_base_case
+def prepare_s07_additional_case(case):
     # These fixed coordinates are independent of the adapter's proposed allowlist.
     # All authority and qualification reports in this fixture remain synthetic.
     additional_runs = {
@@ -707,6 +712,11 @@ def s07_additional_case(s07_base_case):
     case["trusted_s07_approval"] = case["adapter"].digest(approval)
     seal_s07_evidence(case)
     return case
+
+
+@pytest.fixture
+def s07_additional_case(s07_base_case):
+    return prepare_s07_additional_case(s07_base_case)
 
 
 S07_TEST_COLD_810_URL = (
@@ -738,9 +748,22 @@ S07_TEST_COLD_810_RECORD = {
 }
 
 
+@pytest.fixture(scope="module")
+def s07_cold_810_repository(tmp_path_factory):
+    return create_legacy_base_case(tmp_path_factory.mktemp("s07-cold-810"))
+
+
 @pytest.fixture
-def s07_cold_810_case(s07_additional_case):
-    case = s07_additional_case
+def s07_cold_810_case(s07_cold_810_repository, monkeypatch):
+    # These preflight cases only read Git. Each test owns its mutable evidence.
+    case = s07_cold_810_repository.copy()
+    for key in ("binding", "snapshot", "effects", "observations"):
+        case[key] = deepcopy(case[key])
+    observed_at = case["native"].now_utc()
+    case["snapshot"]["observed_at"] = observed_at
+    case["observations"]["observed_at"] = observed_at
+    prepare_s07_base_case(case, monkeypatch)
+    prepare_s07_additional_case(case)
     # Pin the original observation independently. The approval is only a test fixture.
     qualification = case["observations"]["s07_qualification"]
     approval, evidence = qualification["approval"], qualification["evidence"]
