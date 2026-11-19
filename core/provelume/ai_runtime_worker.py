@@ -30,12 +30,24 @@ def read():
     return json.loads(raw)
 
 
-def sealed_snapshot(stack, source, size, digest):
-    """Bounded immutable Linux file, retained until worker exit; no pathname reload."""
+def _snapshot_buffer(stack):
+    descriptor = os.memfd_create("provelume-input", os.MFD_ALLOW_SEALING)
+    return stack.enter_context(os.fdopen(descriptor, "w+b"))
+
+
+def _seal_snapshot(snapshot):
     import fcntl
 
-    descriptor = os.memfd_create("provelume-input", os.MFD_ALLOW_SEALING)
-    snapshot = stack.enter_context(os.fdopen(descriptor, "w+b"))
+    snapshot.flush()
+    descriptor = snapshot.fileno()
+    fcntl.fcntl(descriptor, fcntl.F_ADD_SEALS,
+                fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL)
+    return f"/proc/self/fd/{descriptor}"
+
+
+def sealed_snapshot(stack, source, size, digest):
+    """Bounded immutable Linux file, retained until worker exit; no pathname reload."""
+    snapshot = _snapshot_buffer(stack)
     source.seek(0)
     count, observed = 0, hashlib.sha256()
     while block := source.read(1024 * 1024):
@@ -44,10 +56,7 @@ def sealed_snapshot(stack, source, size, digest):
         snapshot.write(block)
         observed.update(block)
     check(count == size and observed.hexdigest() == digest, "integrity")
-    snapshot.flush()
-    fcntl.fcntl(descriptor, fcntl.F_ADD_SEALS,
-                fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL)
-    return f"/proc/self/fd/{descriptor}"
+    return _seal_snapshot(snapshot)
 
 
 def pinned_input(stack, path):
@@ -82,14 +91,18 @@ def main(*, containment=None, inherited_model=False):
                     handle, os.O_BINARY | os.O_RDONLY), "rb"))
                 verify_stream(source, entry)
                 model_stream, model_path = source, None
-            else:
+            elif os.name == "nt":
                 with pinned_input(stack, initial["model"]) as source:
                     verify_stream(source, entry)
-                    model_path = initial["model"]
+                model_path = initial["model"]
+            else:
+                with pinned_input(stack, initial["model"]) as source:
                     phase = "model_snapshot"
-                    if os.name != "nt":
-                        model_path = sealed_snapshot(
-                            stack, source, entry.model_size, entry.model_sha256)
+                    snapshot = _snapshot_buffer(stack)
+                    phase = "model_verification"
+                    verify_stream(source, entry, copy_to=snapshot)
+                    phase = "model_snapshot"
+                    model_path = _seal_snapshot(snapshot)
             directory = Path(initial["runtime"])
             if inherited_model:
                 check(directory == Path(sys._MEIPASS) / "provelume/native-ai/windows",
