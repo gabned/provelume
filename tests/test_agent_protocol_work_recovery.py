@@ -68,10 +68,13 @@ def make_adoption(tmp_path, version="1.4.7"):
         dest.chmod(493 if recovery.ops.VENDOR_FILES.get(path) == "100755" else 420)
     write_routing(canonical, version)
     command(canonical, "add", ".")
-    for path, mode in recovery.ops.VENDOR_FILES.items():
-        command(
-            canonical, "update-index", "--chmod=" + ("+x" if mode == "100755" else "-x"), "--", path
-        )
+    # One index operation per mode preserves every pinned path/mode while
+    # avoiding a new Git process for each file in every isolated fixture.
+    for mode in ("100644", "100755"):
+        paths = [path for path, expected in recovery.ops.VENDOR_FILES.items() if expected == mode]
+        if paths:
+            command(canonical, "update-index", "--chmod=" + ("+x" if mode == "100755" else "-x"),
+                    "--", *paths)
     command(canonical, "commit", "-qm", "Synthetic canonical source")
     sha = command(canonical, "rev-parse", "HEAD")
     recovery.ops.sync_vendor(canonical, target, sha)
