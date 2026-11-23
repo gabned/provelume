@@ -143,6 +143,14 @@ Preview profile requires its own security and support review before release.
 The test receiver stays inside a disposable Linux guest on the runner, with
 an ephemeral Windows loopback endpoint and synthetic credentials.
 
+The pinned MSYS2 sender passes WinSock stream sockets to the adapter for
+rsync input and output. Windows reports both handles as `FILE_TYPE_PIPE`.
+The native trial observed CRT `EINVAL` on the first read before OpenSSH
+connected. The adapter now verifies that those handles are stream sockets,
+uses only owned nonblocking WinSock duplicates, and bounds binary reads and
+writes by the original operation deadline. Ordinary pipes keep the existing
+CRT path. The inherited originals remain under the sender's ownership.
+
 Linux senders require the external OpenSSH 10.6p2 client, which includes the
 upstream rekey fix. The independent native trial uses the upstream archive
 identified by the signed Debian source index, SHA-256

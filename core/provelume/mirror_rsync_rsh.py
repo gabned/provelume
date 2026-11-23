@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import os
+import select
+import socket
 import subprocess
 import sys
 import threading
 import time
 from contextlib import ExitStack, contextmanager, suppress
+from functools import partial
 from pathlib import Path
 
 from .maintenance_local_files import open_local_file
@@ -29,7 +32,6 @@ from .mirror_ssh_runtime import (
 def socket_kind(handle):
     """Inspect the admitted raw handle without owning or reconfiguring it."""
     import ctypes
-    import socket
 
     try:
         winsock = ctypes.WinDLL("ws2_32")
@@ -51,11 +53,42 @@ def socket_kind(handle):
     return "UNAVAILABLE"
 
 
+def duplicate_windows_socket(files, handle):
+    # MSYS gives the adapter an inherited WinSock SOCKET under FILE_TYPE_PIPE.
+    # Use a WinSock duplicate owned by this adapter, never a CRT file descriptor
+    # or DuplicateHandle for the original socket.
+    borrowed = socket.socket(fileno=handle)
+    try:
+        owned = files.enter_context(socket.fromshare(borrowed.share(os.getpid())))
+        owned.setblocking(False)
+        return owned
+    finally:
+        borrowed.detach()
+
+
+def socket_io(endpoint, deadline, *, sending):
+    operation = endpoint.send if sending else endpoint.recv
+    readers, writers = ([], [endpoint]) if sending else ([endpoint], [])
+
+    def transfer(value):
+        while True:
+            remaining = deadline - time.monotonic()
+            require(remaining > 0, "deadline")
+            readable, writable, _ = select.select(readers, writers, [], remaining)
+            require(readable or writable, "deadline")
+            try:
+                return operation(value)
+            except BlockingIOError:
+                continue
+
+    return transfer
+
+
 @contextmanager
-def inherited_streams(observed, sockets):
+def inherited_streams(observed, sockets, deadline):
     """Use only the byte streams that the contained rsync process supplied."""
     if os.name != "nt":
-        yield 0, 1, sys.stderr
+        yield partial(os.read, 0), partial(os.write, 1), sys.stderr
         return
 
     import ctypes
@@ -75,14 +108,18 @@ def inherited_streams(observed, sockets):
         observed[name] = "ABSENT" if kind is None else kind_names.get(kind, "OTHER")
         if kind == 3 and name != "stderr":
             sockets[name] = socket_kind(source)
-        standard.append((source, kind, types, mode))
+        standard.append((name, source, kind, types, mode))
     with ExitStack() as files:
         streams = []
-        for source, kind, types, mode in standard:
+        for name, source, kind, types, mode in standard:
+            require(source and kind in types, "rsync_stream")
+            if sockets.get(name) == "STREAM_SOCKET":
+                endpoint = duplicate_windows_socket(files, source)
+                streams.append(socket_io(endpoint, deadline, sending=(name == "stdout")))
+                continue
             duplicate = ctypes.c_void_p()
             require(
-                source and kind in types
-                and kernel.DuplicateHandle(
+                kernel.DuplicateHandle(
                     process, source, process, ctypes.byref(duplicate), 0, False, 2
                 ),
                 "rsync_stream",
@@ -93,8 +130,13 @@ def inherited_streams(observed, sockets):
             except BaseException:
                 kernel.CloseHandle(duplicate)
                 raise
-            streams.append(files.enter_context(os.fdopen(descriptor, mode, buffering=0)))
-        yield streams[0].fileno(), streams[1].fileno(), streams[2]
+            stream = files.enter_context(os.fdopen(descriptor, mode, buffering=0))
+            if name == "stderr":
+                streams.append(stream)
+            else:
+                operation = os.read if name == "stdin" else os.write
+                streams.append(partial(operation, stream.fileno()))
+        yield tuple(streams)
 
 
 def error_kind(error):
@@ -214,7 +256,9 @@ def main():
             )
         agent = context["agent"]
         phase = "STDIO"
-        incoming, outgoing, errors = resources.enter_context(inherited_streams(stdio, sockets))
+        incoming, outgoing, errors = resources.enter_context(
+            inherited_streams(stdio, sockets, deadline)
+        )
         # Deliberately no start_new_session/CREATE_BREAKAWAY_FROM_JOB: native SSH
         # stays in the rsync invocation's already established group/Job. Its only
         # descendants can be fixed native SSH code; proxies/helpers are disabled.
@@ -230,19 +274,20 @@ def main():
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
         phase = "FRAME_WRITE"
-        writer = process.stdin.fileno()
+        child_write = partial(os.write, process.stdin.fileno())
+        child_read = partial(os.read, process.stdout.fileno())
 
-        def write(descriptor, value):
+        def write(send, value):
             view = memoryview(value)
             while view:
                 require(time.monotonic() < deadline, "deadline")
-                count = os.write(descriptor, view)
+                count = send(view)
                 require(count > 0, "rsync_stream")
                 view = view[count:]
 
-        write(writer, frame(value))
+        write(child_write, frame(value))
 
-        def pump(source, destination, *, close=False):
+        def pump(read, send, *, close=False):
             count = 0
             read_phase, write_phase = (
                 ("PUMP_INPUT_READ", "PUMP_CHILD_WRITE")
@@ -251,7 +296,7 @@ def main():
             try:
                 while True:
                     failed_phase = read_phase
-                    data = os.read(source, 65536)
+                    data = read(65536)
                     if not data:
                         break
                     count += len(data)
@@ -260,7 +305,7 @@ def main():
                         "rsync_stream_limit",
                     )
                     failed_phase = write_phase
-                    write(destination, data)
+                    write(send, data)
             except Exception as error:
                 child = child_status(process)
                 failures.append((failed_phase, error, child))
@@ -274,10 +319,10 @@ def main():
         # pumps live only in this contained worker; its parent enforces the same
         # absolute deadline and kills the complete group/Job, including SSH.
         sender = threading.Thread(
-            target=pump, args=(incoming, writer), kwargs={"close": True}, daemon=True
+            target=pump, args=(incoming, child_write), kwargs={"close": True}, daemon=True
         )
         receiver = threading.Thread(
-            target=pump, args=(process.stdout.fileno(), outgoing), daemon=True
+            target=pump, args=(child_read, outgoing), daemon=True
         )
         phase = "PUMP_START"
         sender.start()
