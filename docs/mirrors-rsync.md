@@ -8,14 +8,14 @@ Mirror data is derived readable data, not canonical storage or a backup.
 The initial remote filesystem profile is a private local Linux directory with
 the qualified no-follow and renameat2 primitives. Native rsync3.5.2/protocol33
 and the exact qualified SSH profile are required. Missing or unsupported tools
-refuse before credential access or connection. Windows uses the separately
-pinned MSYS2 input and its complete DLL set; a generic Cygwin installation is
-not substituted. The checked-in Windows input is qualification metadata, not
-a bundled executable or a native Windows PASS. Its installed diagnostic checks
-the complete input set, a real local copy and the system SSH version separately.
-An observed Windows SSH version remains unadmitted until actual authentication
-and rsync/SSH qualification are complete. See
-[the S22 contract](architecture/concordia-rsync-s22.md) for current evidence.
+refuse before credential access or connection. The Windows sender uses the
+pinned MSYS2 rsync executable and its complete DLL set, native OpenSSH and an
+owned Windows named pipe. The private seed stays in the Windows secure store
+and the short-lived agent supplies one session-bound signature. The Windows
+component check covers local copying and the SSH version. Support for the full
+Windows transport requires separate source and installed trials against the
+synthetic SSH receiver. See [the S22 contract](architecture/concordia-rsync-s22.md)
+for the current qualification status.
 
 1. Enable mirrors and the separate rsync permission explicitly. Create a
    dedicated identity with `mirror-rsync-create-identity INSTANCE name.json

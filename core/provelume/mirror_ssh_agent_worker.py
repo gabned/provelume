@@ -8,19 +8,38 @@ from pathlib import Path
 
 from .mirror_contract import parse, raw, require
 from .mirror_ssh_agent import AgentProtocol
+from .mirror_ssh_agent_diagnostics import emit
 from .mirror_ssh_agent_server import OwnedAgent
+from .startup_readiness import bootstrap_stdin
 
 
-def publish(path, value):
+def publish(path, value, *, deadline=None):
+    # Keep the parent's existing one-second completion window and the original
+    # protocol deadline. Windows readers may briefly deny deletion of the
+    # prepared metadata file; retry only that rename, never the signing request.
+    end = min(time.monotonic() + 1, deadline if deadline is not None else float("inf"))
     temporary = path.with_name(path.name + ".tmp")
     with temporary.open("xb") as stream:
         stream.write(raw(value))
         stream.flush()
         os.fsync(stream.fileno())
-    os.replace(temporary, path)
+    retrying = False
+    while True:
+        if retrying:
+            require(time.monotonic() < end, "ssh_agent_deadline")
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError as error:
+            if getattr(error, "winerror", None) not in {32, 33} or time.monotonic() >= end:
+                raise
+            retrying = True
+            time.sleep(min(0.01, max(0, end - time.monotonic())))
 
 
 def main():
+    phase = "REQUEST"
+    emit(phase)
     try:
         arguments = sys.argv[1:]
         if arguments[:1] == ["--internal-rsync-agent-worker"]:
@@ -31,7 +50,8 @@ def main():
             output.is_absolute() and not output.exists() and not output.is_symlink(),
             "ssh_agent_request",
         )
-        incoming = sys.stdin.buffer.read(4097)
+        with bootstrap_stdin() as stdin:
+            incoming = stdin.read(4097)
         require(len(incoming) <= 4096, "ssh_agent_request")
         value = parse(incoming)
         require(
@@ -49,7 +69,11 @@ def main():
             username=value["username"],
             deadline=time.monotonic() + value["seconds"],
         )
+        phase = "START_AGENT"
+        emit(phase)
         with OwnedAgent(protocol) as owned:
+            phase = "PUBLISH_READY"
+            emit(phase)
             publish(
                 output,
                 {
@@ -57,9 +81,16 @@ def main():
                     "pid": os.getpid(),
                     "endpoint": owned.endpoint,
                 },
+                deadline=protocol.deadline,
             )
+            phase = "SESSION"
+            emit(phase)
             while owned.worker.is_alive() and time.monotonic() < protocol.deadline:
                 time.sleep(0.05)
+            phase = "STOP_AGENT"
+            emit(phase)
+        phase = "PUBLISH_COMPLETION"
+        emit(phase)
         publish(
             output.with_name(output.name + ".done"),
             {
@@ -70,9 +101,13 @@ def main():
                 "host_bound": protocol.session is not None,
                 "private_key_logged": False,
             },
+            deadline=protocol.deadline,
         )
+        phase = "COMPLETE"
+        emit(phase)
         return 0 if protocol.signatures == 1 else 2
-    except Exception:
+    except Exception as error:
+        emit(phase, error)
         # Never render a backend exception, request body, seed or auth signature.
         return 2
 

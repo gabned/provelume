@@ -2,9 +2,10 @@
 
 import hashlib
 import json
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
-from .maintenance_local_files import open_local_file, pinned_parent
+from .maintenance_local_files import open_local_file, pinned_parent, stream_digest
 from .mirror_contract import require
 
 
@@ -15,24 +16,31 @@ def inputs():
 
 
 def admit(binary):
+    with pinned_components(binary) as records:
+        return records
+
+
+@contextmanager
+def pinned_components(binary):
     records = inputs()
     require(Path(binary).name.lower() == "rsync.exe", "rsync_profile_not_qualified")
-    with pinned_parent(Path(binary)) as (selected, _parent):
+    with pinned_parent(Path(binary)) as (selected, _parent), ExitStack() as files:
+        require(
+            sorted(path.name.lower() for path in selected.parent.iterdir())
+            == sorted(row["name"] for row in records["entries"]),
+            "rsync_profile_not_qualified",
+        )
         for row in records["entries"]:
             path = selected.parent / row["name"]
+            stream = files.enter_context(open_local_file(path))
+            digest, size = stream_digest(stream, row["bytes"])
             require(
-                path.is_file() and not path.is_symlink() and not path.is_junction(),
-                "rsync_component_unavailable",
-            )
-            with open_local_file(path) as stream:
-                data = stream.read(row["bytes"] + 1)
-            require(
-                len(data) == row["bytes"] and hashlib.sha256(data).hexdigest() == row["sha256"],
+                size == row["bytes"] and digest == row["sha256"],
                 "rsync_profile_not_qualified",
             )
-    return {
-        "runtime": "msys2-sdk-a741e84/v1",
-        "input_set_sha256": hashlib.sha256(
-            json.dumps(records, sort_keys=True).encode()
-        ).hexdigest(),
-    }
+        yield {
+            "runtime": "msys2-sdk-a741e84/v1",
+            "input_set_sha256": hashlib.sha256(
+                json.dumps(records, sort_keys=True).encode()
+            ).hexdigest(),
+        }

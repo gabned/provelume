@@ -1,6 +1,7 @@
 """Native qualification errors retain a closed phase without private exception text."""
 
 import json
+from hashlib import sha256
 
 import pytest
 
@@ -84,6 +85,49 @@ def test_windows_ssh_gets_private_programdata_not_ambient_config_or_auth(monkeyp
     assert selected["PROGRAMDATA"] == selected["USERPROFILE"] == str(tmp_path)
     assert "SSH_AUTH_SOCK" not in selected
     assert "unapproved" not in json.dumps(selected)
+
+
+def test_windows_ssh_passes_only_its_unchanged_owned_pipe_to_openssh(monkeypatch):
+    from provelume import mirror_ssh_runtime as native
+
+    endpoint = r"\\.\pipe\Provelume-Mirror-Auth-" + "a" * 32
+    base = {"PATH": "synthetic"}
+    with monkeypatch.context() as windows:
+        windows.setattr(native.os, "name", "nt")
+        assert native.ssh_environment(base, endpoint) == {**base, "SSH_AUTH_SOCK": endpoint}
+        for other in (r"\\.\pipe\openssh-ssh-agent", endpoint.replace("\\", "/")):
+            with pytest.raises(MirrorError, match="ssh_agent_containment"):
+                native.ssh_environment(base, other)
+    assert "SSH_AUTH_SOCK" not in base
+
+
+def test_windows_ssh_requires_exact_paired_files_before_component_use(tmp_path, monkeypatch):
+    from provelume import mirror_ssh_runtime as native
+
+    binaries = {"ssh.exe": b"pinned synthetic executable", "libcrypto.dll": b"pinned synthetic DLL"}
+    for name, content in binaries.items():
+        (tmp_path / name).write_bytes(content)
+    monkeypatch.setattr(
+        native, "WINDOWS_SSH_FILES",
+        {name: (len(content), sha256(content).hexdigest()) for name, content in binaries.items()},
+    )
+    selected = tmp_path / "ssh.exe"
+    with native.windows_ssh_component(selected) as proof:
+        assert proof["path"] == str(selected)
+        assert proof["sha256"] == sha256(binaries["ssh.exe"]).hexdigest()
+    (tmp_path / "other.dll").write_bytes(b"unexpected")
+    with (
+        pytest.raises(MirrorError, match="ssh_profile_not_qualified"),
+        native.windows_ssh_component(selected),
+    ):
+        pytest.fail("extra DLL admitted")
+    (tmp_path / "other.dll").unlink()
+    (tmp_path / "libcrypto.dll").write_bytes(b"?")
+    with (
+        pytest.raises(MirrorError, match="ssh_profile_not_qualified"),
+        native.windows_ssh_component(selected),
+    ):
+        pytest.fail("changed DLL admitted")
 
 
 def test_windows_cleanup_waits_for_all_descendants_before_releasing_job(monkeypatch):

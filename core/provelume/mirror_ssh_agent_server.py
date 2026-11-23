@@ -99,6 +99,7 @@ class WindowsPipe:
         event = self.api.CreateEventW(None, True, False, None)
         require(event, "ssh_agent_containment")
         operation, count = self.overlapped(event=event), w.DWORD()
+        pending = False
         try:
             if function == "connect":
                 complete = self.api.ConnectNamedPipe(self.handle, ctypes.byref(operation))
@@ -107,6 +108,7 @@ class WindowsPipe:
                     self.handle, data, length, ctypes.byref(count), ctypes.byref(operation)
                 )
             error = ctypes.get_last_error()
+            pending = not complete and error == 997
             if not complete and function == "connect" and error == 535:
                 return 0  # ERROR_PIPE_CONNECTED before ConnectNamedPipe.
             require(complete or error == 997, "ssh_agent_pipe")
@@ -121,12 +123,15 @@ class WindowsPipe:
                 )
             return count.value
         finally:
-            # An overlapped structure/event cannot be destroyed while I/O still
-            # owns it. Cancel only this operation, then await its finite completion.
-            self.api.CancelIoEx(self.handle, ctypes.byref(operation))
-            self.api.GetOverlappedResult(
-                self.handle, ctypes.byref(operation), ctypes.byref(count), True
-            )
+            # Only ERROR_IO_PENDING transfers ownership to asynchronous I/O.
+            # Immediate failures (including client disconnect) have no pending
+            # result to await. Pending I/O must still be cancelled and drained
+            # before its structure/event or buffer can be released.
+            if pending:
+                self.api.CancelIoEx(self.handle, ctypes.byref(operation))
+                self.api.GetOverlappedResult(
+                    self.handle, ctypes.byref(operation), ctypes.byref(count), True
+                )
             self.api.CloseHandle(event)
 
     def connect(self):

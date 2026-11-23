@@ -8,10 +8,14 @@ derivata leggibile; non è archivio canonico né prova di backup.
 Il primo profilo remoto usa una cartella Linux locale privata, con accessi
 senza seguire alias e attivazione renameat2 qualificata. Servono rsync3.5.2,
 protocollo33 e il profilo SSH esatto. Componenti mancanti o non supportati
-impediscono la connessione prima dell’accesso alle credenziali. Windows usa
-separatamente l’input MSYS2 fissato, con tutte le DLL: i metadati nel repository
-non sono un eseguibile distribuito né un PASS Windows. Il
-[contratto S22](../architecture/concordia-rsync-s22.md) distingue le prove.
+impediscono la connessione prima dell’accesso alle credenziali. Il mittente
+Windows usa l’eseguibile rsync MSYS2 fissato con tutte le sue DLL, OpenSSH
+nativo e una named pipe dedicata. Il segreto resta nell’archivio sicuro di
+Windows e l’agent temporaneo firma una sola richiesta legata alla sessione.
+Il controllo dei componenti Windows verifica la copia locale e la versione
+SSH. Il supporto del trasporto completo richiede prove separate da sorgente e
+da installer contro il ricevente SSH sintetico. Lo stato delle prove è nel
+[contratto S22](../architecture/concordia-rsync-s22.md).
 
 1. Abilita esplicitamente mirror e permesso rsync. Crea un’identità dedicata con
    `mirror-rsync-create-identity INSTANCE nome.json --confirm`; il file esterno

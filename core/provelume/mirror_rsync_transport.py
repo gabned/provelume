@@ -6,7 +6,7 @@ import base64
 import os
 import sys
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -219,7 +219,13 @@ class RsyncTransport:
                 source_path + "/",
                 self.target["username"] + "@" + self.target["host"] + ":generation",
             ]
-            self.session.run(arguments)
+            pin = nullcontext()
+            if os.name == "nt":
+                from .mirror_rsync_windows import pinned_components
+
+                pin = pinned_components(self.components["rsync"]["path"])
+            with pin:
+                self.session.run(arguments)
         return {
             "native_rsync": {key: self.components["rsync"][key] for key in ("version", "sha256")},
             "native_ssh": {key: self.components["ssh"][key] for key in ("version", "sha256")},
