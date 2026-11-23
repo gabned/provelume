@@ -126,19 +126,61 @@ def test_rsync_sender_retains_only_one_closed_native_rsh_report():
     from provelume.mirror_rsync_protocol import RSH_FAILURE_PREFIX
     from provelume.mirror_ssh_runtime import native_transport_failure
 
-    marker = RSH_FAILURE_PREFIX + b"STDIO UNKNOWN PIPE DISK 11 -1 6"
+    marker = (
+        RSH_FAILURE_PREFIX
+        + b"PUMP_INPUT_READ PIPE PIPE DISK STREAM_SOCKET STREAM_SOCKET 11 -1 ERRNO 22 RUNNING"
+    )
     raw = b"synthetic-private-path and endpoint\r\n"
     error = native_transport_failure((12, b"", raw + marker + b"\r\n"), role="rsync-sender")
     assert error.native_transport_evidence["rsh"] == {
-        "phase": "STDIO",
-        "stdio": {"stdin": "UNKNOWN", "stdout": "PIPE", "stderr": "DISK"},
+        "phase": "PUMP_INPUT_READ",
+        "stdio": {"stdin": "PIPE", "stdout": "PIPE", "stderr": "DISK"},
+        "stdio_socket": {"stdin": "STREAM_SOCKET", "stdout": "STREAM_SOCKET"},
         "argument_count": 11,
         "first_argument_mismatch": -1,
-        "native_code": 6,
+        "error_kind": "ERRNO",
+        "native_code": 22,
+        "child_before_cleanup": {"state": "RUNNING", "exit_code": None},
     }
     for rejected in (marker + b" " + raw, marker + b"\n" + marker, raw):
         error = native_transport_failure((12, b"", rejected), role="rsync-sender")
         assert error.native_transport_evidence["rsh"] == "NOT_OBSERVED"
+
+
+def test_native_rsh_observes_errno_and_child_exit_without_exception_text():
+    from types import SimpleNamespace
+
+    from provelume.mirror_rsync_rsh import child_status, error_kind
+
+    error = OSError(22, "synthetic-private-path")
+    assert error_kind(error) == ("ERRNO", 22)
+    error.winerror = 6
+    assert error_kind(error) == ("WIN32", 6)
+    assert child_status(SimpleNamespace(poll=lambda: None)) == "RUNNING"
+    assert child_status(SimpleNamespace(poll=lambda: 255)) == 255
+    assert child_status(None) == "UNOBSERVED"
+
+
+def test_native_rsh_probes_socket_type_without_taking_handle_ownership(monkeypatch):
+    import ctypes
+    import socket
+    from types import SimpleNamespace
+
+    from provelume.mirror_rsync_rsh import socket_kind
+
+    def get_type(handle, level, option, value, _size):
+        assert (handle, level, option) == (17, socket.SOL_SOCKET, socket.SO_TYPE)
+        ctypes.cast(value, ctypes.POINTER(ctypes.c_int))[0] = socket.SOCK_STREAM
+        return 0
+
+    backend = SimpleNamespace(getsockopt=get_type)
+    monkeypatch.setattr(ctypes, "WinDLL", lambda _dll: backend, raising=False)
+    assert socket_kind(17) == "STREAM_SOCKET"
+    backend.getsockopt = lambda *_args: -1
+    backend.WSAGetLastError = lambda: 10038
+    assert socket_kind(17) == "NOT_SOCKET"
+    backend.WSAGetLastError = lambda: 10022
+    assert socket_kind(17) == "UNAVAILABLE"
 
 
 def test_native_tls_runtime_ed25519_matches_rfc8032_vector_and_rejects_changed_data():

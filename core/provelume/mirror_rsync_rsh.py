@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .maintenance_local_files import open_local_file
 from .migration_permissions import private_directory
-from .mirror_contract import MAX_MANIFEST_BYTES, parse, require
+from .mirror_contract import MAX_MANIFEST_BYTES, MirrorError, parse, require
 from .mirror_folder_files import MAX_TARGET_BYTES
 from .mirror_rsync_protocol import RSH_FAILURE_PREFIX, expected_rsh_arguments, frame, request
 from .mirror_ssh_runtime import (
@@ -26,8 +26,33 @@ from .mirror_ssh_runtime import (
 )
 
 
+def socket_kind(handle):
+    """Inspect the admitted raw handle without owning or reconfiguring it."""
+    import ctypes
+    import socket
+
+    try:
+        winsock = ctypes.WinDLL("ws2_32")
+        kind = ctypes.c_int()
+        size = ctypes.c_int(ctypes.sizeof(kind))
+        get_type = winsock.getsockopt
+        get_type.argtypes = [
+            ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        get_type.restype = ctypes.c_int
+        if get_type(handle, socket.SOL_SOCKET, socket.SO_TYPE, ctypes.byref(kind),
+                    ctypes.byref(size)) == 0:
+            return "STREAM_SOCKET" if kind.value == socket.SOCK_STREAM else "OTHER_SOCKET"
+        if winsock.WSAGetLastError() == 10038:  # WSAENOTSOCK
+            return "NOT_SOCKET"
+    except (AttributeError, OSError, ValueError):
+        pass
+    return "UNAVAILABLE"
+
+
 @contextmanager
-def inherited_streams(observed):
+def inherited_streams(observed, sockets):
     """Use only the byte streams that the contained rsync process supplied."""
     if os.name != "nt":
         yield 0, 1, sys.stderr
@@ -48,6 +73,8 @@ def inherited_streams(observed):
         source = kernel.GetStdHandle(identifier)
         kind = kernel.GetFileType(source) if source else None
         observed[name] = "ABSENT" if kind is None else kind_names.get(kind, "OTHER")
+        if kind == 3 and name != "stderr":
+            sockets[name] = socket_kind(source)
         standard.append((source, kind, types, mode))
     with ExitStack() as files:
         streams = []
@@ -70,15 +97,39 @@ def inherited_streams(observed):
         yield streams[0].fileno(), streams[1].fileno(), streams[2]
 
 
-def emit_failure(phase, stdio, argc, mismatch, native=0):
+def error_kind(error):
+    for attribute, kind in (("winerror", "WIN32"), ("errno", "ERRNO")):
+        value = getattr(error, attribute, None)
+        if type(value) is int and 0 <= value <= 0xFFFFFFFF:
+            return kind, value
+    if isinstance(error, subprocess.TimeoutExpired):
+        return "TIMEOUT", 0
+    if isinstance(error, MirrorError):
+        return "MIRROR", 0
+    return ("NONE" if error is None else "OTHER"), 0
+
+
+def child_status(process):
+    if process is not None:
+        with suppress(OSError):
+            value = process.poll()
+            if value is None:
+                return "RUNNING"
+            if type(value) is int and 0 <= value <= 0xFFFFFFFF:
+                return value
+    return "UNOBSERVED"
+
+
+def emit_failure(phase, stdio, sockets, argc, mismatch, *, error=None, child="UNOBSERVED"):
     if os.name != "nt":
         return
     import ctypes
     from ctypes import wintypes as w
 
-    native = native if type(native) is int and 0 <= native <= 0xFFFFFFFF else 0
+    kind, native = error_kind(error)
     fields = [phase, *(stdio.get(name, "UNOBSERVED") for name in ("stdin", "stdout", "stderr")),
-              str(argc), str(mismatch), str(native)]
+              *(sockets.get(name, "UNAVAILABLE") for name in ("stdin", "stdout")),
+              str(argc), str(mismatch), kind, str(native), str(child)]
     record = RSH_FAILURE_PREFIX + " ".join(fields).encode("ascii") + b"\n"
     try:
         # The frozen GUI can have sys.stderr=None. Use only its inherited
@@ -100,7 +151,8 @@ def emit_failure(phase, stdio, argc, mismatch, native=0):
 def main():
     process = None
     resources = ExitStack()
-    phase, stdio, argc, mismatch = "CONTEXT_PATH", {}, 0, -1
+    phase, stdio, sockets, argc, mismatch = "CONTEXT_PATH", {}, {}, 0, -1
+    failures = []
     try:
         arguments = sys.argv[1:]
         if arguments[:1] == ["--internal-rsync-rsh"]:
@@ -162,7 +214,7 @@ def main():
             )
         agent = context["agent"]
         phase = "STDIO"
-        incoming, outgoing, errors = resources.enter_context(inherited_streams(stdio))
+        incoming, outgoing, errors = resources.enter_context(inherited_streams(stdio, sockets))
         # Deliberately no start_new_session/CREATE_BREAKAWAY_FROM_JOB: native SSH
         # stays in the rsync invocation's already established group/Job. Its only
         # descendants can be fixed native SSH code; proxies/helpers are disabled.
@@ -177,7 +229,7 @@ def main():
             close_fds=True,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
-        phase = "WIRE"
+        phase = "FRAME_WRITE"
         writer = process.stdin.fileno()
 
         def write(descriptor, value):
@@ -189,21 +241,30 @@ def main():
                 view = view[count:]
 
         write(writer, frame(value))
-        failures = []
 
         def pump(source, destination, *, close=False):
             count = 0
+            read_phase, write_phase = (
+                ("PUMP_INPUT_READ", "PUMP_CHILD_WRITE")
+                if close else ("PUMP_CHILD_READ", "PUMP_OUTPUT_WRITE")
+            )
             try:
-                while data := os.read(source, 65536):
+                while True:
+                    failed_phase = read_phase
+                    data = os.read(source, 65536)
+                    if not data:
+                        break
                     count += len(data)
                     require(
                         count <= MAX_TARGET_BYTES and time.monotonic() < deadline,
                         "rsync_stream_limit",
                     )
+                    failed_phase = write_phase
                     write(destination, data)
-            except Exception:
-                failures.append(True)
-                if process.poll() is None:
+            except Exception as error:
+                child = child_status(process)
+                failures.append((failed_phase, error, child))
+                if child == "RUNNING":
                     process.kill()
             finally:
                 if close:
@@ -218,17 +279,23 @@ def main():
         receiver = threading.Thread(
             target=pump, args=(process.stdout.fileno(), outgoing), daemon=True
         )
+        phase = "PUMP_START"
         sender.start()
         receiver.start()
+        phase = "CHILD_WAIT"
         code = process.wait(timeout=max(0.01, deadline - time.monotonic()))
+        phase = "PUMP_DRAIN"
         receiver.join(timeout=max(0.01, min(1, deadline - time.monotonic())))
         require(not receiver.is_alive() and not failures, "rsync_stream")
         if code:
-            emit_failure("SSH_EXIT", stdio, argc, mismatch, code)
+            emit_failure("SSH_EXIT", stdio, sockets, argc, mismatch, child=child_status(process))
         return code
-    except Exception as error:
-        emit_failure(phase, stdio, argc, mismatch,
-                     getattr(error, "winerror", getattr(error, "errno", 0)))
+    except Exception as raised:
+        if failures:
+            phase, failure, child = failures[0]
+        else:
+            failure, child = raised, child_status(process)
+        emit_failure(phase, stdio, sockets, argc, mismatch, error=failure, child=child)
         return 2
     finally:
         try:
