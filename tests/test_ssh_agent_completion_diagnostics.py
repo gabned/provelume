@@ -57,6 +57,22 @@ def test_worker_error_diagnostics_exclude_unknown_codes_messages_and_native_valu
     assert "SYNTHETIC_SECRET" not in rendered and "1234567" not in rendered
 
 
+def test_transport_failure_retains_the_workers_signature_observation(tmp_path, monkeypatch):
+    worker = process.AgentWorker(b"s" * 32, host_public_blob=b"synthetic", username="synthetic")
+    worker.output = tmp_path / "ready.json"
+    worker.process = SimpleNamespace(poll=lambda: 2)
+
+    def close():
+        worker.report = {"signatures": 0}
+
+    monkeypatch.setattr(worker, "close", close)
+    failure = MirrorError("ssh_command_failed")
+    worker.__exit__(MirrorError, failure)
+    assert failure.code == "ssh_command_failed"
+    assert failure.agent_evidence["worker_state"] == "EXIT_2"
+    assert failure.agent_evidence["signature_observation"] == "NO_SIGNATURE"
+
+
 def test_phase_logging_is_optional_in_a_frozen_windowless_worker(monkeypatch):
     with monkeypatch.context() as patch:
         patch.setattr(diagnostics.sys, "stderr", None)

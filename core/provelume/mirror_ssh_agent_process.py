@@ -181,7 +181,10 @@ class AgentWorker:
             self.resources.close()
 
     def __exit__(self, kind, error=None, _traceback=None):
-        if self.output is not None and (kind is None or isinstance(error, MirrorError)):
+        observe_completion = self.output is not None and (
+            kind is None or isinstance(error, MirrorError)
+        )
+        if observe_completion:
             end = min(self.deadline, time.monotonic() + 1)
             while (
                 not self.output.with_name(self.output.name + ".done").is_file()
@@ -191,7 +194,7 @@ class AgentWorker:
             ):
                 time.sleep(0.01)
         evidence = None
-        if kind is None and self.output is not None:
+        if observe_completion:
             code = self.process.poll() if self.process is not None else "STOPPED"
             worker_state = {
                 None: "RUNNING", 0: "EXIT_0", 2: "EXIT_2", "STOPPED": "STOPPED"
