@@ -30,7 +30,12 @@ from .mirror_rsync_protocol import frame
 from .mirror_rsync_transport import native_work
 from .mirror_ssh_agent import public_blob
 from .mirror_ssh_crypto import public_key
-from .mirror_ssh_runtime import SSH_VERSION, WINDOWS_SSH_FILES, NativeSession, ssh_call
+from .mirror_ssh_runtime import (
+    LEGACY_LINUX_SSH_VERSION,
+    WINDOWS_SSH_FILES,
+    NativeSession,
+    ssh_call,
+)
 from .mirrors import Mirrors
 from .service import ProvelumeInstance
 
@@ -300,7 +305,10 @@ def fixture(root, *, image, identity, instance, mirrors, records, windows_backen
             )
             require(ready == b"READY\n", "rsync_fixture_readiness")
         version = run("exec", name, "/usr/sbin/sshd", "-V")
-        require(version.stderr.startswith(SSH_VERSION + b", OpenSSL "), "ssh_profile_not_qualified")
+        require(
+            version.stderr.startswith(LEGACY_LINUX_SSH_VERSION + b", OpenSSL "),
+            "ssh_profile_not_qualified",
+        )
         target = {
             "transport": "rsync-ssh",
             "host": address,

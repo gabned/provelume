@@ -204,18 +204,40 @@ def validate_transport_proof(value, observation):
         require(
             type(value[key]) is str and re.fullmatch(r"[0-9a-f]{64}", value[key]), "rsync_proof"
         )
-    from .mirror_ssh_runtime import SSH_VERSION
+    from .mirror_ssh_runtime import (
+        LEGACY_LINUX_SSH_VERSION,
+        RSYNC_VERSION,
+        SSH_VERSION,
+        WINDOWS_SSH_FILES,
+        WINDOWS_SSH_VERSION,
+    )
 
-    for key, version in (("native_rsync", "3.5.2"), ("native_ssh", SSH_VERSION.decode("ascii"))):
+    for key in ("native_rsync", "native_ssh"):
         component = value[key]
         require(
             type(component) is dict
             and set(component) == {"version", "sha256"}
-            and component["version"] == version
+            and type(component["version"]) is str
             and type(component["sha256"]) is str
             and re.fullmatch(r"[0-9a-f]{64}", component["sha256"]),
             "rsync_proof",
         )
+    rsync, ssh = value["native_rsync"], value["native_ssh"]
+    require(rsync["version"] == RSYNC_VERSION, "rsync_proof")
+    if ssh["version"] in {
+        SSH_VERSION.decode("ascii"), LEGACY_LINUX_SSH_VERSION.decode("ascii"),
+    }:
+        return  # Completed Linux receipts retain the original version and digest.
+
+    require(
+        ssh["version"] == WINDOWS_SSH_VERSION.decode("ascii")
+        and ssh["sha256"] == WINDOWS_SSH_FILES["ssh.exe"][1],
+        "rsync_proof",
+    )
+    from .mirror_rsync_windows import inputs
+
+    rsync_sha = next(row["sha256"] for row in inputs()["entries"] if row["name"] == "rsync.exe")
+    require(rsync["sha256"] == rsync_sha, "rsync_proof")
 
 
 RSYNC_DIAGNOSTICS = frozenset(

@@ -14,7 +14,10 @@ nativo e una named pipe dedicata. Il segreto resta nell’archivio sicuro di
 Windows e l’agent temporaneo firma una sola richiesta legata alla sessione.
 Il controllo dei componenti Windows verifica la copia locale e la versione
 SSH. Il supporto del trasporto completo richiede prove separate da sorgente e
-da installer contro il ricevente SSH sintetico. Lo stato delle prove è nel
+da installer contro il ricevente SSH sintetico. Il mittente Linux richiede
+OpenSSH 10.6p2. Le ricevute complete precedenti restano leggibili. I trasferimenti
+in sospeso conservano i componenti originali e non possono riprendere con un
+eseguibile diverso. Lo stato delle prove è nel
 [contratto S22](../architecture/concordia-rsync-s22.md).
 
 1. Abilita esplicitamente mirror e permesso rsync. Crea un’identità dedicata con

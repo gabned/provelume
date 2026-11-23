@@ -28,7 +28,8 @@ from .mirror_ssh_agent_process import AgentWorker
 from .mirror_ssh_crypto import public_key
 from .ocr_process import _terminate_process_tree
 
-SSH_VERSION = b"OpenSSH_10.0p2 Debian-7+deb13u4"
+SSH_VERSION = b"OpenSSH_10.6p2"
+LEGACY_LINUX_SSH_VERSION = b"OpenSSH_10.0p2 Debian-7+deb13u4"
 WINDOWS_SSH_VERSION = b"OpenSSH_for_Windows_10.4p1 Win32-OpenSSH-GitHub, LibreSSL 4.3.3"
 WINDOWS_SSH_FILES = {
     "ssh.exe": (1500960, "ee115a1b833261034dcb2e5b862e6571f6dcedc084c555ea0df45ae7fd42c5e0"),
@@ -377,6 +378,7 @@ def ssh_arguments(binary, target, work, agent):
         "ForwardAgent": "no",
         "ForwardX11": "no",
         "ClearAllForwardings": "yes",
+        "Compression": "no",
         "ExitOnForwardFailure": "yes",
         "ProxyCommand": "none",
         "ProxyJump": "none",

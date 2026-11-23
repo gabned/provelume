@@ -1,9 +1,91 @@
 """Pinned SSH/rsync reference profile; automatic fixtures never use live credentials."""
 
+import sys
+
 import pytest
 
 from provelume.mirror_contract import MirrorError
 from provelume.mirror_ssh_crypto import public_key, sign, verify
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="native Linux sender profile")
+def test_linux_sender_requires_the_rekey_fixed_client(tmp_path, monkeypatch):
+    from provelume.mirror_ssh_runtime import LEGACY_LINUX_SSH_VERSION, SSH_VERSION, NativeSession
+
+    binary = tmp_path / "ssh"
+    binary.write_bytes(b"synthetic executable")
+    session = NativeSession(tmp_path)
+    version = LEGACY_LINUX_SSH_VERSION
+
+    def version_only(arguments, *, check):
+        assert arguments == [str(binary), "-V"] and check is False
+        return 0, b"", version + b", OpenSSL 3.5.7\n"
+
+    monkeypatch.setattr(session, "run", version_only)
+    with pytest.raises(MirrorError, match="ssh_profile_not_qualified"):
+        session.component("ssh", binary=binary)
+
+    version = SSH_VERSION
+    assert session.component("ssh", binary=binary)["version"] == SSH_VERSION.decode("ascii")
+
+
+@pytest.mark.parametrize(
+    "mode,altered_component",
+    [
+        ("linux", None),
+        ("legacy_linux", None),
+        ("windows", None),
+        ("windows", "ssh_version"),
+        ("windows", "ssh_digest"),
+        ("windows", "rsync_digest"),
+    ],
+)
+def test_native_rsync_receipt_checks_supported_component_pair(mode, altered_component):
+    from provelume.mirror_rsync_protocol import PROFILE, validate_transport_proof
+    from provelume.mirror_rsync_windows import inputs
+    from provelume.mirror_ssh_runtime import (
+        LEGACY_LINUX_SSH_VERSION,
+        SSH_VERSION,
+        WINDOWS_SSH_FILES,
+        WINDOWS_SSH_VERSION,
+    )
+
+    proof = {
+        "profile": PROFILE,
+        "root_sha256": "a" * 64,
+        "namespace": "b" * 32,
+        "configuration_sha256": "c" * 64,
+        "host_key_sha256": "d" * 64,
+        "active_pointer_sha256": "e" * 64,
+        "activation_written": True,
+        "filesystem_profile": "linux-local-renameat2/v1",
+        "native_rsync": {"version": "3.5.2", "sha256": "f" * 64},
+        "native_ssh": {"version": SSH_VERSION.decode("ascii"), "sha256": "0" * 64},
+        "evidence_mode": "direct_verified",
+        "publication_time": None,
+    }
+    if mode == "legacy_linux":
+        proof["native_ssh"]["version"] = LEGACY_LINUX_SSH_VERSION.decode("ascii")
+    elif mode == "windows":
+        proof["native_ssh"] = {
+            "version": WINDOWS_SSH_VERSION.decode("ascii"),
+            "sha256": WINDOWS_SSH_FILES["ssh.exe"][1],
+        }
+        proof["native_rsync"]["sha256"] = next(
+            entry["sha256"] for entry in inputs()["entries"] if entry["name"] == "rsync.exe"
+        )
+    if altered_component == "ssh_version":
+        proof["native_ssh"]["version"] = "OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2"
+    elif altered_component == "ssh_digest":
+        proof["native_ssh"]["sha256"] = "1" * 64
+    elif altered_component == "rsync_digest":
+        proof["native_rsync"]["sha256"] = "1" * 64
+
+    if altered_component:
+        with pytest.raises(MirrorError, match="rsync_proof"):
+            validate_transport_proof(proof, {"visibility": "private"})
+    else:
+        validate_transport_proof(proof, {"visibility": "private"})
 
 
 @pytest.mark.parametrize(

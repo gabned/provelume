@@ -143,6 +143,15 @@ Preview profile requires its own security and support review before release.
 The test receiver stays inside a disposable Linux guest on the runner, with
 an ephemeral Windows loopback endpoint and synthetic credentials.
 
+Linux senders require the external OpenSSH 10.6p2 client, which includes the
+upstream rekey fix. The independent native trial uses the upstream archive
+identified by the signed Debian source index, SHA-256
+`20e8db19f30863121a539f469012711ba9333cbcbc3bf6b3fd493308d77a7d61`.
+The executable and its runtime libraries are recorded in the trial. New
+transfers refuse the earlier Debian client. Existing Linux receipts remain
+readable with their original identity, including during reconciliation.
+The isolated Debian receiver is a separate server-only fixture.
+
 On source00b86db and integrated6a99f1b, local Docker create exceeded its unchanged
 30-second preparation bound before any SSH server started. Both named containers
 were subsequently observed in Created state and independently removed with their

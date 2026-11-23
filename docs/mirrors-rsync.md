@@ -14,8 +14,11 @@ owned Windows named pipe. The private seed stays in the Windows secure store
 and the short-lived agent supplies one session-bound signature. The Windows
 component check covers local copying and the SSH version. Support for the full
 Windows transport requires separate source and installed trials against the
-synthetic SSH receiver. See [the S22 contract](architecture/concordia-rsync-s22.md)
-for the current qualification status.
+synthetic SSH receiver. Linux senders require OpenSSH 10.6p2. Earlier complete
+receipts remain readable. Pending transfers keep their original component
+binding, so a different executable cannot resume them. See
+[the S22 contract](architecture/concordia-rsync-s22.md) for the current
+qualification status.
 
 1. Enable mirrors and the separate rsync permission explicitly. Create a
    dedicated identity with `mirror-rsync-create-identity INSTANCE name.json
