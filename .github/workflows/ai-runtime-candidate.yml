@@ -51,7 +51,7 @@ permissions:
 jobs:
   measure:
     if: >-
-      ${{
+      ${{ inputs.concordia_kernel_control != true && (
         (
           github.event_name != 'workflow_dispatch'
           || (
@@ -59,7 +59,6 @@ jobs:
             && inputs.concordia_observer_study != true
             && inputs.concordia_smt_study != true
             && inputs.concordia_tracer_study != true
-            && inputs.concordia_kernel_control != true
             && inputs.concordia_capture_guard != true
             && inputs.concordia_pool_prefix != true
             && inputs.concordia_caller_spans != true
@@ -76,7 +75,7 @@ jobs:
           && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
           && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
         )
-      }}
+      ) }}
     strategy:
       fail-fast: false
       matrix:
