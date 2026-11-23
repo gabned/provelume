@@ -10,6 +10,7 @@ from .mirror_contract import parse, raw, require
 from .mirror_ssh_agent import AgentProtocol
 from .mirror_ssh_agent_diagnostics import emit
 from .mirror_ssh_agent_server import OwnedAgent
+from .startup_readiness import bootstrap_stdin
 
 
 def publish(path, value, *, deadline=None):
@@ -49,7 +50,8 @@ def main():
             output.is_absolute() and not output.exists() and not output.is_symlink(),
             "ssh_agent_request",
         )
-        incoming = sys.stdin.buffer.read(4097)
+        with bootstrap_stdin() as stdin:
+            incoming = stdin.read(4097)
         require(len(incoming) <= 4096, "ssh_agent_request")
         value = parse(incoming)
         require(

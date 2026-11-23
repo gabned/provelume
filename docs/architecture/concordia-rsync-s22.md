@@ -121,6 +121,45 @@ The diagnostic persists in the installer artifact even if a later case fails.
 Source/unit, native Linux, Windows components, rendered synthetic preview and full
 Windows transport remain distinct gates; none accepts S22 or its predecessors.
 
+The Windows transport trial uses the same mirror operation as the product. It
+records the native Windows sender's exact component bytes and version, an
+authentication through the Windows vault and owned agent, the verified remote
+inventory and the active-generation pointer. It also checks a repeat operation,
+wrong host and credential keys, revocation, interrupted transfer and explicit
+resume, interrupted activation and Root restore, a full destination and a
+replaced destination directory. An owned synthetic Linux receiver supplies the
+same remote helper and local filesystem primitives as the Linux trial. Fixture
+cleanup and unchanged prior generations have their own observed results. A
+Windows component report only covers a local copy and a version invocation.
+
+The full Windows trial selects Microsoft's Win32-OpenSSH 10.4.0.0p1 Preview
+x64 input explicitly. The reviewed archive and both runtime files (`ssh.exe`
+and `libcrypto.dll`) are locked by SHA-256. The trial requires Windows
+Authenticode validation and records the actual version before use. Microsoft
+includes the upstream 10.4p1 client fix for host-key changes during rekey
+(CVE-2026-60002). The older Windows inbox 9.5p2 observation stays in the
+component report. Trial inputs stay external to the package, and the Win32
+Preview profile requires its own security and support review before release.
+The test receiver stays inside a disposable Linux guest on the runner, with
+an ephemeral Windows loopback endpoint and synthetic credentials.
+
+The pinned MSYS2 sender passes WinSock stream sockets to the adapter for
+rsync input and output. Windows reports both handles as `FILE_TYPE_PIPE`.
+The native trial observed CRT `EINVAL` on the first read before OpenSSH
+connected. The adapter now verifies that those handles are stream sockets,
+uses only owned nonblocking WinSock duplicates, and bounds binary reads and
+writes by the original operation deadline. Ordinary pipes keep the existing
+CRT path. The inherited originals remain under the sender's ownership.
+
+Linux senders require the external OpenSSH 10.6p2 client, which includes the
+upstream rekey fix. The independent native trial uses the upstream archive
+identified by the signed Debian source index, SHA-256
+`20e8db19f30863121a539f469012711ba9333cbcbc3bf6b3fd493308d77a7d61`.
+The executable and its runtime libraries are recorded in the trial. New
+transfers refuse the earlier Debian client. Existing Linux receipts remain
+readable with their original identity, including during reconciliation.
+The isolated Debian receiver is a separate server-only fixture.
+
 On source00b86db and integrated6a99f1b, local Docker create exceeded its unchanged
 30-second preparation bound before any SSH server started. Both named containers
 were subsequently observed in Created state and independently removed with their

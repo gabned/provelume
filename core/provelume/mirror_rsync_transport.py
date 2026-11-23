@@ -6,20 +6,29 @@ import base64
 import os
 import sys
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from .maintenance_local_files import directory_binding, open_local_directory, open_local_file
 from .migration_permissions import make_private
-from .mirror_contract import MAX_FILE_BYTES, fingerprint, inventory, parse, raw, require, sha
+from .mirror_contract import (
+    MAX_FILE_BYTES,
+    MirrorError,
+    fingerprint,
+    inventory,
+    parse,
+    raw,
+    require,
+    sha,
+)
 from .mirror_folder_files import FolderTree
 from .mirror_rsync_protocol import HELPER_VERSION, PROFILE, frame, request
 from .mirror_ssh_agent import public_blob
 from .mirror_ssh_agent_process import AgentWorker
 from .mirror_ssh_crypto import public_key
-from .mirror_ssh_runtime import NativeSession, configuration, ssh_call
+from .mirror_ssh_runtime import NativeSession, configuration, native_transport_failure, ssh_call
 
 
 @contextmanager
@@ -113,7 +122,11 @@ class RsyncTransport:
 
     def rpc(self, value):
         request(value)
-        data, _proof = ssh_call(self.session, self.target, self.seed, frame(value))
+        try:
+            data, _proof = ssh_call(self.session, self.target, self.seed, frame(value))
+        except MirrorError as error:
+            error.rsync_phase = "rpc/" + value["action"]
+            raise
         return observation(
             parse(data), self.target, instance_id=self.instance_id, device=self.device
         )
@@ -219,7 +232,17 @@ class RsyncTransport:
                 source_path + "/",
                 self.target["username"] + "@" + self.target["host"] + ":generation",
             ]
-            self.session.run(arguments)
+            pin = nullcontext()
+            if os.name == "nt":
+                from .mirror_rsync_windows import pinned_components
+
+                pin = pinned_components(self.components["rsync"]["path"])
+            with pin:
+                result = self.session.run(arguments, check=False)
+            if result[0] != 0:
+                error = native_transport_failure(result, role="rsync-sender")
+                error.rsync_phase = "transfer/" + value["action"]
+                raise error
         return {
             "native_rsync": {key: self.components["rsync"][key] for key in ("version", "sha256")},
             "native_ssh": {key: self.components["ssh"][key] for key in ("version", "sha256")},

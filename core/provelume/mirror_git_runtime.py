@@ -243,7 +243,9 @@ class GitSession:
         require(match is not None, "git_version_unsupported")
         version = match.group(1).decode("ascii")
         require(
-            version in CANDIDATE_GIT_VERSIONS or (sys.platform == "linux" and version == "2.56.1"),
+            version in CANDIDATE_GIT_VERSIONS
+            or (sys.platform == "linux" and version == "2.56.1")
+            or (sys.platform == "win32" and version == "2.56.1.windows.1"),
             "git_version_unsupported",
         )
         return version

@@ -1,9 +1,91 @@
 """Pinned SSH/rsync reference profile; automatic fixtures never use live credentials."""
 
+import sys
+
 import pytest
 
 from provelume.mirror_contract import MirrorError
 from provelume.mirror_ssh_crypto import public_key, sign, verify
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="native Linux sender profile")
+def test_linux_sender_requires_the_rekey_fixed_client(tmp_path, monkeypatch):
+    from provelume.mirror_ssh_runtime import LEGACY_LINUX_SSH_VERSION, SSH_VERSION, NativeSession
+
+    binary = tmp_path / "ssh"
+    binary.write_bytes(b"synthetic executable")
+    session = NativeSession(tmp_path)
+    version = LEGACY_LINUX_SSH_VERSION
+
+    def version_only(arguments, *, check):
+        assert arguments == [str(binary), "-V"] and check is False
+        return 0, b"", version + b", OpenSSL 3.5.7\n"
+
+    monkeypatch.setattr(session, "run", version_only)
+    with pytest.raises(MirrorError, match="ssh_profile_not_qualified"):
+        session.component("ssh", binary=binary)
+
+    version = SSH_VERSION
+    assert session.component("ssh", binary=binary)["version"] == SSH_VERSION.decode("ascii")
+
+
+@pytest.mark.parametrize(
+    "mode,altered_component",
+    [
+        ("linux", None),
+        ("legacy_linux", None),
+        ("windows", None),
+        ("windows", "ssh_version"),
+        ("windows", "ssh_digest"),
+        ("windows", "rsync_digest"),
+    ],
+)
+def test_native_rsync_receipt_checks_supported_component_pair(mode, altered_component):
+    from provelume.mirror_rsync_protocol import PROFILE, validate_transport_proof
+    from provelume.mirror_rsync_windows import inputs
+    from provelume.mirror_ssh_runtime import (
+        LEGACY_LINUX_SSH_VERSION,
+        SSH_VERSION,
+        WINDOWS_SSH_FILES,
+        WINDOWS_SSH_VERSION,
+    )
+
+    proof = {
+        "profile": PROFILE,
+        "root_sha256": "a" * 64,
+        "namespace": "b" * 32,
+        "configuration_sha256": "c" * 64,
+        "host_key_sha256": "d" * 64,
+        "active_pointer_sha256": "e" * 64,
+        "activation_written": True,
+        "filesystem_profile": "linux-local-renameat2/v1",
+        "native_rsync": {"version": "3.5.2", "sha256": "f" * 64},
+        "native_ssh": {"version": SSH_VERSION.decode("ascii"), "sha256": "0" * 64},
+        "evidence_mode": "direct_verified",
+        "publication_time": None,
+    }
+    if mode == "legacy_linux":
+        proof["native_ssh"]["version"] = LEGACY_LINUX_SSH_VERSION.decode("ascii")
+    elif mode == "windows":
+        proof["native_ssh"] = {
+            "version": WINDOWS_SSH_VERSION.decode("ascii"),
+            "sha256": WINDOWS_SSH_FILES["ssh.exe"][1],
+        }
+        proof["native_rsync"]["sha256"] = next(
+            entry["sha256"] for entry in inputs()["entries"] if entry["name"] == "rsync.exe"
+        )
+    if altered_component == "ssh_version":
+        proof["native_ssh"]["version"] = "OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2"
+    elif altered_component == "ssh_digest":
+        proof["native_ssh"]["sha256"] = "1" * 64
+    elif altered_component == "rsync_digest":
+        proof["native_rsync"]["sha256"] = "1" * 64
+
+    if altered_component:
+        with pytest.raises(MirrorError, match="rsync_proof"):
+            validate_transport_proof(proof, {"visibility": "private"})
+    else:
+        validate_transport_proof(proof, {"visibility": "private"})
 
 
 @pytest.mark.parametrize(
@@ -20,6 +102,85 @@ def test_closed_native_authentication_diagnostics(diagnostic, expected):
     from provelume.mirror_ssh_runtime import ssh_error
 
     assert ssh_error(diagnostic) == expected
+
+
+def test_native_sender_failure_retains_bounded_checks_without_raw_stderr():
+    from hashlib import sha256
+
+    from provelume.mirror_ssh_runtime import native_transport_failure
+
+    stderr = b"Connection reset by peer at synthetic-private-endpoint\r\n"
+    error = native_transport_failure((255, b"", stderr), role="ssh-control")
+    assert error.code == "ssh_command_failed"
+    assert error.native_transport_evidence == {
+        "role": "ssh-control",
+        "exit_code": 255,
+        "stdout_bytes": 0,
+        "stderr_bytes": len(stderr),
+        "stderr_sha256": sha256(stderr).hexdigest(),
+        "stderr_classes": ["CONNECTION"],
+    }
+
+
+def test_rsync_sender_retains_only_one_closed_native_rsh_report():
+    from provelume.mirror_rsync_protocol import RSH_FAILURE_PREFIX
+    from provelume.mirror_ssh_runtime import native_transport_failure
+
+    marker = (
+        RSH_FAILURE_PREFIX
+        + b"PUMP_INPUT_READ PIPE PIPE DISK STREAM_SOCKET STREAM_SOCKET 11 -1 ERRNO 22 RUNNING"
+    )
+    raw = b"synthetic-private-path and endpoint\r\n"
+    error = native_transport_failure((12, b"", raw + marker + b"\r\n"), role="rsync-sender")
+    assert error.native_transport_evidence["rsh"] == {
+        "phase": "PUMP_INPUT_READ",
+        "stdio": {"stdin": "PIPE", "stdout": "PIPE", "stderr": "DISK"},
+        "stdio_socket": {"stdin": "STREAM_SOCKET", "stdout": "STREAM_SOCKET"},
+        "argument_count": 11,
+        "first_argument_mismatch": -1,
+        "error_kind": "ERRNO",
+        "native_code": 22,
+        "child_before_cleanup": {"state": "RUNNING", "exit_code": None},
+    }
+    for rejected in (marker + b" " + raw, marker + b"\n" + marker, raw):
+        error = native_transport_failure((12, b"", rejected), role="rsync-sender")
+        assert error.native_transport_evidence["rsh"] == "NOT_OBSERVED"
+
+
+def test_native_rsh_observes_errno_and_child_exit_without_exception_text():
+    from types import SimpleNamespace
+
+    from provelume.mirror_rsync_rsh import child_status, error_kind
+
+    error = OSError(22, "synthetic-private-path")
+    assert error_kind(error) == ("ERRNO", 22)
+    error.winerror = 6
+    assert error_kind(error) == ("WIN32", 6)
+    assert child_status(SimpleNamespace(poll=lambda: None)) == "RUNNING"
+    assert child_status(SimpleNamespace(poll=lambda: 255)) == 255
+    assert child_status(None) == "UNOBSERVED"
+
+
+def test_native_rsh_probes_socket_type_without_taking_handle_ownership(monkeypatch):
+    import ctypes
+    import socket
+    from types import SimpleNamespace
+
+    from provelume.mirror_rsync_rsh import socket_kind
+
+    def get_type(handle, level, option, value, _size):
+        assert (handle, level, option) == (17, socket.SOL_SOCKET, socket.SO_TYPE)
+        ctypes.cast(value, ctypes.POINTER(ctypes.c_int))[0] = socket.SOCK_STREAM
+        return 0
+
+    backend = SimpleNamespace(getsockopt=get_type)
+    monkeypatch.setattr(ctypes, "WinDLL", lambda _dll: backend, raising=False)
+    assert socket_kind(17) == "STREAM_SOCKET"
+    backend.getsockopt = lambda *_args: -1
+    backend.WSAGetLastError = lambda: 10038
+    assert socket_kind(17) == "NOT_SOCKET"
+    backend.WSAGetLastError = lambda: 10022
+    assert socket_kind(17) == "UNAVAILABLE"
 
 
 def test_native_tls_runtime_ed25519_matches_rfc8032_vector_and_rejects_changed_data():

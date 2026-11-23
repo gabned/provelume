@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 
 
-def build(work, python_root, rsync):
+def prepare(work, python_root, rsync):
     source = Path(__file__).absolute().parents[1]
     if os.name != "posix" or work.exists():
         raise ValueError("fresh native Linux fixture required")
@@ -22,17 +22,6 @@ def build(work, python_root, rsync):
     ).strip()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=source):
         raise ValueError("clean exact source required")
-    environment = dict(os.environ)
-    for name in (
-        "DOCKER_HOST",
-        "DOCKER_CONTEXT",
-        "DOCKER_TLS",
-        "DOCKER_TLS_VERIFY",
-        "DOCKER_CERT_PATH",
-    ):
-        environment.pop(name, None)
-    environment["DOCKER_BUILDKIT"] = "0"
-    docker = ["docker", "--host=unix:///var/run/docker.sock"]
     work.mkdir(parents=True, mode=0o700)
     root = work / "rootfs"
     records = []
@@ -59,13 +48,16 @@ def build(work, python_root, rsync):
     copy(source / "scripts/fixtures/concordia_rsync_site.py", "/opt/fixture_hooks/sitecustomize.py")
     interpreter = python_root / "bin/python3.12"
     copy(interpreter, "/opt/python/bin/python3.12", executable=True)
-    native = [
-        interpreter,
-        rsync,
-        *map(
-            Path, ("/usr/sbin/sshd", "/usr/lib/openssh/sshd-session", "/usr/lib/openssh/sshd-auth")
-        ),
+    ssh = [
+        Path(name)
+        for name in (
+            "/usr/sbin/sshd",
+            "/usr/lib/openssh/sshd-session",
+            "/usr/lib/openssh/sshd-auth",
+            "/usr/bin/ssh-keygen",
+        )
     ]
+    native = [interpreter, rsync, *ssh]
     for name in ("sh", "sleep"):
         path = Path("/bin") / name
         copy(path, "/bin/" + name, executable=True)
@@ -100,7 +92,7 @@ def build(work, python_root, rsync):
     for path in (python_root / "lib").glob("libpython3.12.so*"):
         copy(path, "/opt/python/lib/" + path.name)
     copy(rsync, "/opt/rsync/rsync", executable=True)
-    for path in native[2:5]:
+    for path in ssh:
         copy(path, str(path), executable=True)
     dependencies = set()
     for path in native:
@@ -144,6 +136,22 @@ def build(work, python_root, rsync):
         + tree
         + '\nENTRYPOINT ["/bin/sleep", "180"]\n'
     )
+    return {"head": head, "tree": tree, "tag": tag, "inputs": records}
+
+
+def build_prepared(work, prepared):
+    environment = dict(os.environ)
+    for name in (
+        "DOCKER_HOST",
+        "DOCKER_CONTEXT",
+        "DOCKER_TLS",
+        "DOCKER_TLS_VERIFY",
+        "DOCKER_CERT_PATH",
+    ):
+        environment.pop(name, None)
+    environment["DOCKER_BUILDKIT"] = "0"
+    docker = ["docker", "--host=unix:///var/run/docker.sock"]
+    tag = prepared["tag"]
     with (work / "docker-build-original.log").open("xb") as log:
         subprocess.run(
             docker + ["build", "--pull=false", "--network=none", "--tag", tag, str(work)],
@@ -199,11 +207,11 @@ def build(work, python_root, rsync):
             raise ValueError("native fixture prerequisite failed: " + phase)
     result = {
         "schema": "concordia-rsync-fixture-build/v1",
-        "head": head,
-        "tree": tree,
+        "head": prepared["head"],
+        "tree": prepared["tree"],
         "image_id": image_id,
         "base": "SCRATCH_NO_HOST_CREDENTIALS_OR_ACCOUNT_DATABASE",
-        "inputs": records,
+        "inputs": prepared["inputs"],
         "credentials_in_image": False,
         "application_distribution": False,
         "build_network": "NONE",
@@ -216,15 +224,21 @@ def build(work, python_root, rsync):
     }
 
 
+def build(work, python_root, rsync):
+    return build_prepared(work, prepare(work, python_root, rsync))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--python-root", type=Path, required=True)
     parser.add_argument("--rsync-binary", type=Path, required=True)
+    parser.add_argument("--prepare-only", action="store_true")
     args = parser.parse_args()
+    selected = prepare if args.prepare_only else build
     print(
         json.dumps(
-            build(
+            selected(
                 args.work.absolute(),
                 args.python_root.absolute(),
                 args.rsync_binary.absolute(),

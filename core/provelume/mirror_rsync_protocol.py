@@ -24,6 +24,49 @@ PROFILE = "rsync-ssh/3.5.2/v1"
 HELPER_VERSION = "provelume-mirror-helper/1"
 SHORT_OPTIONS = "-rce.iLsfxCIvu"
 ACTIONS = {"inspect", "initialize", "receive", "resume", "activate", "operation"}
+RSH_FAILURE_PREFIX = b"PROVELUME_RSYNC_RSH_V2 "
+_RSH_HANDLE = rb"(UNOBSERVED|ABSENT|UNKNOWN|DISK|CHAR|PIPE|OTHER)"
+_RSH_SOCKET = rb"(UNAVAILABLE|NOT_SOCKET|STREAM_SOCKET|OTHER_SOCKET)"
+_RSH_FAILURE = re.compile(
+    re.escape(RSH_FAILURE_PREFIX)
+    + rb"(CONTEXT_PATH|CONTEXT_READ|ARGV|REQUEST|COMPONENT|STDIO|SSH_LAUNCH|FRAME_WRITE|"
+    + rb"PUMP_START|PUMP_INPUT_READ|PUMP_CHILD_WRITE|PUMP_CHILD_READ|PUMP_OUTPUT_WRITE|"
+    + rb"CHILD_WAIT|PUMP_DRAIN|SSH_EXIT) "
+    + rb" ".join((_RSH_HANDLE,) * 3)
+    + b" " + _RSH_SOCKET + b" " + _RSH_SOCKET
+    + rb" ([0-9]{1,2}) (-1|[0-9]{1,2}) (WIN32|ERRNO|TIMEOUT|MIRROR|OTHER|NONE)"
+    + rb" ([0-9]{1,10}) (UNOBSERVED|RUNNING|[0-9]{1,10})"
+)
+
+
+def rsh_failure_evidence(stderr):
+    matches = [match for line in stderr.splitlines() if (match := _RSH_FAILURE.fullmatch(line))]
+    if len(matches) != 1:
+        return None
+    (
+        phase, stdin, stdout, errors, input_socket, output_socket,
+        argc, mismatch, kind, native, child,
+    ) = matches[0].groups()
+    argc, mismatch, native = int(argc), int(mismatch), int(native)
+    child_exit = int(child) if child.isdigit() else None
+    if mismatch > argc or native > 0xFFFFFFFF or (child_exit or 0) > 0xFFFFFFFF:
+        return None
+    return {
+        "phase": phase.decode("ascii"),
+        "stdio": {"stdin": stdin.decode("ascii"), "stdout": stdout.decode("ascii"),
+                  "stderr": errors.decode("ascii")},
+        "stdio_socket": {
+            "stdin": input_socket.decode("ascii"), "stdout": output_socket.decode("ascii"),
+        },
+        "argument_count": argc,
+        "first_argument_mismatch": mismatch,
+        "error_kind": kind.decode("ascii"),
+        "native_code": native,
+        "child_before_cleanup": {
+            "state": "EXITED" if child_exit is not None else child.decode("ascii"),
+            "exit_code": child_exit,
+        },
+    }
 
 
 def frame(value):
@@ -204,18 +247,40 @@ def validate_transport_proof(value, observation):
         require(
             type(value[key]) is str and re.fullmatch(r"[0-9a-f]{64}", value[key]), "rsync_proof"
         )
-    from .mirror_ssh_runtime import SSH_VERSION
+    from .mirror_ssh_runtime import (
+        LEGACY_LINUX_SSH_VERSION,
+        RSYNC_VERSION,
+        SSH_VERSION,
+        WINDOWS_SSH_FILES,
+        WINDOWS_SSH_VERSION,
+    )
 
-    for key, version in (("native_rsync", "3.5.2"), ("native_ssh", SSH_VERSION.decode("ascii"))):
+    for key in ("native_rsync", "native_ssh"):
         component = value[key]
         require(
             type(component) is dict
             and set(component) == {"version", "sha256"}
-            and component["version"] == version
+            and type(component["version"]) is str
             and type(component["sha256"]) is str
             and re.fullmatch(r"[0-9a-f]{64}", component["sha256"]),
             "rsync_proof",
         )
+    rsync, ssh = value["native_rsync"], value["native_ssh"]
+    require(rsync["version"] == RSYNC_VERSION, "rsync_proof")
+    if ssh["version"] in {
+        SSH_VERSION.decode("ascii"), LEGACY_LINUX_SSH_VERSION.decode("ascii"),
+    }:
+        return  # Completed Linux receipts retain the original version and digest.
+
+    require(
+        ssh["version"] == WINDOWS_SSH_VERSION.decode("ascii")
+        and ssh["sha256"] == WINDOWS_SSH_FILES["ssh.exe"][1],
+        "rsync_proof",
+    )
+    from .mirror_rsync_windows import inputs
+
+    rsync_sha = next(row["sha256"] for row in inputs()["entries"] if row["name"] == "rsync.exe")
+    require(rsync["sha256"] == rsync_sha, "rsync_proof")
 
 
 RSYNC_DIAGNOSTICS = frozenset(

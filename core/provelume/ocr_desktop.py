@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from .mirror_cli import add_mirror_commands, handle_mirror_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
@@ -71,6 +73,13 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
     rsync_windows.add_argument("--fixture-directory", required=True, type=Path)
     integrated = commands.add_parser("concordia-integrated-qualify")
     integrated.add_argument("instance", type=Path)
+    rsync_transport = commands.add_parser("rsync-windows-transport-qualify")
+    rsync_transport.add_argument("instance", type=Path)
+    rsync_transport.add_argument("--fixture-directory", required=True, type=Path)
+    rsync_transport.add_argument("--ssh-fixture-directory", required=True, type=Path)
+    rsync_transport.add_argument("--fixture-image", required=True)
+    rsync_transport.add_argument("--expected-source-commit", required=True)
+    rsync_transport.add_argument("--fixture-distribution", required=True)
     add_mirror_commands(commands)
     add_ocr_commands(commands)
     try:
@@ -101,6 +110,25 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
                     result = qualify_components(
                         options.instance, fixture_directory=options.fixture_directory
                     )
+                elif options.command == "rsync-windows-transport-qualify":
+                    from .mirror_rsync_qualification import qualify_rsync_mirror
+                    from .mirror_rsync_windows import admit
+                    from .mirror_rsync_windows_fixture import WindowsFixture
+
+                    component_directory = options.fixture_directory.resolve(strict=True)
+                    ssh_directory = options.ssh_fixture_directory.resolve(strict=True)
+                    admit(component_directory / "rsync.exe")
+                    backend = WindowsFixture(
+                        options.fixture_distribution, options.expected_source_commit
+                    )
+                    path = os.pathsep.join(map(str, (component_directory, ssh_directory)))
+                    with patch.dict(os.environ, {"PATH": path}):
+                        result = qualify_rsync_mirror(
+                            options.instance,
+                            image=options.fixture_image,
+                            expected_source_commit=options.expected_source_commit,
+                            windows_backend=backend,
+                        )
                 elif options.command == "rsync-credential-qualify":
                     from .mirror_rsync_agent_qualification import qualify_agent
 
@@ -228,6 +256,10 @@ def run_ocr_command(arguments: list[str], result_file: Path) -> int:
 
                     if isinstance(exc, GiteaMirrorQualificationFailure):
                         failure["qualification_evidence"] = exc.evidence
+                if options.command == "rsync-windows-transport-qualify":
+                    failure["network_used"] = None
+                    if hasattr(exc, "agent_evidence"):
+                        failure["agent_evidence"] = exc.agent_evidence
                 if options.command == "gitea-server-qualify":
                     from .mirror_gitea_server_qualification import GiteaQualificationFailure
 

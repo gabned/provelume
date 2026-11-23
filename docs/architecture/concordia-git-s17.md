@@ -122,10 +122,17 @@ The closed candidate set is Linux Git 2.51.1 (the pinned workspace tool), Linux
 Git 2.52.0 (this development environment), Linux
 Git 2.56.0 (observed in earlier Ubuntu CI and release-source-gate jobs), Linux
 Git 2.56.1 (the security update observed in the current Ubuntu runners), and
-Git for Windows 2.56.0.windows.4 (observed in Windows CI). Each requires its own
-native conformance evidence; admission to the candidate set is not qualification.
+Git for Windows 2.56.0.windows.4 and 2.56.1.windows.1 (observed in Windows CI).
+Require independent native conformance evidence for each candidate profile.
 Any other version, including another patch version, fails before transport work.
 No timing/resource/coverage limit or required test is relaxed for a version change.
+
+The installed `git-mirror-qualify` gate on S22 `eeb9e6f` used Git for Windows
+2.56.1.windows.1 and stopped at the version check with `git_version_unsupported`
+before using the transport. The original result is preserved in run 45273276439,
+attempt 1, job 138039340337, artifact 14867202766, `command-043.json`. The Windows
+version requires independent native conformance and installed evidence on the
+changed candidate.
 
 The original `a209963` Ubuntu and release dry-run source-gate failures are retained:
 they correctly reported `git_version_unsupported` on the runner's 2.56.0, which

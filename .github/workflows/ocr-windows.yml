@@ -22,11 +22,57 @@ permissions:
   contents: read
   actions: read
 jobs:
+  rsync-linux-fixture:
+    name: Build the exact-source synthetic Linux SSH fixture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.fixture.outputs.artifact-id }}
+      producer_attempt: ${{ steps.build.outputs.producer_attempt }}
+    env:
+      QUALIFIED_SHA: ${{ inputs.source_commit || github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ inputs.source_commit || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12.14'
+      - name: Build and record disposable fixture inputs
+        id: build
+        run: |
+          python scripts/build_concordia_windows_fixture.py \
+            --expected-head "$QUALIFIED_SHA" \
+            --work "$RUNNER_TEMP/rsync-windows-build" \
+            --bundle "$RUNNER_TEMP/rsync-windows-server"
+          printf 'producer_attempt=%s\n' "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: fixture
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provelume-rsync-server-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rsync-windows-server/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: failure()
+        with:
+          name: provelume-rsync-server-preparation-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/rsync-windows-server/*-original.log
+            ${{ runner.temp }}/rsync-windows-build/fixture/*-original.log
+          if-no-files-found: warn
+          retention-days: 30
   installed-ocr:
+    needs: rsync-linux-fixture
+    if: ${{ !cancelled() }}
     runs-on: windows-2025
     timeout-minutes: 90
     env:
       QUALIFIED_SHA: ${{ inputs.source_commit || github.event.pull_request.head.sha || github.sha }}
+      RSYNC_PRODUCER_ATTEMPT: ${{ needs.rsync-linux-fixture.outputs.producer_attempt }}
+      RSYNC_ARTIFACT_ID: ${{ needs.rsync-linux-fixture.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -59,6 +105,40 @@ jobs:
           python -c "import sys; from pathlib import Path; from provelume.ocr_desktop import run_ocr_command; sys.exit(run_ocr_command(['rsync-windows-components-qualify', sys.argv[1], '--fixture-directory', sys.argv[2]], Path(sys.argv[3])))" "$env:RUNNER_TEMP/Source native Windows rsync" "$env:RUNNER_TEMP/rsync-fixture" "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
           Get-Content "$env:RUNNER_TEMP/ocr-output/source-windows-rsync.json"
           if ($LASTEXITCODE -ne 0) { throw "Source native rsync primitive failed; frozen qualification remains unperformed." }
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        id: rsync-server-input
+        if: needs.rsync-linux-fixture.result == 'success'
+        continue-on-error: true
+        with:
+          artifact-ids: ${{ needs.rsync-linux-fixture.outputs.artifact_id }}
+          path: ${{ runner.temp }}/rsync-windows-server
+      - name: Verify the pinned Microsoft Win32 OpenSSH qualification input
+        id: rsync-ssh-input
+        if: steps.rsync-server-input.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          ./scripts/acquire_concordia_windows_ssh_fixture.ps1 -OutputDirectory "$env:RUNNER_TEMP/rsync-ssh-client" -Evidence "$env:RUNNER_TEMP/ocr-output/rsync-ssh-input.json"
+      - name: Qualify source native Windows SSH and rsync through the synthetic fixture
+        id: rsync-source-wire
+        if: steps.rsync-ssh-input.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python scripts/qualify_concordia_windows_rsync.py --head $env:QUALIFIED_SHA --bundle "$env:RUNNER_TEMP/rsync-windows-server" --components "$env:RUNNER_TEMP/rsync-fixture" --ssh-components "$env:RUNNER_TEMP/rsync-ssh-client" --work "$env:RUNNER_TEMP/source-windows-rsync-wire" --output "$env:RUNNER_TEMP/ocr-output/source-windows-rsync-wire"
+          if ($LASTEXITCODE -ne 0) { throw "Source native Windows SSH/rsync qualification failed." }
+      - name: Retain original closed source Windows SSH/rsync evidence
+        if: ${{ !cancelled() && (steps.rsync-source-wire.outcome == 'success' || steps.rsync-source-wire.outcome == 'failure') }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provelume-rsync-windows-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ocr-output/rsync-ssh-input.json
+            ${{ runner.temp }}/ocr-output/source-windows-rsync-wire/*.json
+            ${{ runner.temp }}/ocr-output/source-windows-rsync-wire/case-results-original.jsonl
+          if-no-files-found: warn
+          retention-days: 30
       - name: Download the caller's exact qualified wheel and installer
         if: inputs.candidate_artifact != ''
         env:
@@ -98,6 +178,9 @@ jobs:
           python scripts/acquire_concordia_gitea_fixture.py --output "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" > "$env:RUNNER_TEMP/ocr-output/gitea-input.json"
           if ($LASTEXITCODE -ne 0) { throw "Gitea fixture acquisition failed." }
       - name: Install that exact package, exercise offline kit and remove disposable installation
+        env:
+          RSYNC_INPUT_READY: ${{ steps.rsync-ssh-input.outcome == 'success' }}
+          RSYNC_SOURCE_READY: ${{ steps.rsync-source-wire.outcome == 'success' }}
         shell: pwsh
         run: |
           $target = "$env:RUNNER_TEMP/Concordia OCR Installed"
@@ -105,9 +188,16 @@ jobs:
           $install = Start-Process -FilePath $setup.FullName -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$target`"", "/TASKS=`"`"") -PassThru
           if (-not $install.WaitForExit(90000) -or $install.ExitCode -ne 0) { throw "Disposable installation failed." }
           try {
+            $rsyncExit = 2
+            if ($env:RSYNC_INPUT_READY -eq 'true') {
+              python scripts/qualify_concordia_windows_rsync.py --head $env:QUALIFIED_SHA --bundle "$env:RUNNER_TEMP/rsync-windows-server" --components "$env:RUNNER_TEMP/rsync-fixture" --ssh-components "$env:RUNNER_TEMP/rsync-ssh-client" --work "$env:RUNNER_TEMP/installed-windows-rsync-wire" --output "$env:RUNNER_TEMP/ocr-output/installed-windows-rsync-wire" --executable "$target/Provelume.exe" --installer $setup.FullName
+              $rsyncExit = $LASTEXITCODE
+            }
             $kit = Get-ChildItem "$env:RUNNER_TEMP/ocr-output/provelume-*-ocr-windows-x64.zip" | Select-Object -First 1
             python scripts/qualify_windows_ocr_installed.py --executable "$target/Provelume.exe" --installer $setup.FullName --kit $kit.FullName --build-report "$env:RUNNER_TEMP/ocr-output/ocr-kit-build.json" --gitea-server "$env:RUNNER_TEMP/gitea-fixture/gitea.exe" --rsync-directory "$env:RUNNER_TEMP/rsync-fixture" --root "$env:RUNNER_TEMP/Concordia OCR Qualification" --output "$env:RUNNER_TEMP/ocr-output/windows-installed-ocr.json"
-            if ($LASTEXITCODE -ne 0) { throw "Installed offline OCR qualification failed." }
+            if ($LASTEXITCODE -ne 0 -or $rsyncExit -ne 0 -or $env:RSYNC_SOURCE_READY -ne 'true') {
+              throw "Installed offline OCR or independent source/installed Windows SSH/rsync qualification failed."
+            }
           } finally {
             $uninstall = Start-Process -FilePath "$target/unins000.exe" -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru
             if (-not $uninstall.WaitForExit(90000) -or $uninstall.ExitCode -ne 0) { throw "Disposable uninstall failed." }

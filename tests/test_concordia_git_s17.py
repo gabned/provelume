@@ -140,6 +140,8 @@ def test_native_git_version_bare_objects_and_bounded_input(tmp_path):
     expected_versions = {"2.51.1", "2.52.0", "2.56.0", "2.56.0.windows.4"}
     if sys.platform == "linux":
         expected_versions.add("2.56.1")
+    elif sys.platform == "win32":
+        expected_versions.add("2.56.1.windows.1")
     assert session.probe() in expected_versions
     session.initialize_work()
     _code, oid = session.run(
@@ -381,7 +383,7 @@ def test_batch_verification_rejects_changed_payload_and_oversized_object(tmp_pat
         b"git version 2.43.0\n",
         b"git version 2.99.0\n",
         b"git version 2.56.2\n",
-        b"git version 2.56.1.windows.1\n",
+        b"git version 2.56.1.windows.2\n",
         b"git version unknown\n",
     ],
 )
@@ -396,13 +398,20 @@ def test_unqualified_git_versions_remain_rejected_before_operations(
 
 
 @pytest.mark.parametrize("platform", ["linux", "win32", "darwin"])
-def test_exact_git_2_56_1_is_admitted_only_on_linux(tmp_path, monkeypatch, platform):
+@pytest.mark.parametrize(
+    ("version", "qualified_platform", "line_ending"),
+    [("2.56.1", "linux", b"\n"), ("2.56.1.windows.1", "win32", b"\r\n")],
+)
+def test_git_2_56_1_profiles_are_bound_to_their_platform(
+    tmp_path, monkeypatch, platform, version, qualified_platform, line_ending
+):
     make_private(tmp_path)
     session = GitSession(tmp_path)
     monkeypatch.setattr(mirror_git_runtime, "sys", SimpleNamespace(platform=platform))
-    monkeypatch.setattr(session, "run", lambda *_args, **_kwargs: (0, b"git version 2.56.1\n"))
-    if platform == "linux":
-        assert session.probe() == "2.56.1"
+    output = f"git version {version}".encode("ascii") + line_ending
+    monkeypatch.setattr(session, "run", lambda *_args, **_kwargs: (0, output))
+    if platform == qualified_platform:
+        assert session.probe() == version
     else:
         with pytest.raises(MirrorError, match="git_version_unsupported"):
             session.probe()
