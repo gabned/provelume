@@ -393,8 +393,15 @@ def retain_trial_failure(cases, fault):
             "result": "INCOMPLETE",
             "closed_code": error.code if isinstance(error, MirrorError) else type(error).__name__,
         }
-        if isinstance(error, MirrorError) and hasattr(error, "agent_evidence"):
-            evidence["owned_agent"] = error.agent_evidence
+        if isinstance(error, MirrorError):
+            for field, attribute in (
+                ("transport_phase", "rsync_phase"),
+                ("native_transport", "native_transport_evidence"),
+                ("owned_agent", "agent_evidence"),
+                ("relay", "relay_evidence"),
+            ):
+                if hasattr(error, attribute):
+                    evidence[field] = getattr(error, attribute)
         cases.append(evidence)
         raise
 

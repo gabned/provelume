@@ -419,6 +419,38 @@ def ssh_error(errors):
     return "ssh_command_failed"
 
 
+def native_transport_failure(result, *, role, code="ssh_command_failed"):
+    exit_code, stdout, stderr = result
+    # Keep a bounded classifier and byte identities. Native diagnostics may
+    # contain filesystem paths, endpoint names, or commands supplied by a peer.
+    lower = stderr.lower()
+    diagnostics = {
+        "CONFIGURATION": (b"bad configuration option", b"unsupported option",
+                          b"bad owner or permissions", b"invalid configuration"),
+        "HOST_KEY": (b"host key verification failed", b"host identification has changed"),
+        "CREDENTIALS": (b"permission denied", b"too many authentication failures"),
+        "SUBSYSTEM": (b"subsystem request failed", b"exec request failed"),
+        "KEY_EXCHANGE": (b"kex_exchange_identification", b"no matching ", b"invalid format"),
+        "CONNECTION": (b"connection refused", b"connection timed out", b"connection reset",
+                       b"connection closed", b"broken pipe"),
+        "RSYNC_ADAPTER": (b"failed to exec", b"cannot find the file", b"no such file"),
+        "RSYNC_STREAM": (b"unexpectedly closed", b"protocol incompatibility", b"socket io"),
+        "STORAGE": (b"no space left on device", b"disk full"),
+    }
+    error = MirrorError(code)
+    error.native_transport_evidence = {
+        "role": role,
+        "exit_code": exit_code,
+        "stdout_bytes": len(stdout),
+        "stderr_bytes": len(stderr),
+        "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
+        "stderr_classes": [
+            name for name, patterns in diagnostics.items() if any(p in lower for p in patterns)
+        ],
+    }
+    return error
+
+
 def ssh_call(session, target, seed, request):
     configuration(target)
     binary = session.component("ssh")
@@ -447,5 +479,5 @@ def ssh_call(session, target, seed, request):
             agent=owned.endpoint,
         )
         if result[0] != 0:
-            raise MirrorError(ssh_error(result[2]))
+            raise native_transport_failure(result, role="ssh-control", code=ssh_error(result[2]))
     return result[1], {"component": binary, "agent": owned.report}

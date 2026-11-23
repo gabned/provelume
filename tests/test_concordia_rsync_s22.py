@@ -104,6 +104,24 @@ def test_closed_native_authentication_diagnostics(diagnostic, expected):
     assert ssh_error(diagnostic) == expected
 
 
+def test_native_sender_failure_retains_bounded_checks_without_raw_stderr():
+    from hashlib import sha256
+
+    from provelume.mirror_ssh_runtime import native_transport_failure
+
+    stderr = b"Connection reset by peer at synthetic-private-endpoint\r\n"
+    error = native_transport_failure((255, b"", stderr), role="ssh-control")
+    assert error.code == "ssh_command_failed"
+    assert error.native_transport_evidence == {
+        "role": "ssh-control",
+        "exit_code": 255,
+        "stdout_bytes": 0,
+        "stderr_bytes": len(stderr),
+        "stderr_sha256": sha256(stderr).hexdigest(),
+        "stderr_classes": ["CONNECTION"],
+    }
+
+
 def test_native_tls_runtime_ed25519_matches_rfc8032_vector_and_rejects_changed_data():
     # Public RFC8032 section7.1 test1; not an account credential.
     seed = bytes.fromhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")

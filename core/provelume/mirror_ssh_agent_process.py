@@ -180,8 +180,8 @@ class AgentWorker:
             self.request.clear()
             self.resources.close()
 
-    def __exit__(self, kind, *_error):
-        if kind is None and self.output is not None:
+    def __exit__(self, kind, error=None, _traceback=None):
+        if self.output is not None and (kind is None or isinstance(error, MirrorError)):
             end = min(self.deadline, time.monotonic() + 1)
             while (
                 not self.output.with_name(self.output.name + ".done").is_file()
@@ -206,6 +206,16 @@ class AgentWorker:
                 "raw_worker_output": "EXCLUDED",
             }
         self.close()
+        if isinstance(error, MirrorError) and evidence is not None:
+            report = self.report if type(self.report) is dict else {}
+            evidence["signature_observation"] = (
+                "ONE_HOST_BOUND_SIGNATURE"
+                if report.get("signatures") == 1 and report.get("host_bound") is True
+                else "NO_SIGNATURE"
+                if report.get("signatures") == 0
+                else "UNAVAILABLE"
+            )
+            error.agent_evidence = evidence
         if kind is None:
             try:
                 require(

@@ -127,6 +127,18 @@ jobs:
         run: |
           python scripts/qualify_concordia_windows_rsync.py --head $env:QUALIFIED_SHA --bundle "$env:RUNNER_TEMP/rsync-windows-server" --components "$env:RUNNER_TEMP/rsync-fixture" --ssh-components "$env:RUNNER_TEMP/rsync-ssh-client" --work "$env:RUNNER_TEMP/source-windows-rsync-wire" --output "$env:RUNNER_TEMP/ocr-output/source-windows-rsync-wire"
           if ($LASTEXITCODE -ne 0) { throw "Source native Windows SSH/rsync qualification failed." }
+      - name: Retain original closed source Windows SSH/rsync evidence
+        if: ${{ !cancelled() && (steps.rsync-source-wire.outcome == 'success' || steps.rsync-source-wire.outcome == 'failure') }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provelume-rsync-windows-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ocr-output/rsync-ssh-input.json
+            ${{ runner.temp }}/ocr-output/source-windows-rsync-wire/*.json
+            ${{ runner.temp }}/ocr-output/source-windows-rsync-wire/case-results-original.jsonl
+          if-no-files-found: warn
+          retention-days: 30
       - name: Download the caller's exact qualified wheel and installer
         if: inputs.candidate_artifact != ''
         env:

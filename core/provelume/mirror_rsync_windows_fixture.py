@@ -7,10 +7,11 @@ import re
 import socket
 import subprocess
 import threading
+from collections import deque
 from contextlib import contextmanager, suppress
 from pathlib import Path
 
-from .mirror_contract import require
+from .mirror_contract import MirrorError, require
 
 DOCKER_SOCKET = "unix:///run/provelume-concordia/docker.sock"
 _CHUNK = 65536
@@ -121,17 +122,19 @@ def _close_socket(connection):
     connection.close()
 
 
-def _connection(connection, start, stop, errors):
+def _connection(connection, start, stop, errors, observation):
     process = None
     upstream = None
     try:
         process = start()
+        observation["process_started"] = True
 
         def send():
             try:
                 while not stop.is_set() and (chunk := connection.recv(_CHUNK)):
                     process.stdin.write(chunk)
                     process.stdin.flush()
+                    observation["client_bytes"] += len(chunk)
             except OSError:
                 pass
             finally:
@@ -142,6 +145,7 @@ def _connection(connection, start, stop, errors):
         upstream.start()
         while not stop.is_set() and (chunk := process.stdout.read1(_CHUNK)):
             connection.sendall(chunk)
+            observation["guest_bytes"] += len(chunk)
     except OSError:
         if process is None and not stop.is_set():
             errors.append("START_FAILED")
@@ -157,6 +161,7 @@ def _connection(connection, start, stop, errors):
                 except subprocess.TimeoutExpired:
                     errors.append("PROCESS_NOT_REAPED")
             process.stdout.close()
+            observation["process_exit"] = process.returncode
         if upstream is not None:
             upstream.join(5)
             if upstream.is_alive():
@@ -168,12 +173,16 @@ def _endpoint(start):
     stop = threading.Event()
     active = []
     errors = []
+    recent = deque(maxlen=8)
+    accepted = 0
+    failure = None
     with socket.socket() as server:
         server.bind(("127.0.0.1", 0))
         server.listen(4)
         server.settimeout(0.1)
 
         def accept():
+            nonlocal accepted
             while not stop.is_set():
                 try:
                     connection, _ = server.accept()
@@ -188,8 +197,14 @@ def _endpoint(start):
                     _close_socket(connection)
                     errors.append("CONNECTION_LIMIT")
                     continue
+                accepted += 1
+                observation = {"process_started": False, "process_exit": None,
+                               "client_bytes": 0, "guest_bytes": 0}
+                recent.append(observation)
                 worker = threading.Thread(
-                    target=_connection, args=(connection, start, stop, errors), daemon=True
+                    target=_connection,
+                    args=(connection, start, stop, errors, observation),
+                    daemon=True,
                 )
                 active.append((connection, worker))
                 worker.start()
@@ -198,6 +213,9 @@ def _endpoint(start):
         listener.start()
         try:
             yield server.getsockname()
+        except MirrorError as error:
+            failure = error
+            raise
         finally:
             stop.set()
             listener.join(5)
@@ -205,6 +223,12 @@ def _endpoint(start):
                 _close_socket(connection)
             for _, worker in active:
                 worker.join(15)
+            if failure is not None:
+                failure.relay_evidence = {
+                    "connections": accepted,
+                    "recent_connections": list(recent),
+                    "worker_findings": sorted(set(errors)),
+                }
             require(
                 not listener.is_alive()
                 and not any(worker.is_alive() for _, worker in active)
