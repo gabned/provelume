@@ -142,3 +142,16 @@ def test_native_selector_is_exclusive_and_keeps_original_execution_bounds():
     assert admission < acquire < measure
     for index in (acquire, measure):
         assert steps[index]["if"] == "inputs.concordia_observer_source == 'native-cold-810'"
+
+
+def test_manual_diagnostic_selectors_never_select_ordinary_measurement():
+    path = native.ROOT / ".github/workflows/ai-runtime-candidate.yml"
+    workflow = yaml.safe_load(path.read_text())
+    condition = workflow["jobs"]["measure"]["if"]
+    assert "github.event_name != 'workflow_dispatch'" in condition
+    assert "inputs.concordia_observer_source == ''" in condition
+    for selector in (
+        "diagnostic", "observer_study", "smt_study", "tracer_study",
+        "kernel_control", "capture_guard", "pool_prefix", "caller_spans", "clock_bundle",
+    ):
+        assert f"inputs.concordia_{selector} != true" in condition
