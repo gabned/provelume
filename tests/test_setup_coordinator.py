@@ -1,15 +1,19 @@
 """K uses real producers, durable partial readback and explicit retry only."""
 
 import asyncio
+import re
 from copy import deepcopy
+from html import unescape
 
 import pytest
+from fastapi.testclient import TestClient
 
 from provelume.review_effects import ReviewError
 from provelume.service import ProvelumeInstance
 from provelume.setup_coordinator import SetupCoordinator, assert_admission_ready
 from provelume.setup_progress import SetupProgressError
 from provelume.setup_trial_http import verify_trial_http
+from provelume.setup_trials import SetupTrials
 from provelume.shell_settings import ShellSettingsManager, default_settings
 from provelume.web import create_app
 
@@ -32,6 +36,23 @@ def prepared_trial(tmp_path):
     app = create_app(instance.root, shell_settings_file=tmp_path / "launcher.json")
     assert asyncio.run(verify_trial_http(app, instance.store, op_id))["complete"]
     return instance, shell, coordinator, choices
+
+
+def test_trial_search_link_opens_the_real_trial_document(tmp_path):
+    instance, shell, setup, _choices = prepared_trial(tmp_path)
+    operation = setup.progress.read()["operations"]["test"]
+    trial = SetupTrials(instance.store).observations(operation)["documents"][0]
+    assert trial["search_verified"]
+    document_id = trial["acquisition"]["document_id"]
+    app = create_app(instance.root, shell_settings_file=shell.path, effective_port=8765)
+    client = TestClient(app, base_url="http://127.0.0.1:8765")
+    response = client.get("/setup", params={"step": "test", "lang": "en"})
+    assert response.status_code == 200
+    links = re.findall(r'href="(/search\?q=[^"]+)"', response.text)
+    assert len(links) == 1
+    search = client.get(unescape(links[0]))
+    assert search.status_code == 200
+    assert f'/documents/{document_id}?' in search.text
 
 
 def test_apply_preserves_other_preferences_identity_and_existing_backlog(tmp_path):
