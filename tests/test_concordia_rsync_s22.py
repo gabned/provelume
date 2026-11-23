@@ -122,6 +122,25 @@ def test_native_sender_failure_retains_bounded_checks_without_raw_stderr():
     }
 
 
+def test_rsync_sender_retains_only_one_closed_native_rsh_report():
+    from provelume.mirror_rsync_protocol import RSH_FAILURE_PREFIX
+    from provelume.mirror_ssh_runtime import native_transport_failure
+
+    marker = RSH_FAILURE_PREFIX + b"STDIO UNKNOWN PIPE DISK 11 -1 6"
+    raw = b"synthetic-private-path and endpoint\r\n"
+    error = native_transport_failure((12, b"", raw + marker + b"\r\n"), role="rsync-sender")
+    assert error.native_transport_evidence["rsh"] == {
+        "phase": "STDIO",
+        "stdio": {"stdin": "UNKNOWN", "stdout": "PIPE", "stderr": "DISK"},
+        "argument_count": 11,
+        "first_argument_mismatch": -1,
+        "native_code": 6,
+    }
+    for rejected in (marker + b" " + raw, marker + b"\n" + marker, raw):
+        error = native_transport_failure((12, b"", rejected), role="rsync-sender")
+        assert error.native_transport_evidence["rsh"] == "NOT_OBSERVED"
+
+
 def test_native_tls_runtime_ed25519_matches_rfc8032_vector_and_rejects_changed_data():
     # Public RFC8032 section7.1 test1; not an account credential.
     seed = bytes.fromhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")

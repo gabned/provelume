@@ -434,6 +434,9 @@ def native_transport_failure(result, *, role, code="ssh_command_failed"):
         "CONNECTION": (b"connection refused", b"connection timed out", b"connection reset",
                        b"connection closed", b"broken pipe"),
         "RSYNC_ADAPTER": (b"failed to exec", b"cannot find the file", b"no such file"),
+        "RSYNC_ADAPTER_BOOTSTRAP": (b"no module named", b"failed to execute script",
+                                    b"fatal python error", b"failed to load python"),
+        "NATIVE_STDIO": (b"bad file descriptor", b"invalid handle", b"not a socket"),
         "RSYNC_STREAM": (b"unexpectedly closed", b"protocol incompatibility", b"socket io"),
         "STORAGE": (b"no space left on device", b"disk full"),
     }
@@ -448,6 +451,10 @@ def native_transport_failure(result, *, role, code="ssh_command_failed"):
             name for name, patterns in diagnostics.items() if any(p in lower for p in patterns)
         ],
     }
+    if role == "rsync-sender":
+        from .mirror_rsync_protocol import rsh_failure_evidence
+
+        error.native_transport_evidence["rsh"] = rsh_failure_evidence(stderr) or "NOT_OBSERVED"
     return error
 
 

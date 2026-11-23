@@ -24,6 +24,32 @@ PROFILE = "rsync-ssh/3.5.2/v1"
 HELPER_VERSION = "provelume-mirror-helper/1"
 SHORT_OPTIONS = "-rce.iLsfxCIvu"
 ACTIONS = {"inspect", "initialize", "receive", "resume", "activate", "operation"}
+RSH_FAILURE_PREFIX = b"PROVELUME_RSYNC_RSH_V1 "
+_RSH_HANDLE = rb"(UNOBSERVED|ABSENT|UNKNOWN|DISK|CHAR|PIPE|OTHER)"
+_RSH_FAILURE = re.compile(
+    re.escape(RSH_FAILURE_PREFIX)
+    + rb"(CONTEXT_PATH|CONTEXT_READ|ARGV|REQUEST|COMPONENT|STDIO|SSH_LAUNCH|WIRE|SSH_EXIT) "
+    + rb" ".join((_RSH_HANDLE,) * 3)
+    + rb" ([0-9]{1,2}) (-1|[0-9]{1,2}) ([0-9]{1,10})"
+)
+
+
+def rsh_failure_evidence(stderr):
+    matches = [match for line in stderr.splitlines() if (match := _RSH_FAILURE.fullmatch(line))]
+    if len(matches) != 1:
+        return None
+    phase, stdin, stdout, errors, argc, mismatch, native = matches[0].groups()
+    argc, mismatch, native = int(argc), int(mismatch), int(native)
+    if mismatch > argc or native > 0xFFFFFFFF:
+        return None
+    return {
+        "phase": phase.decode("ascii"),
+        "stdio": {"stdin": stdin.decode("ascii"), "stdout": stdout.decode("ascii"),
+                  "stderr": errors.decode("ascii")},
+        "argument_count": argc,
+        "first_argument_mismatch": mismatch,
+        "native_code": native,
+    }
 
 
 def frame(value):
