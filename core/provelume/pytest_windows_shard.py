@@ -178,7 +178,8 @@ _MODULE_COST_HINTS = (
     ('tests/test_custodia_parent_lifetime.py', 2, 1),
     ('tests/test_custodia_pdf_boundary.py', 3, 298),
     ('tests/test_custodia_preview_freshness.py', 13, 3017),
-    ('tests/test_custodia_qualification_failures.py', 7, 35886),
+    # S07 5f177ac, Public CI 45407113533/a1, artifact 14927395465, complete 9/9.
+    ('tests/test_custodia_qualification_failures.py', 9, 42689),
     ('tests/test_custodia_recommendation.py', 12, 40),
     ('tests/test_custodia_resource_limits.py', 10, 3),
     ('tests/test_custodia_synthesis_recovery.py', 7, 10668),
