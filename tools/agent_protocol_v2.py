@@ -479,6 +479,26 @@ S07_COLD_810_RECORD = {
     "report_member": "capture-guard-comparison/arm-3/report.json",
     "report_bytes_sha256": "63bc821aec9ad304da7e0fae0b09e57b4cf13d70758a54bd832d44977bd2ef83",
 }
+S07_WINDOWS_ACQUISITION_REFERENCE = f"https://github.com/{REPOSITORY}/issues/383#issuecomment-7146731122"
+S07_WINDOWS_ACQUISITION_COORDINATES = (
+    "5f177ac68c1777843f5a97f1292b0848728ef974",
+    "3b9242fc6ce655a0f29c91d52a081d8cf6ed06b4",
+    "258ef309a75b0ec18c071d2d69d68cc37b890c88",
+)
+S07_WINDOWS_ACQUISITION_RUNS = {
+    "da25e28564f70fc1bad59f624c5947e9fe2a3924": (
+        42115157949, 127552732684,
+        "92d0fc5e1852bf700ff4553d3aeedb4b994a54735b6a5c865744aa54f6a61c3c",
+    ),
+    "f2cb84a60f3e5a268d8547285b5a360cbaef8a47": (
+        42368608397, 128391870070,
+        "d06c2177e225b910ea0ff45b1fee6ec78416e3f55198f0536240bfa7564cb77e",
+    ),
+    "84826e69742e2a14bc5471a510925677ce9b2888": (
+        42387171420, 128446896883,
+        "1cd4ab5de5f0bb36843e5d4eddb348e215669122c0917d8b288eea40c8bf0da2",
+    ),
+}
 S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
 
 
@@ -544,8 +564,70 @@ def verify_s07_cpu_jobs(jobs, head):
     )
 
 
+def validate_s07_windows_acquisition(approval, snapshot, findings, git, prior_reference, trusted):
+    require(
+        isinstance(approval, dict) and digest(approval) == trusted,
+        "Independently authenticated S07 Windows acquisition approval differs or is missing",
+    )
+    head, base = snapshot["head_sha"], snapshot["base_sha"]
+    coordinates = head, base, git("rev-parse", head + "^{tree}")
+    reference = approval.get("reference")
+    require(
+        isinstance(reference, str) and reference != prior_reference
+        and re.fullmatch(rf"https://github\.com/{re.escape(REPOSITORY)}/issues/383#issuecomment-[1-9][0-9]*",
+                         reference) is not None,
+        "S07 Windows acquisition requires a separate authenticated campaign decision",
+    )
+    if reference == S07_WINDOWS_ACQUISITION_REFERENCE:
+        require(coordinates == S07_WINDOWS_ACQUISITION_COORDINATES,
+                "Original S07 Windows acquisition decision is bound to its exact coordinates")
+
+    subjects = []
+    historical = {}
+    id_fields = ("run_id", "attempt", "job_id")
+    for commit, (run, job, log_digest) in S07_WINDOWS_ACQUISITION_RUNS.items():
+        url = f"https://github.com/{REPOSITORY}/actions/runs/{run}/job/{job}"
+        identity = {"source_commit": commit, "run_id": run, "attempt": 1, "job_id": job}
+        subjects.append({"reference": url, **identity})
+        historical[url] = {
+            **identity,
+            "connector_log_capture_sha256": log_digest,
+            "result": "FAIL",
+            "status": "UNKNOWN",
+            "cause": "NOT_DEMONSTRATED",
+            "inference": "NOT_RUN",
+            "failure_phase": "immutable Windows model acquisition",
+        }
+    require(
+        approval == {
+            "schema": "provelume-s07-windows-acquisition-approval/v1",
+            "repository": REPOSITORY,
+            "owner_pr": "#439",
+            "release": "0.15.0",
+            "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+            "binding_sha256": S07_BIND,
+            "head_sha": coordinates[0],
+            "base_sha": coordinates[1],
+            "tree_sha": coordinates[2],
+            "windows_acquisition_findings": subjects,
+            "reference": reference,
+        }
+        and all(type(subject[key]) is int for subject in approval["windows_acquisition_findings"]
+                for key in id_fields),
+        "S07 Windows acquisition approval requires exactly three original jobs "
+        "and current coordinates",
+    )
+    require(
+        all(findings.get(url) == row and all(type(findings[url][key]) is int for key in id_fields)
+            for url, row in historical.items()),
+        "The exact three S07 Windows acquisition records and original outcomes are required",
+    )
+    return historical
+
+
 def validate_s07_finding_applicability(
     qualification, snapshot, binding, review, git, *, trusted_approval, trusted_evidence,
+    trusted_windows_acquisition_approval=None,
 ):
     """Verify the independently selected approval and authenticated observations offline."""
     require(
@@ -556,9 +638,14 @@ def validate_s07_finding_applicability(
         "S07 finding applicability requires the original #439 BIND and CURRENT snapshot",
     )
     require(
-        isinstance(qualification, dict) and set(qualification) == {"approval", "evidence"},
+        isinstance(qualification, dict) and set(qualification) in (
+            {"approval", "evidence"}, {"approval", "evidence", "windows_acquisition_approval"},
+        ),
         "S07 qualification requires the authenticated approval and evidence",
     )
+    windows_approved = "windows_acquisition_approval" in qualification
+    require(windows_approved == (trusted_windows_acquisition_approval is not None),
+            "S07 Windows acquisition approval and its independent digest are both required")
     approval, evidence = qualification["approval"], qualification["evidence"]
     require(
         isinstance(approval, dict) and digest(approval) == trusted_approval,
@@ -661,10 +748,18 @@ def validate_s07_finding_applicability(
             and cold_810["qualification_eligible"] is False,
             "The exact S07 cold 810 finding and its original outcome are required",
         )
+    windows_findings = {}
+    if windows_approved:
+        require(cold_810_approved, "S07 Windows acquisition requires the separate v3 approval")
+        windows_findings = validate_s07_windows_acquisition(
+            qualification["windows_acquisition_approval"], snapshot, findings, git, reference,
+            trusted_windows_acquisition_approval,
+        )
     remaining_findings = {
         key: value for key, value in findings.items()
         if key not in original_findings and key not in additional_findings
         and (not cold_810_approved or key != S07_COLD_810_FINDING)
+        and key not in windows_findings
     }
     require(
         all(
@@ -705,6 +800,9 @@ def validate_s07_finding_applicability(
         result["additional_historical_findings"] = additional_findings
     if cold_810_approved:
         result["cold_810_finding"] = {S07_COLD_810_FINDING: findings[S07_COLD_810_FINDING]}
+    if windows_approved:
+        result["windows_acquisition_approval_sha256"] = trusted_windows_acquisition_approval
+        result["windows_acquisition_findings"] = windows_findings
     return result
 
 
@@ -720,6 +818,7 @@ def legacy_base_preflight(
     trusted_observations,
     trusted_s07_approval=None,
     trusted_s07_evidence=None,
+    trusted_s07_windows_acquisition_approval=None,
     output_path=None,
 ):
     """Provelume PR-local extension; never projects or edits a historical receipt."""
@@ -750,7 +849,8 @@ def legacy_base_preflight(
         observation_fields.add("s07_qualification")
     else:
         require(
-            trusted_s07_approval is None and trusted_s07_evidence is None,
+            trusted_s07_approval is None and trusted_s07_evidence is None
+            and trusted_s07_windows_acquisition_approval is None,
             "S07 trust anchors require v2 observations",
         )
     require(
@@ -1003,6 +1103,7 @@ def legacy_base_preflight(
         s07_receipt = validate_s07_finding_applicability(
             observations["s07_qualification"], snapshot, binding, review, git,
             trusted_approval=trusted_s07_approval, trusted_evidence=trusted_s07_evidence,
+            trusted_windows_acquisition_approval=trusted_s07_windows_acquisition_approval,
         )
         candidate_finding = s07_receipt["candidate_finding"]
     review_result = native.evaluate_review_gate(
@@ -1327,6 +1428,7 @@ def main(argv=None):
         legacy.add_argument("--" + name, required=True)
     legacy.add_argument("--s07-approval-sha256")
     legacy.add_argument("--s07-evidence-sha256")
+    legacy.add_argument("--s07-windows-acquisition-approval-sha256")
     legacy.add_argument("--output", type=Path)
     native_workspace = sub.add_parser("workspace")
     native_workspace.add_argument("action", choices=["prepare", "check", "start"])
@@ -1359,6 +1461,7 @@ def main(argv=None):
                 trusted_observations=args.observations_sha256,
                 trusted_s07_approval=args.s07_approval_sha256,
                 trusted_s07_evidence=args.s07_evidence_sha256,
+                trusted_s07_windows_acquisition_approval=args.s07_windows_acquisition_approval_sha256,
                 output_path=args.output,
             )
             print(json.dumps(result, sort_keys=True))

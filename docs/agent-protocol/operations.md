@@ -190,7 +190,7 @@ post-merge reconciliation keep their existing independent requirements.
 ### S07 CPU findings on a new candidate
 
 For the original #439 BIND, the authenticated host uses
-`provelume-base-observations/v2` and adds `s07_qualification` with two objects.
+`provelume-base-observations/v2` and adds `s07_qualification` with two required objects.
 
 - `approval` is the retained, authenticated maintainer decision. It contains
   `schema: provelume-s07-approval/v1`, `repository`, `owner_pr`,
@@ -328,6 +328,61 @@ existing inputs, receipts and gate behavior. The ordinary CPU and matrix gates
 on the exact candidate and separate qualification on the resulting `main`
 remain required at existing thresholds. This extension keeps all findings
 open and does not supply adoption or integration authority.
+
+#### Separately authenticated approval for Windows model acquisition findings
+
+The host may add `s07_qualification.windows_acquisition_approval` alongside the
+existing v3 approval and complete evidence. The separate approval uses
+`provelume-s07-windows-acquisition-approval/v1` and carries the repository, owner
+#439, original BIND SHA-256, release `0.15.0`, the existing
+`QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS` criterion, and the exact
+`head_sha`, `base_sha` and `tree_sha`. Its
+`windows_acquisition_findings` array contains the three references, source
+commits, run IDs, attempts and job IDs below, in that order. The host obtains the
+approval and its `reference` from the [authenticated maintainer decision](
+https://github.com/gabned/provelume/issues/383#issuecomment-7146731122) and
+supplies its independently selected canonical JSON digest through
+`--s07-windows-acquisition-approval-sha256`. The v3 approval, evidence and
+observation digests are still required. The authenticated decision provides
+authority for its exact scope. The approval object and expected digest prove
+the integrity of the decision supplied to the adapter.
+
+| Source commit | Run / attempt / job |
+| --- | --- |
+| `da25e28564f70fc1bad59f624c5947e9fe2a3924` | [42115157949 / 1 / 127552732684](https://github.com/gabned/provelume/actions/runs/42115157949/job/127552732684) |
+| `f2cb84a60f3e5a268d8547285b5a360cbaef8a47` | [42368608397 / 1 / 128391870070](https://github.com/gabned/provelume/actions/runs/42368608397/job/128391870070) |
+| `84826e69742e2a14bc5471a510925677ce9b2888` | [42387171420 / 1 / 128446896883](https://github.com/gabned/provelume/actions/runs/42387171420/job/128446896883) |
+
+The host authenticates the attempt and job metadata and the original decoded
+GitHub connector log capture for each record. Keep each entry in
+`evidence.findings` under its job URL with `source_commit`, `run_id`, `attempt`,
+`job_id` and `connector_log_capture_sha256`. The digest identifies the decoded
+log capture retained by the host. Each entry preserves `result: FAIL`,
+`status: UNKNOWN`, `cause: NOT_DEMONSTRATED`, `inference: NOT_RUN` and
+`failure_phase: immutable Windows model acquisition`. The three jobs failed
+during `model.gguf` acquisition with `ValueError: acquisition limit`. The logs
+leave open whether the byte limit or the 300-second monotonic deadline
+triggered the error. Candidate qualification leaves these records intact.
+
+The adapter applies the criterion to these three records only after verifying
+the approval, the candidate coordinates and the corresponding entries in
+`evidence.findings`. The receipt retains
+`windows_acquisition_approval_sha256` and `windows_acquisition_findings`
+separately, alongside the previous approvals, the original preflight refusal
+and the remaining findings. Every other applicable or uncertain finding
+continues to block. Ordinary CPU, the original evaluator, installed and
+automatic matrix evidence, review and preflight remain mandatory at the
+existing thresholds, with separate qualification of the resulting `main`.
+
+The recorded decision binds head `5f177ac68c1777843f5a97f1292b0848728ef974`,
+base `3b9242fc6ce655a0f29c91d52a081d8cf6ed06b4` and tree
+`258ef309a75b0ec18c071d2d69d68cc37b890c88`. Adopting the consumer through its
+separate PROTOCOL owner advances `main`. Before applying the approval on
+advanced PRODUCT coordinates, the host must verify the new exact candidate,
+complete the applicable qualification and obtain a distinct authenticated
+maintainer decision for the new head, base and tree. The implementation and
+this document confer no authority to apply the criterion, run a diagnostic,
+merge or publish.
 
 ## Review authority
 
