@@ -269,7 +269,7 @@ jobs:
     if: >-
       ${{ github.event_name == 'workflow_dispatch'
           && github.repository == 'gabned/provelume'
-          && github.ref == 'refs/heads/diagnostic/s07-capture810-quartet-20261124'
+          && github.ref == 'refs/heads/diagnostic/s07-capture810-compact-20261124'
           && github.run_attempt == 1
           && inputs.concordia_observer_study == true && inputs.concordia_kernel_control == true
           && inputs.concordia_observer_source == github.sha
