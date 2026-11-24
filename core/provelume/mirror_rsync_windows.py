@@ -39,7 +39,7 @@ def pinned_components(binary):
                 "rsync_profile_not_qualified",
             )
         yield {
-            "runtime": "msys2-sdk-a741e84/v1",
+            "runtime": f"msys2-sdk-{records['commit'][:7]}/v1",
             "input_set_sha256": hashlib.sha256(
                 json.dumps(records, sort_keys=True).encode()
             ).hexdigest(),

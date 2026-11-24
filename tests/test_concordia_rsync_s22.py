@@ -7,6 +7,8 @@ import pytest
 from provelume.mirror_contract import MirrorError
 from provelume.mirror_ssh_crypto import public_key, sign, verify
 
+PREVIOUS_WINDOWS_RSYNC_SHA256 = "a5881dd2001bc103133c7133c282cce0ed651176851faeab25ab580638989e66"
+
 
 @pytest.mark.skipif(sys.platform != "linux", reason="native Linux sender profile")
 def test_linux_sender_requires_the_rekey_fixed_client(tmp_path, monkeypatch):
@@ -38,6 +40,7 @@ def test_linux_sender_requires_the_rekey_fixed_client(tmp_path, monkeypatch):
         ("windows", "ssh_version"),
         ("windows", "ssh_digest"),
         ("windows", "rsync_digest"),
+        ("windows", "previous_rsync_digest"),
     ],
 )
 def test_native_rsync_receipt_checks_supported_component_pair(mode, altered_component):
@@ -80,12 +83,36 @@ def test_native_rsync_receipt_checks_supported_component_pair(mode, altered_comp
         proof["native_ssh"]["sha256"] = "1" * 64
     elif altered_component == "rsync_digest":
         proof["native_rsync"]["sha256"] = "1" * 64
+    elif altered_component == "previous_rsync_digest":
+        proof["native_rsync"]["sha256"] = PREVIOUS_WINDOWS_RSYNC_SHA256
 
     if altered_component:
         with pytest.raises(MirrorError, match="rsync_proof"):
             validate_transport_proof(proof, {"visibility": "private"})
     else:
         validate_transport_proof(proof, {"visibility": "private"})
+
+
+def test_windows_rsync_refresh_keeps_the_pending_plan_bound_to_its_executable():
+    from types import SimpleNamespace
+
+    from provelume.mirror_rsync import RsyncMirrors
+    from provelume.mirror_rsync_windows import inputs
+
+    original_rsync = {
+        "version": "3.5.2",
+        "sha256": PREVIOUS_WINDOWS_RSYNC_SHA256,
+    }
+    new_rsync_sha = next(row["sha256"] for row in inputs()["entries"] if row["name"] == "rsync.exe")
+    ssh = {"version": "synthetic fixed SHA binding", "sha256": "0" * 64}
+    plan = {"client_components": {"rsync": original_rsync, "ssh": ssh}}
+    original = SimpleNamespace(components={"rsync": original_rsync, "ssh": ssh})
+    refreshed = SimpleNamespace(
+        components={"rsync": {**original_rsync, "sha256": new_rsync_sha}, "ssh": ssh}
+    )
+
+    assert RsyncMirrors.components_match(original, plan)
+    assert not RsyncMirrors.components_match(refreshed, plan)
 
 
 @pytest.mark.parametrize(

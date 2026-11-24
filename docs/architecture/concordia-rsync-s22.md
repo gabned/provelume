@@ -151,6 +151,22 @@ uses only owned nonblocking WinSock duplicates, and bounds binary reads and
 writes by the original operation deadline. Ordinary pipes keep the existing
 CRT path. The inherited originals remain under the sender's ownership.
 
+The [native source and installed trial](https://github.com/gabned/provelume/actions/runs/45283890777/attempts/1)
+used MSYS2 rsync `3.5.2-1` and OpenSSL `3.6.5` from SDK `a741e84`. OpenSSL 3.6
+reached end of life on 1 November 2026. Completed receipts keep their original
+component identities and pending transfers keep their original executable
+binding. [OpenSSL lifecycle announcement](https://openssl-library.org/post/2026-11-01-eol34-36/)
+
+This candidate pins eleven files from SDK `383ee9b`, including MSYS2 rsync
+`3.5.2-2`, OpenSSL `4.1.0` and MSYS2 runtime `3.6.12`. The SDK commit is
+unsigned. Its binary and DLL hashes and their PE imports are checked against
+the pinned Git tree. The SDK records package PGP validation. Independent
+package signature verification and the refreshed native trial remain pending.
+The sender uses five EVP digest calls from the DLL and does not invoke the PEM
+or QUIC interfaces addressed in OpenSSL 4.1.1. The Win32-OpenSSH Preview support
+review remains required. [Pinned SDK](https://github.com/git-for-windows/git-sdk-64/commit/383ee9b79d34b8f0b9f9dd33f9c31d149603fbe6)
+[OpenSSL advisories](https://openssl-library.org/news/vulnerabilities-4.1/)
+
 Linux senders require the external OpenSSH 10.6p2 client, which includes the
 upstream rekey fix. The independent native trial uses the upstream archive
 identified by the signed Debian source index, SHA-256
