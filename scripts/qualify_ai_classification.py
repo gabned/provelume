@@ -21,10 +21,8 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
         result["stage"] = name
         checkpoint(result)
 
-    try:
-        stage("folder_capture_and_reviewed_local_processing")
-        cases = prepare(root, instance)
-        stage("self_test")
+    def verify_locality(name):
+        stage(name)
         operation = setup.begin_operation("self_test")
         setup.run_operation(operation)
         if setup.operation["state"] != "completed":
@@ -38,6 +36,11 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
                 "control": "verified-ci-exact-interpreter-wfp",
                 "self_test": setup.self_test_evidence.public_record(),
             })
+
+    try:
+        stage("folder_capture_and_reviewed_local_processing")
+        cases = prepare(root, instance)
+        verify_locality("self_test")
         stage("activation")
         operation = setup.begin_operation("activate")
         setup.run_operation(operation)
@@ -45,7 +48,11 @@ def measure_classification(root, store, runtime, *, checkpoint=lambda _result: N
             raise ValueError("classification_activation_failed")
         setup.enable()
         area = instance.create_hierarchy_node("area", "Public synthetic Atlas")
-        for case in cases:
+        for index, case in enumerate(cases):
+            if index:
+                # Review can outlive the previous request's locality proof.
+                # Obtain a new proof before binding the next preview and consent.
+                verify_locality("locality_refresh")
             language, bundle = case["language"], case["bundle"]
             before = instance.store.original_bytes(bundle["version"]["original_id"])
             ref, _, _ = setup.classification.preview(
