@@ -11,7 +11,7 @@ from .build_info import current_build_info
 from .maintenance_local_files import open_local_file
 from .migration_permissions import make_private
 from .mirror_contract import MirrorError, require
-from .mirror_rsync_windows import admit, inputs
+from .mirror_rsync_windows import admit, inputs, pinned_components
 from .mirror_ssh_runtime import NativeSession
 
 
@@ -92,7 +92,7 @@ def qualify_components(root, *, fixture_directory):
     }
     for name, data in expected.items():
         (source / name).write_bytes(data)
-    with qualification_phase("native_local_copy"):
+    with qualification_phase("native_local_copy"), pinned_components(binary):
         code, stdout, stderr = session.run(
             [
                 str(binary),

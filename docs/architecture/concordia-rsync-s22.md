@@ -167,6 +167,16 @@ or QUIC interfaces addressed in OpenSSL 4.1.1. The Win32-OpenSSH Preview support
 review remains required. [Pinned SDK](https://github.com/git-for-windows/git-sdk-64/commit/383ee9b79d34b8f0b9f9dd33f9c31d149603fbe6)
 [OpenSSL advisories](https://openssl-library.org/news/vulnerabilities-4.1/)
 
+The Windows rsync launch uses an explicit private OpenSSL configuration with
+only the built-in default provider and no includes. The native version command,
+local copy and SSH transfer hold the same kind of read-pinned configuration
+through child cleanup. The module search base is that regular file, so modules
+cannot be opened beneath it. The Windows SSH process and Linux keep their own
+environments. Local guard tests cover missing or changed configuration and a
+directory in the provider path. Native Windows configuration resolution and
+checksum interoperability still need a fresh exact-head source and installed
+qualification. [OpenSSL provider implementation](https://github.com/openssl/openssl/blob/openssl-4.1.0/crypto/provider_core.c)
+
 Linux senders require the external OpenSSH 10.6p2 client, which includes the
 upstream rekey fix. The independent native trial uses the upstream archive
 identified by the signed Debian source index, SHA-256
