@@ -1,10 +1,10 @@
 {
   "schema": "concordia-rsync-windows-fixture/v1",
   "repository": "git-for-windows/git-sdk-64",
-  "commit": "a741e84e5adab7bc8ed31a06c04ed4898ad98f1b",
-  "tree": "712be37501199a2ad4209aed5e94aaf9d0b658be",
+  "commit": "383ee9b79d34b8f0b9f9dd33f9c31d149603fbe6",
+  "tree": "8a272991af4ba7dde423d5c0bd253b1e16d44c1c",
   "source_verification": "UNSIGNED_GIT_COMMIT",
-  "packaged_version": "3.5.2-1",
+  "packaged_version": "3.5.2-2",
   "package_validation_metadata": "PGP_REPORTED_NOT_INDEPENDENTLY_VERIFIED",
   "distribution": "QUALIFICATION_INPUT_ONLY_NOT_BUNDLED",
   "system_imports": [
@@ -16,20 +16,20 @@
     {
       "name": "rsync.exe",
       "bytes": 621851,
-      "sha256": "a5881dd2001bc103133c7133c282cce0ed651176851faeab25ab580638989e66",
-      "git_blob": "cbbdc6982e4b10e00925f5d903461f298919d817"
+      "sha256": "c07a14b79adf0ed5c304e983813279ed3ae1e557191b5d5d9a57e61b4d67b4e0",
+      "git_blob": "4c9dbeeac8998295904cbb87ad5e5af0cc21c46f"
     },
     {
-      "name": "msys-crypto-3.dll",
-      "bytes": 5406745,
-      "sha256": "beaf25e1763b13f1f18887af5223af9603dcb2928187ab24cbdf31aea681bd48",
-      "git_blob": "f98c680907bfa28a0866e10e1f2b60046b97d46c"
+      "name": "msys-crypto-4.dll",
+      "bytes": 5540333,
+      "sha256": "f46e7ccd849771ca8f23abcf1c7b76bc6a68d9dfd1cbfa9535229a63d1b5ec47",
+      "git_blob": "084a88372ece6bf9a4a778f9f2f9762bb052be40"
     },
     {
       "name": "msys-iconv-2.dll",
-      "bytes": 1103690,
-      "sha256": "50012969ed96a5232220185d2fc1ac1e3abe5790f6b3027f4fc3c4cad3fd38f0",
-      "git_blob": "411c06202d9c00e90ba5edd46e71119cebb0a2bd"
+      "bytes": 1104714,
+      "sha256": "26245bdadc04ef282ec7f64a434cb0390a1965da9c2e329cad546926c0510e36",
+      "git_blob": "a9f0453daf357ec1f0ac09034326f064cece2cd1"
     },
     {
       "name": "msys-idn2-0.dll",
@@ -40,14 +40,14 @@
     {
       "name": "msys-lz4-1.dll",
       "bytes": 177258,
-      "sha256": "44ca04dd76af484839db80fc6d67d1719649d90f4855cfcea076b94fac58e3b2",
-      "git_blob": "1a45642ac1df6b6fe4c252fea739e7674f226ff6"
+      "sha256": "8d1ee7f6af24c8058cdf1de65c1e8e14ff2693dc7c3f8e6f32bb267fac1d9719",
+      "git_blob": "3a6b83a8e4a3c599fd84ff11357fec4a1e9fea50"
     },
     {
       "name": "msys-2.0.dll",
-      "bytes": 3373151,
-      "sha256": "2a89b7c31b323c42e2fb37900af087aeb27417694e630a210bc75b0369410bc7",
-      "git_blob": "c1e1bcd4b4268bc54cc1d3269eec837495b396ee"
+      "bytes": 3396703,
+      "sha256": "a0cd88f95779f6729dbc01414d8aefdb56f7ebcbdcd045986909f9b968efcfe1",
+      "git_blob": "a6764c24781e6f7856420b2f7d2b589829e64f93"
     },
     {
       "name": "msys-popt-0.dll",
@@ -75,9 +75,9 @@
     },
     {
       "name": "msys-unistring-5.dll",
-      "bytes": 2124170,
-      "sha256": "26c33b382c450da63158ea84d4b6cb1984eebbe4cd2d75351d53521167eb6209",
-      "git_blob": "5d21acd5f122170c81e8c8f2d2838e62e2b75ff4"
+      "bytes": 2178442,
+      "sha256": "85b07305faaaa54314553c36071c1c1cd7f27c29ee6a83bc47bda4955db53806",
+      "git_blob": "9956e11fbe0171bd5b47aa15d115215dc0dbb7b5"
     }
   ]
 }

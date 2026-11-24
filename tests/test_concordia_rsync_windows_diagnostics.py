@@ -101,6 +101,126 @@ def test_windows_ssh_passes_only_its_unchanged_owned_pipe_to_openssh(monkeypatch
     assert "SSH_AUTH_SOCK" not in base
 
 
+@pytest.fixture
+def windows_native_session(monkeypatch, tmp_path):
+    import os
+    from types import SimpleNamespace
+
+    from provelume import mirror_ssh_runtime as native
+
+    for name in ("OPENSSL_CONF", "OPENSSL_CONF_INCLUDE", "OPENSSL_MODULES"):
+        monkeypatch.setenv(name, "synthetic-ambient")
+    monkeypatch.setattr(
+        native, "os", SimpleNamespace(name="nt", environ=os.environ, devnull=os.devnull)
+    )
+    return native.NativeSession(tmp_path)
+
+
+def test_windows_rsync_launches_hold_one_config_through_job_cleanup(
+    monkeypatch, tmp_path, windows_native_session
+):
+    from contextlib import contextmanager
+
+    from provelume import mirror_git_windows, mirror_rsync_windows
+
+    actual_guard = mirror_rsync_windows.pinned_openssl_configuration
+    held = set()
+    launched = []
+
+    @contextmanager
+    def observed_guard(path):
+        with actual_guard(path) as selected:
+            held.add(path)
+            try:
+                yield selected
+            finally:
+                held.remove(path)
+
+    class Child:
+        returncode = 0
+
+        def __init__(self, arguments, *, cwd, environment, **_stdio):
+            launched.append(arguments)
+            assert cwd == tmp_path
+            if arguments[0].endswith("rsync.exe"):
+                configuration = environment["OPENSSL_CONF"]
+                assert configuration.startswith("./")
+                assert environment["OPENSSL_MODULES"] == configuration
+                self.configuration = cwd / configuration
+                assert held == {self.configuration}
+                assert self.configuration.read_bytes() == mirror_rsync_windows.OPENSSL_CONFIGURATION
+                assert not self.configuration.is_dir()
+                assert "OPENSSL_CONF_INCLUDE" not in environment
+            else:
+                self.configuration = None
+                assert not held
+                assert all(not key.startswith("OPENSSL_") for key in environment)
+
+        def poll(self):
+            return self.returncode
+
+        def close(self, *, deadline):
+            assert deadline > 0
+            if self.configuration is not None:
+                assert held == {self.configuration} and self.configuration.is_file()
+
+    monkeypatch.setattr(mirror_rsync_windows, "pinned_openssl_configuration", observed_guard)
+    monkeypatch.setattr(mirror_git_windows, "WindowsGitProcess", Child)
+    sender, ssh = (str(tmp_path / name) for name in ("rsync.exe", "ssh.exe"))
+    invocations = [
+        [sender, "--version"],
+        [sender, "--checksum", "./Input with space/", "./Output with space/"],
+        [sender, "--checksum", "./payload/", "synthetic@host:generation"],
+        [ssh, "-V"],
+    ]
+    for command in invocations:
+        assert windows_native_session.run(command) == (0, b"", b"")
+        assert not held and not list(tmp_path.iterdir())
+    assert launched == invocations
+    assert all(not key.startswith("OPENSSL_") for key in windows_native_session.environment)
+
+
+@pytest.mark.parametrize("damage", ["missing", "changed", "provider-directory"])
+def test_windows_rsync_refuses_unverified_configuration_before_child(
+    monkeypatch, tmp_path, windows_native_session, damage
+):
+    from contextlib import contextmanager
+
+    from provelume import mirror_git_windows, mirror_rsync_windows
+
+    actual_guard = mirror_rsync_windows.pinned_openssl_configuration
+
+    @contextmanager
+    def changed_guard(path):
+        if damage != "changed":
+            path.unlink()
+        else:
+            path.write_bytes(b"different synthetic config")
+        if damage == "provider-directory":
+            path.mkdir()
+            marker = path / "inert.txt"
+            marker.write_text("No provider binary")
+            try:
+                with actual_guard(path) as selected:
+                    yield selected
+            finally:
+                marker.unlink()
+                path.rmdir()
+        else:
+            with actual_guard(path) as selected:
+                yield selected
+
+    monkeypatch.setattr(mirror_rsync_windows, "pinned_openssl_configuration", changed_guard)
+    monkeypatch.setattr(
+        mirror_git_windows,
+        "WindowsGitProcess",
+        lambda *args, **kwargs: pytest.fail("child launched"),
+    )
+    with pytest.raises(MirrorError, match="rsync_profile_not_qualified"):
+        windows_native_session.run([str(tmp_path / "rsync.exe"), "--version"])
+    assert not list(tmp_path.iterdir())
+
+
 def test_windows_ssh_requires_exact_paired_files_before_component_use(tmp_path, monkeypatch):
     from provelume import mirror_ssh_runtime as native
 

@@ -191,7 +191,23 @@ class NativeSession:
             self.work / (stamp + suffix) for suffix in (".in", ".out", ".err")
         ]
         process = None
+        owned_configuration = None
+        runtime_files = ExitStack()
         try:
+            if os.name == "nt" and Path(arguments[0]).name.lower() == "rsync.exe":
+                from .mirror_rsync_windows import (
+                    OPENSSL_CONFIGURATION,
+                    pinned_openssl_configuration,
+                )
+
+                configuration_path = self.work / (stamp + ".cnf")
+                with configuration_path.open("xb") as config:
+                    owned_configuration = configuration_path
+                    config.write(OPENSSL_CONFIGURATION)
+                child_environment = {
+                    **child_environment,
+                    **runtime_files.enter_context(pinned_openssl_configuration(configuration_path)),
+                }
             if incoming is not None:
                 source.write_bytes(incoming)
             with (
@@ -240,16 +256,21 @@ class NativeSession:
             raise MirrorError("rsync_component_unavailable") from None
         finally:
             cleanup_stop = time.monotonic() + 2
-            if process is not None:
-                if os.name == "nt":
-                    process.close(deadline=cleanup_stop)
-                else:
-                    if process.poll() is None:
-                        _terminate_process_tree(process)
-                    with suppress(ProcessLookupError):
-                        os.killpg(process.pid, signal.SIGKILL)
-            for item in (source, stdout, stderr):
-                _unlink_temporary(item, deadline=cleanup_stop, windows=os.name == "nt")
+            try:
+                if process is not None:
+                    if os.name == "nt":
+                        process.close(deadline=cleanup_stop)
+                    else:
+                        if process.poll() is None:
+                            _terminate_process_tree(process)
+                        with suppress(ProcessLookupError):
+                            os.killpg(process.pid, signal.SIGKILL)
+                for item in (source, stdout, stderr):
+                    _unlink_temporary(item, deadline=cleanup_stop, windows=os.name == "nt")
+            finally:
+                runtime_files.close()
+                if owned_configuration is not None:
+                    _unlink_temporary(owned_configuration, deadline=cleanup_stop, windows=True)
 
     def component(self, name, *, binary=None):
         if os.name == "nt" and name == "ssh":
