@@ -1231,6 +1231,292 @@ def test_s07_cold_810_cannot_accept_current_s08_failure(s07_cold_810_case):
         base_preflight(case)
 
 
+S07_TEST_WINDOWS_ACQUISITION_REFERENCE = (
+    "https://github.com/gabned/provelume/issues/383#issuecomment-7146731122"
+)
+S07_TEST_WINDOWS_ACQUISITION_RUNS = (
+    (
+        "da25e28564f70fc1bad59f624c5947e9fe2a3924", 42115157949, 127552732684,
+        "92d0fc5e1852bf700ff4553d3aeedb4b994a54735b6a5c865744aa54f6a61c3c",
+    ),
+    (
+        "f2cb84a60f3e5a268d8547285b5a360cbaef8a47", 42368608397, 128391870070,
+        "d06c2177e225b910ea0ff45b1fee6ec78416e3f55198f0536240bfa7564cb77e",
+    ),
+    (
+        "84826e69742e2a14bc5471a510925677ce9b2888", 42387171420, 128446896883,
+        "1cd4ab5de5f0bb36843e5d4eddb348e215669122c0917d8b288eea40c8bf0da2",
+    ),
+)
+
+
+def trust_s07_windows_acquisition(case):
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    case["trusted_s07_windows_acquisition_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+
+
+@pytest.fixture
+def s07_windows_acquisition_case(s07_cold_810_case, monkeypatch):
+    # The decision's field values come from #383 and the retained source evidence.
+    # Only its candidate tuple and original BIND are synthetic in this checkout.
+    case = s07_cold_810_case
+    observations = case["observations"]
+    qualification = observations["s07_qualification"]
+    head = case["expected_head"]
+    base = case["snapshot"]["base_sha"]
+    tree = observations["candidate"]["tree"]["sha"]
+    adapter = case["adapter"]
+    assert adapter.S07_WINDOWS_ACQUISITION_REFERENCE == S07_TEST_WINDOWS_ACQUISITION_REFERENCE
+    assert adapter.S07_WINDOWS_ACQUISITION_COORDINATES == (
+        "5f177ac68c1777843f5a97f1292b0848728ef974",
+        "3b9242fc6ce655a0f29c91d52a081d8cf6ed06b4",
+        "258ef309a75b0ec18c071d2d69d68cc37b890c88",
+    )
+    monkeypatch.setattr(adapter, "S07_WINDOWS_ACQUISITION_COORDINATES", (head, base, tree))
+    records = []
+    for commit, run, job, log_digest in S07_TEST_WINDOWS_ACQUISITION_RUNS:
+        reference = f"https://github.com/gabned/provelume/actions/runs/{run}/job/{job}"
+        identity = {"source_commit": commit, "run_id": run, "attempt": 1, "job_id": job}
+        records.append({"reference": reference, **identity})
+        qualification["evidence"]["findings"][reference] = {
+            **identity,
+            "result": "FAIL",
+            "status": "UNKNOWN",
+            "cause": "NOT_DEMONSTRATED",
+            "inference": "NOT_RUN",
+            "failure_phase": "immutable Windows model acquisition",
+            "connector_log_capture_sha256": log_digest,
+        }
+    qualification["windows_acquisition_approval"] = {
+        "schema": "provelume-s07-windows-acquisition-approval/v1",
+        "repository": "gabned/provelume",
+        "owner_pr": "#439",
+        "release": "0.15.0",
+        "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+        "binding_sha256": case["trusted_binding"],
+        "head_sha": head,
+        "base_sha": base,
+        "tree_sha": tree,
+        "windows_acquisition_findings": records,
+        "reference": S07_TEST_WINDOWS_ACQUISITION_REFERENCE,
+    }
+    trust_s07_windows_acquisition(case)
+    return case
+
+
+def test_s07_windows_acquisition_preserves_approved_records_and_unrelated_findings(
+    s07_windows_acquisition_case,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    findings = qualification["evidence"]["findings"]
+    approval = qualification["windows_acquisition_approval"]
+    approved = {record["reference"]: findings[record["reference"]]
+                for record in approval["windows_acquisition_findings"]}
+    unrelated = {
+        next(iter(approved)) + "#other-finding": {"result": "FAIL", "status": "CURRENT"},
+        "observer-77e80819/warm-first-index28": {"result": "FAIL", "status": "UNKNOWN"},
+        "https://github.com/gabned/provelume/pull/439#issuecomment-6669112520": {
+            "result": "STOPPED", "status": "UNKNOWN",
+        },
+    }
+    findings.update(unrelated)
+    seal_s07_evidence(case)
+    prior = deepcopy(case["observations"])
+    receipt = base_preflight(case)
+    qualified = receipt["s07_qualification"]
+    assert qualified["windows_acquisition_findings"] == approved
+    assert qualified["windows_acquisition_approval_sha256"] == (
+        case["trusted_s07_windows_acquisition_approval"]
+    )
+    assert len(qualified["historical_findings"]) == 4
+    assert len(qualified["additional_historical_findings"]) == 5
+    assert qualified["cold_810_finding"] == {S07_TEST_COLD_810_URL: S07_TEST_COLD_810_RECORD}
+    assert qualified["remaining_findings"] == unrelated
+    assert qualified["candidate_finding"] == "UNKNOWN"
+    assert receipt["merge_ready"] is False
+    assert receipt["binding_mutated"] is False
+    assert "current technical finding blocks" in receipt["historical_preflight"]["errors"]
+    assert case["observations"] == prior
+    case["native"].verify_seal(receipt)
+
+
+def test_s07_v3_keeps_windows_acquisition_findings_without_separate_decision(
+    s07_windows_acquisition_case,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    approval = qualification.pop("windows_acquisition_approval")
+    case.pop("trusted_s07_windows_acquisition_approval")
+    seal_s07_evidence(case)
+    receipt = base_preflight(case)
+    findings = qualification["evidence"]["findings"]
+    qualified = receipt["s07_qualification"]
+    assert receipt["merge_ready"] is False
+    assert qualified["remaining_findings"] == {
+        record["reference"]: findings[record["reference"]]
+        for record in approval["windows_acquisition_findings"]
+    }
+    assert "windows_acquisition_approval_sha256" not in qualified
+    assert "windows_acquisition_findings" not in qualified
+
+
+@pytest.mark.parametrize("mutation", ["missing_digest", "wrong_digest", "missing_approval", "v2"])
+def test_s07_windows_acquisition_requires_matching_independent_authority(
+    s07_windows_acquisition_case, mutation,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    if mutation == "missing_digest":
+        case.pop("trusted_s07_windows_acquisition_approval")
+    elif mutation == "wrong_digest":
+        case["trusted_s07_windows_acquisition_approval"] = "1" * 64
+    elif mutation == "missing_approval":
+        qualification.pop("windows_acquisition_approval")
+    else:
+        approval = qualification["approval"]
+        approval["schema"] = "provelume-s07-approval/v2"
+        approval.pop("cold_810_finding")
+        case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize("field", ["head_sha", "base_sha", "tree_sha"])
+def test_s07_windows_acquisition_rejects_stale_decision_tuple(
+    s07_windows_acquisition_case, field,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    qualification["windows_acquisition_approval"][field] = "1" * 40
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_public_decision_cannot_be_rebound(
+    s07_windows_acquisition_case, monkeypatch,
+):
+    case = s07_windows_acquisition_case
+    monkeypatch.setattr(
+        case["adapter"], "S07_WINDOWS_ACQUISITION_COORDINATES", ("1" * 40, "2" * 40, "3" * 40),
+    )
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_accepts_separately_authenticated_successor_tuple(
+    s07_windows_acquisition_case, monkeypatch,
+):
+    case = s07_windows_acquisition_case
+    monkeypatch.setattr(
+        case["adapter"], "S07_WINDOWS_ACQUISITION_COORDINATES", ("1" * 40, "2" * 40, "3" * 40),
+    )
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    approval["reference"] = "https://github.com/gabned/provelume/issues/383#issuecomment-99999999998"
+    trust_s07_windows_acquisition(case)
+
+    receipt = base_preflight(case)
+    qualified = receipt["s07_qualification"]
+    assert receipt["merge_ready"] is True
+    assert receipt["historical_preflight"]["merge_ready"] is False
+    assert qualified["candidate_finding"] == "NONE"
+    assert qualified["windows_acquisition_approval_sha256"] == (
+        case["trusted_s07_windows_acquisition_approval"]
+    )
+    assert sorted(qualified["windows_acquisition_findings"]) == [
+        record["reference"] for record in approval["windows_acquisition_findings"]
+    ]
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "https://github.com/gabned/provelume/issues/383#issuecomment-99999999999",  # v3 fixture
+        "https://github.com/gabned/provelume/issues/439#issuecomment-7146731122",
+        "https://api.github.com/repos/gabned/provelume/issues/comments/7146731122",
+    ],
+)
+def test_s07_windows_acquisition_requires_a_distinct_canonical_campaign_decision(
+    s07_windows_acquisition_case, reference,
+):
+    case = s07_windows_acquisition_case
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    approval["reference"] = reference
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing", "extra", "reordered", "same_run_linux", "attempt_bool", "job_float"],
+)
+def test_s07_windows_acquisition_requires_exact_approval_scope(
+    s07_windows_acquisition_case, mutation,
+):
+    case = s07_windows_acquisition_case
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    records = approval["windows_acquisition_findings"]
+    if mutation == "missing":
+        records.pop()
+    elif mutation == "extra":
+        records.append(records[0].copy())
+    elif mutation == "reordered":
+        records.reverse()
+    elif mutation == "same_run_linux":
+        records[1].update(
+            job_id=128391869733,
+            reference="https://github.com/gabned/provelume/actions/runs/42368608397/job/128391869733",
+        )
+    elif mutation == "attempt_bool":
+        records[0]["attempt"] = True
+    else:
+        records[0]["job_id"] = float(records[0]["job_id"])
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("source_commit", "0" * 40), ("run_id", 42115157949.0), ("attempt", True),
+        ("result", "PASS"), ("status", "CURRENT"), ("cause", "DEADLINE"),
+        ("inference", "PASS"), ("failure_phase", "runtime"),
+        ("connector_log_capture_sha256", "0" * 64),
+    ],
+)
+def test_s07_windows_acquisition_requires_exact_original_evidence(
+    s07_windows_acquisition_case, field, value,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["windows_acquisition_approval"]["windows_acquisition_findings"][0][
+        "reference"
+    ]
+    qualification["evidence"]["findings"][reference][field] = value
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_rejects_duplicate_finding_keys(s07_windows_acquisition_case):
+    case = s07_windows_acquisition_case
+    observations = case["observations"]
+    raw = json.dumps(observations).encode("utf-8")
+    reference = observations["s07_qualification"]["windows_acquisition_approval"][
+        "windows_acquisition_findings"
+    ][0]["reference"]
+    key = (json.dumps(reference) + ":").encode("utf-8")
+    assert raw.count(key) == 1
+    duplicate = raw.replace(key, key + b' {"status": "UNKNOWN"}, ' + key, 1)
+    assert json.loads(duplicate) == observations
+    with pytest.raises(ValueError, match="Duplicate JSON keys in S07 v3 observations"):
+        case["adapter"].parse_legacy_observations(duplicate)
+
+
 @pytest.mark.parametrize(
     "field,value",
     [

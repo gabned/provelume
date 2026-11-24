@@ -3,7 +3,7 @@
   "documents": [
     {
       "path": "docs/agent-protocol/operations.md",
-      "sha256": "553a277e6b2e11bddbb3a47157625b96026edfb244f31eaa968e8897970a3c01",
+      "sha256": "532f2b10c83fe3f6dea13ea0f059d348db8cc24574a2ae95e51dfdc8759db5b6",
       "phases": [
         "START",
         "IMPLEMENT",
