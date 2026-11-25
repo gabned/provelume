@@ -1530,6 +1530,33 @@ def seal_s07_diagnostic_stop_decisions(case):
     seal_s07_evidence(case)
 
 
+def diagnostic_stop_applicability(case):
+    snapshot = case["snapshot"]
+    observations = case["observations"]
+    head = case["expected_head"]
+    adapter = case["adapter"]
+    # Schema mutations exercise the qualification directly. The end-to-end
+    # cases below still prove the exact Git observations and receipt wiring.
+    lookups = {
+        ("rev-parse", head + "^{tree}"): observations["candidate"]["tree"]["sha"],
+        ("rev-parse", head + ":scripts/ai_runtime_report.py"): adapter.S07_EVALUATOR,
+    }
+
+    def git(*args):
+        assert args in lookups, args
+        return lookups[args]
+
+    return adapter.validate_s07_finding_applicability(
+        observations["s07_qualification"], snapshot, case["binding"],
+        case["native"].normalize_review_snapshot(snapshot), git,
+        trusted_approval=case["trusted_s07_approval"],
+        trusted_evidence=case["trusted_s07_evidence"],
+        trusted_windows_acquisition_approval=case["trusted_s07_windows_acquisition_approval"],
+        trusted_observer_approval=case.get("trusted_s07_observer_approval"),
+        trusted_prefix_approval=case.get("trusted_s07_prefix_approval"),
+    )
+
+
 @pytest.fixture
 def s07_diagnostic_stops_case(s07_windows_acquisition_case):
     case = s07_windows_acquisition_case
@@ -1649,8 +1676,12 @@ def test_s07_diagnostic_stops_require_independent_approval_for_each_kind(
     else:
         del observations["s07_qualification"]["diagnostic_stop_approvals"][kind]
     seal_s07_evidence(case)
+    check = (
+        base_preflight if (kind, mutation) == ("observer", "missing_digest")
+        else diagnostic_stop_applicability
+    )
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        check(case)
 
 
 @pytest.mark.parametrize("field", ["head_sha", "base_sha", "tree_sha", "finding_sha256"])
@@ -1663,7 +1694,7 @@ def test_s07_diagnostic_stops_reject_stale_decision_even_if_authenticated(
     approval[field] = "0" * len(approval[field])
     seal_s07_diagnostic_stop_decisions(case)
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 @pytest.mark.parametrize("reused", ["other_stop", "windows", "v3", "proposal", "noncampaign"])
@@ -1682,7 +1713,7 @@ def test_s07_diagnostic_stops_require_separate_campaign_decisions(
     }[reused]
     seal_s07_diagnostic_stop_decisions(case)
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 @pytest.mark.parametrize(
@@ -1713,7 +1744,7 @@ def test_s07_diagnostic_stops_cannot_replace_original_record(
     approval["finding_sha256"] = case["adapter"].digest(record)
     seal_s07_diagnostic_stop_decisions(case)
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 def test_s07_diagnostic_stops_require_unapproved_sibling_in_complete_inventory(
@@ -1726,7 +1757,7 @@ def test_s07_diagnostic_stops_require_unapproved_sibling_in_complete_inventory(
     del qualification["evidence"]["findings"][S07_TEST_DIAGNOSTIC_STOP_REFERENCES["prefix"]]
     seal_s07_diagnostic_stop_decisions(case)
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 def test_s07_diagnostic_stops_reject_additional_approval_scope(s07_diagnostic_stops_case):
@@ -1735,7 +1766,7 @@ def test_s07_diagnostic_stops_reject_additional_approval_scope(s07_diagnostic_st
     approvals["other"] = deepcopy(approvals["observer"])
     seal_s07_evidence(case)
     with pytest.raises(ValueError, match="(?i)S07"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 def test_s07_diagnostic_stops_reject_duplicate_finding_keys(s07_diagnostic_stops_case):
@@ -1782,7 +1813,7 @@ def test_s07_diagnostic_stops_still_require_ordinary_qualification(s07_diagnosti
         error = "S07 automatic and installed runtime"
     seal_s07_evidence(case)
     with pytest.raises(ValueError, match=error):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 @pytest.mark.parametrize("gate,status", [
@@ -1800,7 +1831,7 @@ def test_s07_diagnostic_stops_require_explicit_cold_gates(s07_diagnostic_stops_c
     job["report_sha256"] = case["adapter"].digest(job["report"])
     seal_s07_evidence(case)
     with pytest.raises(ValueError, match="nonpassing S07 CPU report"):
-        base_preflight(case)
+        diagnostic_stop_applicability(case)
 
 
 @pytest.mark.parametrize(
