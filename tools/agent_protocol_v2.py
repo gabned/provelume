@@ -500,22 +500,52 @@ S07_WINDOWS_ACQUISITION_RUNS = {
     ),
 }
 S07_CPU_GATES = {"deterministic", "s06_governed", "s07_setup", "network"}
+S07_DIAGNOSTIC_STOP_CPU_GATES = {"cold_load", "cold_first", "cold_total"}
+S07_DIAGNOSTIC_STOP_SCHEMA = "provelume-s07-diagnostic-stop-approval/v1"
+S07_DIAGNOSTIC_STOP_FINDINGS = {
+    "observer": (
+        f"https://github.com/{REPOSITORY}/pull/439#issuecomment-6654278003",
+        {
+            "archive_sha256": "869a435628c383ac617d30a269f1568505babbcc27d259442d8a7755718429bf",
+            "failure_phase": "s05_base",
+            "limit_scope": "DIAGNOSTIC_ARM",
+            "limit_seconds": 1200,
+            "cold_load_limit_seconds": 15,
+            "cold_first_limit_seconds": 20,
+            "failed_gates": ["cold_load", "cold_first"],
+        },
+    ),
+    "prefix": (
+        f"https://github.com/{REPOSITORY}/pull/439#issuecomment-6669112520",
+        {
+            "archive_sha256": "a901e136a646ef93f387f5c6a0117401b9f71ace517a1c2f618ef8c577ff1dfb",
+            "failure_phase": "native_prefill",
+            "limit_scope": "REQUEST",
+            "limit_seconds": 60,
+        },
+    ),
+}
 
 
 def parse_legacy_observations(data):
-    """Reject v3 collisions before normalized observations can enter the gate."""
+    """Reject affected collisions before normalized observations enter the gate."""
     duplicate_keys = False
+    diagnostic_stops_seen = False
 
     def collect(pairs):
-        nonlocal duplicate_keys
+        nonlocal duplicate_keys, diagnostic_stops_seen
         obj = {}
         for key, value in pairs:
             duplicate_keys |= key in obj
+            diagnostic_stops_seen |= key == "diagnostic_stop_approvals"
             obj[key] = value
         return obj
 
     observations = json.loads(data, object_pairs_hook=collect)
     if duplicate_keys:
+        require(
+            not diagnostic_stops_seen, "Duplicate JSON keys in S07 diagnostic STOP observations",
+        )
         try:
             schema = observations["s07_qualification"]["approval"]["schema"]
         except (KeyError, TypeError):
@@ -526,7 +556,7 @@ def parse_legacy_observations(data):
     return observations
 
 
-def verify_s07_cpu_jobs(jobs, head):
+def verify_s07_cpu_jobs(jobs, head, *, required_gates=S07_CPU_GATES):
     require(
         isinstance(jobs, dict) and set(jobs) == {"ubuntu-24.04", "windows-2025"},
         "Both ordinary S07 CPU jobs are required",
@@ -555,7 +585,7 @@ def verify_s07_cpu_jobs(jobs, head):
             and report.get("source_commit") == head
             and report.get("status") == "PASS"
             and isinstance(report.get("gates"), dict)
-            and all(report["gates"].get(gate) == "PASS" for gate in S07_CPU_GATES),
+            and all(report["gates"].get(gate) == "PASS" for gate in required_gates),
             "Missing, altered or nonpassing S07 CPU report on the candidate",
         )
     require(
@@ -625,9 +655,85 @@ def validate_s07_windows_acquisition(approval, snapshot, findings, git, prior_re
     return historical
 
 
+def validate_s07_diagnostic_stops(approvals, snapshot, findings, git, prior_references, trusted):
+    require(
+        isinstance(approvals, dict) and approvals and approvals.keys() == trusted.keys(),
+        "S07 diagnostic STOP approvals require their respective independent digests",
+    )
+    head, base = snapshot["head_sha"], snapshot["base_sha"]
+    tree = git("rev-parse", head + "^{tree}")
+    used_references = {
+        *prior_references,
+        f"https://github.com/{REPOSITORY}/issues/383#{S07_V2_APPROVAL_COMMENT}",
+        S07_WINDOWS_ACQUISITION_REFERENCE,
+        f"https://github.com/{REPOSITORY}/issues/383#issuecomment-7018024149",
+        f"https://github.com/{REPOSITORY}/issues/383#issuecomment-7153232757",
+    }
+    original = {
+        "source_commit": "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2",
+        "source_tree": "e5c104cf0b753d4da5326eda691703506f37d83b",
+        "result": "STOPPED",
+        "status": "UNKNOWN",
+        "cause": "NOT_DEMONSTRATED",
+        "qualification_eligible": False,
+    }
+    identity = {
+        "schema": S07_DIAGNOSTIC_STOP_SCHEMA,
+        "repository": REPOSITORY,
+        "owner_pr": "#439",
+        "release": "0.15.0",
+        "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+        "binding_sha256": S07_BIND,
+        "head_sha": head,
+        "base_sha": base,
+        "tree_sha": tree,
+    }
+    approved_findings = {}
+    for kind, (finding_reference, historical_fields) in S07_DIAGNOSTIC_STOP_FINDINGS.items():
+        finding = findings.get(finding_reference)
+        expected = {**original, **historical_fields}
+        require(isinstance(finding, dict), "Missing S07 diagnostic STOP record: " + kind)
+        diagnostics = finding.get("diagnostic_evidence_sha256")
+        require(
+            finding == {**expected, "diagnostic_evidence_sha256": diagnostics}
+            and all(type(finding[key]) is type(value) for key, value in expected.items())
+            and isinstance(diagnostics, str)
+            and re.fullmatch(r"[0-9a-f]{64}", diagnostics) is not None
+            and diagnostics != expected["archive_sha256"],
+            "Invalid original S07 diagnostic STOP record or evidence: " + kind,
+        )
+        if kind not in approvals:
+            continue
+        approval = approvals[kind]
+        require(
+            isinstance(approval, dict) and digest(approval) == trusted[kind],
+            "Independently authenticated S07 diagnostic STOP approval differs: " + kind,
+        )
+        reference = approval.get("reference")
+        require(
+            isinstance(reference, str) and reference not in used_references
+            and re.fullmatch(rf"https://github\.com/{re.escape(REPOSITORY)}/issues/383#issuecomment-[1-9][0-9]*",
+                             reference) is not None,
+            "S07 diagnostic STOP requires a separate authenticated campaign decision: " + kind,
+        )
+        require(
+            approval == {
+                **identity,
+                "finding_reference": finding_reference,
+                "finding_sha256": digest(finding),
+                "reference": reference,
+            },
+            "S07 diagnostic STOP approval requires exact coordinates and finding evidence: " + kind,
+        )
+        approved_findings[finding_reference] = finding
+        used_references.add(reference)
+    return approved_findings
+
+
 def validate_s07_finding_applicability(
     qualification, snapshot, binding, review, git, *, trusted_approval, trusted_evidence,
     trusted_windows_acquisition_approval=None,
+    trusted_observer_approval=None, trusted_prefix_approval=None,
 ):
     """Verify the independently selected approval and authenticated observations offline."""
     require(
@@ -638,9 +744,9 @@ def validate_s07_finding_applicability(
         "S07 finding applicability requires the original #439 BIND and CURRENT snapshot",
     )
     require(
-        isinstance(qualification, dict) and set(qualification) in (
-            {"approval", "evidence"}, {"approval", "evidence", "windows_acquisition_approval"},
-        ),
+        isinstance(qualification, dict)
+        and {"approval", "evidence"} <= qualification.keys()
+        <= {"approval", "evidence", "windows_acquisition_approval", "diagnostic_stop_approvals"},
         "S07 qualification requires the authenticated approval and evidence",
     )
     windows_approved = "windows_acquisition_approval" in qualification
@@ -755,11 +861,27 @@ def validate_s07_finding_applicability(
             qualification["windows_acquisition_approval"], snapshot, findings, git, reference,
             trusted_windows_acquisition_approval,
         )
+    anchors = {"observer": trusted_observer_approval, "prefix": trusted_prefix_approval}
+    stop_trust = {kind: expected for kind, expected in anchors.items() if expected is not None}
+    stop_approvals_present = "diagnostic_stop_approvals" in qualification
+    require(stop_approvals_present == bool(stop_trust),
+            "S07 diagnostic STOP approvals and independent digests must be supplied together")
+    stop_findings = {}
+    if stop_approvals_present:
+        require(cold_810_approved, "S07 diagnostic STOP approvals require the separate v3 approval")
+        prior_references = {reference}
+        if windows_approved:
+            prior_references.add(qualification["windows_acquisition_approval"]["reference"])
+        stop_findings = validate_s07_diagnostic_stops(
+            qualification["diagnostic_stop_approvals"], snapshot, findings, git,
+            prior_references, stop_trust,
+        )
     remaining_findings = {
         key: value for key, value in findings.items()
         if key not in original_findings and key not in additional_findings
         and (not cold_810_approved or key != S07_COLD_810_FINDING)
         and key not in windows_findings
+        and key not in stop_findings
     }
     require(
         all(
@@ -788,7 +910,10 @@ def validate_s07_finding_applicability(
         git("rev-parse", head + ":scripts/ai_runtime_report.py") == S07_EVALUATOR,
         "S07 qualification evaluator differs from the original",
     )
-    verify_s07_cpu_jobs(evidence["cpu_jobs"], head)
+    cpu_gates = S07_CPU_GATES
+    if stop_approvals_present:
+        cpu_gates = cpu_gates | S07_DIAGNOSTIC_STOP_CPU_GATES
+    verify_s07_cpu_jobs(evidence["cpu_jobs"], head, required_gates=cpu_gates)
     result = {
         "approval_sha256": trusted_approval,
         "evidence_sha256": trusted_evidence,
@@ -803,6 +928,9 @@ def validate_s07_finding_applicability(
     if windows_approved:
         result["windows_acquisition_approval_sha256"] = trusted_windows_acquisition_approval
         result["windows_acquisition_findings"] = windows_findings
+    if stop_approvals_present:
+        result["diagnostic_stop_approval_sha256"] = stop_trust
+        result["diagnostic_stop_findings"] = stop_findings
     return result
 
 
@@ -819,6 +947,8 @@ def legacy_base_preflight(
     trusted_s07_approval=None,
     trusted_s07_evidence=None,
     trusted_s07_windows_acquisition_approval=None,
+    trusted_s07_observer_approval=None,
+    trusted_s07_prefix_approval=None,
     output_path=None,
 ):
     """Provelume PR-local extension; never projects or edits a historical receipt."""
@@ -850,7 +980,8 @@ def legacy_base_preflight(
     else:
         require(
             trusted_s07_approval is None and trusted_s07_evidence is None
-            and trusted_s07_windows_acquisition_approval is None,
+            and trusted_s07_windows_acquisition_approval is None
+            and trusted_s07_observer_approval is None and trusted_s07_prefix_approval is None,
             "S07 trust anchors require v2 observations",
         )
     require(
@@ -1104,6 +1235,8 @@ def legacy_base_preflight(
             observations["s07_qualification"], snapshot, binding, review, git,
             trusted_approval=trusted_s07_approval, trusted_evidence=trusted_s07_evidence,
             trusted_windows_acquisition_approval=trusted_s07_windows_acquisition_approval,
+            trusted_observer_approval=trusted_s07_observer_approval,
+            trusted_prefix_approval=trusted_s07_prefix_approval,
         )
         candidate_finding = s07_receipt["candidate_finding"]
     review_result = native.evaluate_review_gate(
@@ -1429,6 +1562,8 @@ def main(argv=None):
     legacy.add_argument("--s07-approval-sha256")
     legacy.add_argument("--s07-evidence-sha256")
     legacy.add_argument("--s07-windows-acquisition-approval-sha256")
+    legacy.add_argument("--s07-observer-approval-sha256")
+    legacy.add_argument("--s07-prefix-approval-sha256")
     legacy.add_argument("--output", type=Path)
     native_workspace = sub.add_parser("workspace")
     native_workspace.add_argument("action", choices=["prepare", "check", "start"])
@@ -1462,6 +1597,8 @@ def main(argv=None):
                 trusted_s07_approval=args.s07_approval_sha256,
                 trusted_s07_evidence=args.s07_evidence_sha256,
                 trusted_s07_windows_acquisition_approval=args.s07_windows_acquisition_approval_sha256,
+                trusted_s07_observer_approval=args.s07_observer_approval_sha256,
+                trusted_s07_prefix_approval=args.s07_prefix_approval_sha256,
                 output_path=args.output,
             )
             print(json.dumps(result, sort_keys=True))

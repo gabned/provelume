@@ -384,6 +384,68 @@ maintainer decision for the new head, base and tree. The implementation and
 this document confer no authority to apply the criterion, run a diagnostic,
 merge or publish.
 
+#### Separately authenticated approvals for Observer and Prefix
+
+For the original #439 BIND, the host may add `diagnostic_stop_approvals` to
+`s07_qualification` alongside the v3 approval and complete evidence. Each entry
+names one finding, `observer` or `prefix`, and supplies that finding's separately
+authenticated decision. Use `--s07-observer-approval-sha256` and
+`--s07-prefix-approval-sha256` for the corresponding independently selected
+canonical JSON digests. Both the entry and its digest are required for each
+decision supplied. The other finding still blocks when only one is approved.
+
+Each decision contains `schema: provelume-s07-diagnostic-stop-approval/v1`,
+`repository`, `owner_pr: "#439"`, `release: "0.15.0"`, the original
+`binding_sha256`, `head_sha`, `base_sha`, `tree_sha`, and criterion
+`QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS`. Its `finding_reference` is
+the single original STOP permalink. `finding_sha256` is the canonical JSON
+digest of that finding's exact retained row. `reference` is the permalink of
+that decision in #383. Each finding needs its own campaign decision. The host
+authenticates the decision and evidence independently before computing digests.
+
+The complete inventory retains both rows under the following original keys.
+
+| Finding | Original STOP | Phase | Limit scope | Limit in seconds |
+| --- | --- | --- | --- | --- |
+| Observer | [Observer STOP](https://github.com/gabned/provelume/pull/439#issuecomment-6654278003) | `s05_base` | `DIAGNOSTIC_ARM` | 1200 |
+| Prefix | [Prefix STOP](https://github.com/gabned/provelume/pull/439#issuecomment-6669112520) | `native_prefill` | `REQUEST` | 60 |
+
+Both original rows have `source_commit: 19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2`,
+`source_tree: e5c104cf0b753d4da5326eda691703506f37d83b`, `result: STOPPED`,
+`status: UNKNOWN`, `cause: NOT_DEMONSTRATED`, and `qualification_eligible: false`.
+Use the table values for `failure_phase`, `limit_scope` and `limit_seconds`.
+Observer also records `cold_load_limit_seconds: 15`, `cold_first_limit_seconds: 20`,
+and `failed_gates: ["cold_load", "cold_first"]` in that order. All limits are integers.
+
+Each row contains `archive_sha256` for the exact recorded archive. For Observer
+use the [original archive receipt](https://github.com/gabned/provelume/pull/439#issuecomment-6655924048).
+For Prefix use the [verified interim archive receipt](https://github.com/gabned/provelume/pull/439#issuecomment-6670131054)
+containing the original STOP. Keep a distinct `diagnostic_evidence_sha256` for
+the authenticated inventory of later observations. Keep evidence and provenance
+in the existing private ledger. Preserve the Observer arm timeout separately from the cold thresholds
+shared with ordinary qualification. Later timeouts retain their own phase and
+incomplete network or evaluator outcomes. Prefix observations retain the reported
+budget, the historical missing timestamp and any failures or non-reproductions.
+The host retains independently applicable or uncertain findings as separate
+blocking rows, including those observed in a later diagnostic.
+
+The adapter rejects duplicate JSON keys in observations that supply this
+extension. When validating an authenticated decision, it checks the recorded
+source and original outcome, the exact head, base and tree, and the binding to
+the full retained row. The receipt preserves the authorized rows and their
+independent decision digests in `diagnostic_stop_findings` and
+`diagnostic_stop_approval_sha256`. Other applicable or uncertain findings still
+block. Existing approval formats and receipts keep their behavior.
+
+Ordinary CPU and automatic and installed runtime matrix evidence on the exact
+candidate, the original evaluator, reviews and other gates remain mandatory.
+Both CPU reports must explicitly pass `cold_load`, `cold_first`, and `cold_total`
+at the existing thresholds when the adapter consumes this extension.
+After an authorized merge, qualify the resulting `main` separately at the same
+thresholds. Refresh the decision when head, base or tree changes. A diagnostic
+receipt cannot substitute for ordinary qualification. This extension grants no
+authority to dispatch a diagnostic, merge or publish.
+
 ## Review authority
 
 The accepted local instructions and actual maintainer requests determine review
