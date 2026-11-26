@@ -28,9 +28,10 @@ DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 # - 50452424 / 20ce241, run 45289172398 attempt 1, artifacts 14873422756 and 14873862484.
 # - 4f7497af / f05571b, run 45292862680 attempt 1, artifacts 14876216085 and 14876315602.
 # - 7549f58 / c22dd11, run 45487564755 attempt 1, artifacts 14965077839 and 14965402141.
+# - Consumer module only: 1f89893, run 45766996011 attempt 1, artifact 15093455369.
 # Two modules without a recent complete observation retain same-count historical
 # hints. Cancelled or timed-out groups retain their original status.
-# All 298 modules and 6211 collected parent cases are retained.
+# The prior S23 observations retained all 298 modules and 6211 parent cases.
 # These hints distribute work. Actual Windows evidence still requires complete
 # native results at the exact head from both groups within the existing bounds.
 # Earlier data: docs/qualification/windows-ci-s23-maximum-costs-20261111.md.
@@ -40,7 +41,7 @@ _MODULE_COST_HINTS = (
     ('tests/test_action_center_model.py', 37, 3508),
     ('tests/test_action_center_routes.py', 9, 10935),
     ('tests/test_action_notifications.py', 65, 1348),
-    ('tests/test_agent_protocol_consumer.py', 156, 271583),
+    ('tests/test_agent_protocol_consumer.py', 226, 289978),
     ('tests/test_agent_protocol_consumer_scope.py', 37, 68),
     ('tests/test_agent_protocol_transfer.py', 38, 81870),
     ('tests/test_agent_protocol_v1_2.py', 15, 145502),
