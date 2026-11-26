@@ -671,9 +671,21 @@ def prepare_s07_base_case(case, monkeypatch):
     return case
 
 
+@pytest.fixture(scope="module")
+def s07_repository(tmp_path_factory):
+    return create_legacy_base_case(tmp_path_factory.mktemp("s07"))
+
+
 @pytest.fixture
-def s07_base_case(legacy_base_case, monkeypatch):
-    return prepare_s07_base_case(legacy_base_case, monkeypatch)
+def s07_base_case(s07_repository, monkeypatch):
+    # S07 preflight reads Git, while each case mutates its own evidence.
+    case = s07_repository.copy()
+    for key in ("binding", "snapshot", "effects", "observations"):
+        case[key] = deepcopy(case[key])
+    observed_at = case["native"].now_utc()
+    case["snapshot"]["observed_at"] = observed_at
+    case["observations"]["observed_at"] = observed_at
+    return prepare_s07_base_case(case, monkeypatch)
 
 
 def seal_s07_evidence(case):
@@ -748,22 +760,9 @@ S07_TEST_COLD_810_RECORD = {
 }
 
 
-@pytest.fixture(scope="module")
-def s07_cold_810_repository(tmp_path_factory):
-    return create_legacy_base_case(tmp_path_factory.mktemp("s07-cold-810"))
-
-
 @pytest.fixture
-def s07_cold_810_case(s07_cold_810_repository, monkeypatch):
-    # These preflight cases only read Git. Each test owns its mutable evidence.
-    case = s07_cold_810_repository.copy()
-    for key in ("binding", "snapshot", "effects", "observations"):
-        case[key] = deepcopy(case[key])
-    observed_at = case["native"].now_utc()
-    case["snapshot"]["observed_at"] = observed_at
-    case["observations"]["observed_at"] = observed_at
-    prepare_s07_base_case(case, monkeypatch)
-    prepare_s07_additional_case(case)
+def s07_cold_810_case(s07_additional_case):
+    case = s07_additional_case
     # Pin the original observation independently. The approval is only a test fixture.
     qualification = case["observations"]["s07_qualification"]
     approval, evidence = qualification["approval"], qualification["evidence"]
