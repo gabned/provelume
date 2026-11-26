@@ -168,6 +168,113 @@ jobs:
           git checkout --detach "$BASE_SHA"
           git -c http.extraheader= fetch --no-tags --depth=1 origin \
             "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
+          s07_name_status=""
+          if [ "$HEAD_SHA" = f0b9445b2f5cd9f18ede776a311fe80e2bba799b ]; then
+            s07_name_status="$(python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          repository = "gabned/provelume"
+          repository_id = 1343746770
+          branch = "codex/protocol-s07-finding-applicability"
+          pinned_head = "f0b9445b2f5cd9f18ede776a311fe80e2bba799b"
+          base, head = os.environ["BASE_SHA"], os.environ["HEAD_SHA"]
+          number = int(os.environ["PR_NUMBER"])
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())
+          event_pr = event["pull_request"]
+          if not (
+              event_pr["draft"] is True
+              and event_pr["base"]["ref"] == "main"
+              and (event_pr["head"]["repo"] or {}).get("full_name") == repository
+              and event_pr["head"]["ref"] == branch
+          ):
+              raise SystemExit(0)
+          current = json.loads(Path(".agent/current-pr.json").read_bytes())
+
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+
+          require(
+              re.fullmatch(r"[0-9a-f]{40}", base) and head == pinned_head
+              and event["repository"]["full_name"] == repository
+              and event["repository"]["id"] == repository_id
+              and number > 0 and event["number"] == current["number"] == number,
+              "S07 draft event identity is incomplete or stale",
+          )
+          for pr in (event["pull_request"], current):
+              require(
+                  pr["state"] == "open" and pr["draft"] is True
+                  and pr["base"]["ref"] == "main" and pr["base"]["sha"] == base
+                  and pr["head"]["ref"] == branch and pr["head"]["sha"] == head
+                  and all(
+                      pr[side]["repo"]["full_name"] == repository
+                      and pr[side]["repo"]["id"] == repository_id
+                      for side in ("base", "head")
+                  ),
+                  "S07 draft base, head or state changed",
+              )
+          merge = current.get("merge_commit_sha")
+          require(
+              current.get("mergeable") is True
+              and isinstance(merge, str) and re.fullmatch(r"[0-9a-f]{40}", merge),
+              "S07 draft test merge is unavailable or conflicted",
+          )
+
+          environment = {
+              key: value for key, value in os.environ.items()
+              if key.upper() in {"PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG"}
+          }
+          environment.update(
+              GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
+              GIT_ALLOW_PROTOCOL="https", GIT_NO_LAZY_FETCH="1", GIT_TERMINAL_PROMPT="0",
+          )
+
+
+          def git(*args):
+              return subprocess.check_output(["git", "--no-replace-objects", *args], env=environment)
+
+
+          history = (
+              ["--unshallow"] if git("rev-parse", "--is-shallow-repository").strip() == b"true" else []
+          )
+          git(
+              "-c", "http.extraheader=", "fetch", "--no-tags", *history, "origin", base,
+              f"+refs/pull/{number}/head:refs/remotes/origin/pr-head",
+              f"+refs/pull/{number}/merge:refs/remotes/origin/pr-merge",
+          )
+          require(
+              git("rev-parse", "--is-shallow-repository").strip() == b"false"
+              and git("rev-parse", "refs/remotes/origin/pr-head").decode().strip() == head
+              and git("rev-parse", "refs/remotes/origin/pr-merge").decode().strip() == merge,
+              "S07 draft test merge or head ref moved, or complete history is unavailable",
+          )
+          require(
+              git("show", "-s", "--format=%P", merge).decode().split() == [base, head],
+              "S07 draft test merge must have the observed base and head as ordered parents",
+          )
+
+          # Reproduce the clean merge with trusted Git plumbing. Checkout stays on the base.
+          tree = git("rev-parse", merge + "^{tree}").decode().strip()
+          reproduced = git("merge-tree", "--write-tree", base, head).decode().strip()
+          require(tree == reproduced, "S07 draft test merge tree differs from the clean replay")
+          proof = Path(".agent/s07-name-status.z")
+          proof.write_bytes(
+              git("diff", "--no-ext-diff", "--no-textconv", "--name-status", "-M", "-z", base, tree)
+          )
+          print(json.dumps({
+              "mode": "S07_DRAFT_SCOPE_ONLY", "base": base, "head": head, "test_merge": merge, "tree": tree,
+          }), file=sys.stderr)
+          print(proof.as_posix())
+          PY
+          )"
+          fi
           observed_head="$(git rev-parse refs/remotes/origin/pr-head)"
           test "$observed_head" = "$HEAD_SHA"
           mkdir -p .agent
@@ -175,7 +282,7 @@ jobs:
           python tools/agent_protocol_v2.py event-guard \
             --event "$GITHUB_EVENT_PATH" \
             --current-pr .agent/current-pr.json \
-            --name-status .agent/name-status.z \
+            --name-status "${s07_name_status:-.agent/name-status.z}" \
             --expected-base-sha "$BASE_SHA" \
             --expected-head-sha "$HEAD_SHA" \
             --complete \
@@ -183,7 +290,19 @@ jobs:
 
   core-tests:
     name: Core tests (${{ matrix.os }})
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ${{ matrix.os }}
     # Include dependency setup and the expanded complete native suite. Product
     # responsiveness/resource gates retain their own independently checked limits.
@@ -217,7 +336,19 @@ jobs:
 
   windows-shards:
     name: Windows Core execution (${{ matrix.group }})
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
@@ -281,7 +412,22 @@ jobs:
 
   windows-tests:
     name: Core tests (windows-latest)
-    if: ${{ always() && github.event_name != 'pull_request_target' }}
+    if: >-
+      ${{
+        (
+          always()
+          && github.event_name != 'pull_request_target'
+        )
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     needs: windows-shards
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -312,7 +458,19 @@ jobs:
 
   windows-installer:
     name: Windows preview install and uninstall
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: windows-latest
     timeout-minutes: 35
     permissions:
@@ -386,7 +544,19 @@ jobs:
 
   release-foundation:
     name: Deterministic release dry run
-    if: github.event_name != 'pull_request_target'
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -538,6 +708,36 @@ jobs:
           assert Path('release/SHA256SUMS').stat().st_size > 0
           PY
 
+  protocol-s07-draft-consumer:
+    name: S07 Protocol draft consumer conformance
+    if: >-
+      ${{
+        github.event_name == 'pull_request'
+        && github.event.pull_request.draft == true
+        && github.repository == 'gabned/provelume'
+        && github.event.pull_request.base.ref == 'main'
+        && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+        && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+        && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install the pinned Protocol test dependency
+        run: python -m pip install "pytest==9.2.0"
+      - name: Verify the pinned Protocol and test the consumer
+        run: |
+          python tools/agent_protocol_v2.py verify
+          python -m pytest -q tests/test_agent_protocol_consumer.py
+
   protocol-extraction:
     name: Independent Protocol extraction (${{ matrix.os }})
     if: github.event_name != 'pull_request_target'
@@ -580,12 +780,142 @@ jobs:
           python tools/check.py
 
 
-  protocol-workspace:
-    name: Native Protocol workspace profile
-    if: github.event_name != 'pull_request_target'
+  protocol-workspace-image:
+    name: Prepare native Protocol workspace image
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target'
+        && !(
+          github.event_name == 'pull_request'
+          && github.event.pull_request.draft == true
+          && github.repository == 'gabned/provelume'
+          && github.event.pull_request.base.ref == 'main'
+          && github.event.pull_request.head.repo.full_name == 'gabned/provelume'
+          && github.event.pull_request.head.ref == 'codex/protocol-s07-finding-applicability'
+          && github.event.pull_request.head.sha == 'f0b9445b2f5cd9f18ede776a311fe80e2bba799b'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
+    outputs:
+      artifact-id: ${{ steps.upload-image.outputs.artifact-id }}
+      archive-sha256: ${{ steps.build-image.outputs.archive-sha256 }}
+      image-config-digest: ${{ steps.build-image.outputs.image-config-digest }}
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Build isolated native dependencies from the exact profile inputs
+        id: build-image
+        shell: bash
+        run: |
+          set -euo pipefail
+          context="$(mktemp -d)"
+          archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
+          mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
+          mkdir -p "$(dirname "$archive")"
+          cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
+          cp pyproject.toml "$context/pyproject.toml"
+          cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
+          # Export a single-platform image without an attestation index.
+          docker buildx build --load --pull --no-cache --platform linux/amd64 --provenance=false \
+            --tag "$IMAGE_REF" --file "$context/.github/agent-protocol/Dockerfile" "$context"
+          docker image save --platform linux/amd64 "$IMAGE_REF" | gzip -1 > "$archive"
+          config_digest="$(python3 - "$archive" "$IMAGE_REF" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference = sys.argv[1:]
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              with image.extractfile(config_path) as config:
+                  digest = hashlib.file_digest(config, "sha256").hexdigest()
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+          print(f"sha256:{digest}")
+          PY
+          )"
+          checksum="$(sha256sum "$archive")"
+          printf 'image-config-digest=%s\narchive-sha256=%s\n' "$config_digest" "${checksum%% *}" >> "$GITHUB_OUTPUT"
+      - name: Upload the dependency image for this workflow run
+        id: upload-image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: protocol-workspace-image-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/protocol-workspace-image/image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  protocol-workspace:
+    name: Native Protocol workspace profile
+    needs: protocol-workspace-image
+    # Fail this check when preparation fails and inherit intentional skips.
+    if: ${{ !cancelled() && needs.protocol-workspace-image.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE_REF: localhost/provelume/protocol-workspace:${{ github.run_id }}
+      IMAGE_BUILD_RESULT: ${{ needs.protocol-workspace-image.result }}
+      IMAGE_ARTIFACT_ID: ${{ needs.protocol-workspace-image.outputs.artifact-id }}
+      IMAGE_ARCHIVE_SHA256: ${{ needs.protocol-workspace-image.outputs.archive-sha256 }}
+      IMAGE_CONFIG_DIGEST: ${{ needs.protocol-workspace-image.outputs.image-config-digest }}
+    steps:
+      - name: Require the prepared dependency image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$IMAGE_BUILD_RESULT" = success
+          [[ "$IMAGE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$IMAGE_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$IMAGE_CONFIG_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+      - name: Download the dependency image by artifact ID
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          artifact-ids: ${{ env.IMAGE_ARTIFACT_ID }}
+          path: ${{ runner.temp }}/protocol-workspace-image
+          merge-multiple: true
+      - name: Verify the archive and load the exact image
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/protocol-workspace-image/image.tar.gz"
+          checksum="$(sha256sum "$archive")"
+          test "${checksum%% *}" = "$IMAGE_ARCHIVE_SHA256"
+          # Verify the config of the single tagged image, independently of the local Docker ID.
+          python3 - "$archive" "$IMAGE_REF" "$IMAGE_CONFIG_DIGEST" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import tarfile
+
+          archive, reference, expected = sys.argv[1:]
+          digest = expected.removeprefix("sha256:")
+          with tarfile.open(archive, "r:gz") as image:
+              with image.extractfile("manifest.json") as contents:
+                  manifest = json.load(contents)
+              if len(manifest) != 1 or manifest[0]["RepoTags"] != [reference]:
+                  raise SystemExit("Unexpected image reference in dependency archive")
+              config_path = manifest[0]["Config"]
+              if config_path not in (f"blobs/sha256/{digest}", f"{digest}.json"):
+                  raise SystemExit("Dependency image config path does not match its digest")
+              with image.extractfile(config_path) as config:
+                  if hashlib.file_digest(config, "sha256").hexdigest() != digest:
+                      raise SystemExit("Dependency image config digest does not match its contents")
+          PY
+          if docker image inspect "$IMAGE_REF" >/dev/null 2>&1; then
+            echo 'Dependency image reference already exists on this runner' >&2
+            exit 1
+          fi
+          docker image load --input "$archive"
+          docker image inspect "$IMAGE_REF" >/dev/null
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 0
@@ -596,26 +926,14 @@ jobs:
           set -euo pipefail
           python3 tools/agent_protocol_v2.py acquire
           python3 tools/agent_protocol_v2.py acquire --offline
-      - name: Build isolated native dependencies from the exact profile inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          context="$(mktemp -d)"
-          mkdir -p "$context/.github/agent-protocol" "$context/build-lock"
-          cp .github/agent-protocol/Dockerfile "$context/.github/agent-protocol/Dockerfile"
-          cp pyproject.toml "$context/pyproject.toml"
-          cp build-lock/ubuntu-py312-x86_64.requirements.txt "$context/build-lock/"
-          docker build --pull --no-cache --iidfile "$RUNNER_TEMP/protocol-profile-image" \
-            --file "$context/.github/agent-protocol/Dockerfile" "$context"
       - name: Prepare, run native checks, start, stop and resume synthetic instance
         shell: bash
         run: |
           set -euo pipefail
-          image="$(cat "$RUNNER_TEMP/protocol-profile-image")"
-          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+          docker run --rm --pull never --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --env HOME=/tmp/native-home \
             --env RUFF_CACHE_DIR=/workspace/.agent/ruff-cache \
-            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$image" \
+            --mount "type=bind,src=$PWD,dst=/workspace" --workdir /workspace "$IMAGE_REF" \
             bash -c 'set -euo pipefail
               python3 tools/agent_protocol_v2.py workspace prepare
               python3 tools/agent_protocol_v2.py workspace prepare

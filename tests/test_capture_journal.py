@@ -6,6 +6,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from pathlib import Path
 from threading import Event
 from uuid import uuid4
 
@@ -101,6 +102,24 @@ def test_restart_replay_and_read_are_pure(journal):
     assert tree(journal.store.paths.root) == before
     receipt["metadata"]["note"] = "mutated response"
     assert "note" not in restarted.lookup(DEVICE, CLIENT, authorize=allow)["metadata"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows extended path handling")
+def test_windows_inventory_reads_receipt_past_max_path(tmp_path):
+    # Cross MAX_PATH at the receipt leaf only. Its directories must still be
+    # short enough for the inventory's independent ancestor pinning.
+    key = module.capture_scope_key(DEVICE, CLIENT)
+    relative = Path("state", "capture", DEVICE, f"{key}.json")
+    padding = max(1, 261 - len(str(tmp_path / relative)))
+    root = tmp_path / ("i" * padding)
+    record = root / relative
+    assert len(str(record)) >= 262
+    if len(str(record.parent)) >= 248:
+        pytest.skip("temporary directories are too long to isolate the receipt leaf")
+
+    journal = CaptureJournal(InstanceStore.initialise(root))
+    receipt = submit(journal)
+    assert journal.list_receipts(DEVICE, authorize=allow) == [receipt]
 
 
 def test_absent_lookup_creates_nothing(journal):

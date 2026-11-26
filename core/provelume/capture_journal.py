@@ -26,7 +26,9 @@ from .capture_requests import (
     validate_capture_metadata,
 )
 from .instance_lifecycle import InstanceLifecycleManager
+from .local_path_guard import kernel_no_links
 from .maintenance_local_files import MaintenanceTargetError, _windows_open
+from .paths import native_path
 from .storage import InstanceStore, utc_now
 
 MAX_RECORD_BYTES = 36 * 1024 * 1024
@@ -55,6 +57,18 @@ def _unique(pairs):
 
 
 def _safe(path: Path) -> None:
+    # On supported Linux hosts the kernel checks the complete existing prefix
+    # without following links. Observe it afresh on every call; the later pinned
+    # read/transaction guards still own identity and publication. Other hosts and
+    # relative paths retain the original component walk below.
+    if path.is_absolute():
+        if "\0" in os.fspath(path):
+            raise CaptureJournalError("unsafe Capture path")
+        try:
+            if kernel_no_links(path):
+                return
+        except OSError:
+            raise CaptureJournalError("unsafe Capture path") from None
     for parent in (path, *path.parents):
         try:
             info = parent.lstat()
@@ -91,7 +105,7 @@ def _read(path: Path, limit: int = MAX_RECORD_BYTES) -> bytes:
 def _read_pinned_windows_record(path: Path, limit: int) -> bytes:
     # The inventory holds every ancestor against rename. This leaf handle rejects
     # reparse points and denies writes/delete for the duration of the fresh read.
-    with os.fdopen(_windows_open(path, directory=False), "rb") as stream:
+    with os.fdopen(_windows_open(native_path(path), directory=False), "rb") as stream:
         before = os.fstat(stream.fileno())
         if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
             raise CaptureJournalError("invalid Capture record size or kind")

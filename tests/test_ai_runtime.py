@@ -683,6 +683,70 @@ def test_native_snapshot_is_immutable_and_refuses_source_substitution(tmp_path):
         sealed_snapshot(stack, stream, 26, expected)
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="native Linux sealed snapshots only")
+def test_linux_worker_verifies_model_while_copying_to_sealed_snapshot(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+
+    from provelume import ai_llama
+    from provelume import ai_runtime_worker as worker
+
+    model = tmp_path / "model.gguf"
+    payload = b"GGUF\x03\0\0\0" + b"model" * 300_000
+    model.write_bytes(payload)
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    entry = SimpleNamespace(
+        model_size=len(payload), model_sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    reads = []
+
+    class CountedModel:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __getattr__(self, name):
+            return getattr(self.stream, name)
+
+        def readinto(self, buffer):
+            length = self.stream.readinto(buffer)
+            reads.append(length)
+            return length
+
+        def read(self, size):
+            data = self.stream.read(size)
+            reads.append(len(data))
+            return data
+
+    @contextmanager
+    def pinned_model(stack, path):
+        assert Path(path) == model
+        with model.open("rb") as stream:
+            yield CountedModel(stream)
+
+    def load_snapshot(directory, snapshot, libraries, *, model_stream):
+        assert directory == runtime and libraries == {} and model_stream is None
+        model.write_bytes(b"replacement")
+        assert Path(snapshot).read_bytes() == payload
+        with pytest.raises(PermissionError), open(snapshot, "wb") as out:
+            out.write(b"x")
+        return SimpleNamespace(close=lambda: None)
+
+    messages = iter(({"runtime": str(runtime), "model": str(model)}, {"operation": "unload"}))
+    events = []
+    monkeypatch.setattr(worker, "read", lambda: next(messages))
+    monkeypatch.setattr(worker, "emit", events.append)
+    monkeypatch.setattr(worker, "pinned_input", pinned_model)
+    monkeypatch.setattr(worker, "runtime_lock", lambda: {"platforms": {"linux": {}}})
+    registry = SimpleNamespace(entry=lambda _: entry)
+    monkeypatch.setattr(worker.ModelRegistry, "packaged", lambda: registry)
+    monkeypatch.setattr(ai_llama, "Llama", load_snapshot)
+
+    worker.main(containment=(None, {}))
+
+    assert [event["event"] for event in events] == ["loaded", "unloaded"]
+    assert sum(reads) == len(payload)
+
+
 def test_frozen_launcher_and_unsupported_hardware_fail_closed(monkeypatch):
     from provelume import ai_runtime_contract as contract
 
