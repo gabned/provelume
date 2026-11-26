@@ -415,14 +415,25 @@ class WindowsShardContractTests(unittest.TestCase):
                 with self.subTest(group=group):
                     output = Path(temporary) / f"evidence-{group}"
                     commands, environments = [], []
+                    buffer = io.BytesIO()
 
                     class Process:
                         returncode = None
                         pid = 12345
 
-                        def wait(process, timeout):
+                        def __init__(process, index):
+                            process.index = index
+
+                        def wait(process, timeout, group=group, buffer=buffer):
                             self.assertGreater(timeout, 0)
                             self.assertLessEqual(timeout, 540)
+                            if process.index is not None:
+                                self.assertLessEqual(timeout, 5)
+                                for shard in (group * 2, group * 2 + 1):
+                                    self.assertIn(
+                                        f'provelume-windows-progress {{"shard": {shard},'.encode(),
+                                        buffer.getvalue(),
+                                    )
                             process.returncode = 0
                             return 0
 
@@ -445,11 +456,31 @@ class WindowsShardContractTests(unittest.TestCase):
                         content = "synthetic unicode: 🧊\n".encode()
                         if index is None:
                             content = b"OMITTED_PREFIX" + b"x" * maximum + content
+                        else:
+                            path = destination.with_suffix(".progress")
+                            first = "test_a.py::test_first"
+                            second = "test_a.py::test_second"
+                            last = "test_b.py::test_running"
+                            items = [SimpleNamespace(nodeid=node) for node in (first, second, last)]
+                            with path.open("x", encoding="utf-8", buffering=1) as stream:
+                                observer = runner._WindowsShardProgress(stream)
+                                observer.pytest_collection_finish(SimpleNamespace(items=items))
+                                observer.pytest_runtest_logstart(first)
+                                observer.pytest_runtest_logfinish(first)
+                                self.assertIsNone(runner._latest_windows_progress(path)[
+                                    "last_completed_module"
+                                ])
+                                observer.pytest_runtest_logstart(second)
+                                observer.pytest_runtest_logfinish(second)
+                                observer.pytest_runtest_logstart(last)
+                                stream.write('{"last_test":"partial')
+                            self.assertEqual(runner._latest_windows_progress(path), {
+                                "last_test": last, "last_completed_module": "test_a.py",
+                            })
                         kwargs["stdout"].write(content)
                         kwargs["stdout"].flush()
-                        return Process()
+                        return Process(index)
 
-                    buffer = io.BytesIO()
                     console = io.TextIOWrapper(buffer, encoding="cp1252")
                     with (
                         patch.object(runner.sys, "platform", "win32"),
@@ -471,6 +502,7 @@ class WindowsShardContractTests(unittest.TestCase):
                                                ("windows-shard", group * 2),
                                                ("windows-shard", group * 2 + 1)])
                     self.assertIn("\\U0001f9ca", replay)
+                    self.assertEqual(replay.count("provelume-windows-progress "), 2)
                     self.assertIn("[bounded output; complete log retained in artifact]", replay)
                     self.assertNotIn("OMITTED_PREFIX", replay)
                     self.assertLess(len(replay), maximum + 1000)
