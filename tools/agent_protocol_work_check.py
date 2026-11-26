@@ -17,7 +17,8 @@ import platform
 import subprocess
 import sys
 import time
-from contextlib import suppress
+from collections import Counter
+from contextlib import ExitStack, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -435,6 +436,76 @@ def verify_windows_reports(groups: list, expected: dict) -> dict:
             "subtest_count": subtest_count}
 
 
+class _WindowsShardProgress:
+    """Record diagnostic state independently of the Windows coverage receipt."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.remaining = Counter()
+        self.last_test = None
+        self.last_completed_module = None
+
+    def pytest_collection_finish(self, session):
+        self.remaining.update(item.nodeid.partition("::")[0] for item in session.items)
+
+    def pytest_runtest_logstart(self, nodeid):
+        self.last_test = nodeid[:512]
+        self.write()
+
+    def pytest_runtest_logfinish(self, nodeid):
+        module = nodeid.partition("::")[0]
+        self.remaining[module] -= 1
+        if self.remaining[module] == 0:
+            self.last_completed_module = module[:512]
+            self.write()
+
+    def write(self):
+        with suppress(OSError):
+            self.stream.write(json.dumps({
+                "last_test": self.last_test,
+                "last_completed_module": self.last_completed_module,
+            }) + "\n")
+
+
+def _latest_windows_progress(path):
+    # Each record has at most two 512-character JSON strings. Allow two full
+    # records of escaped astral characters, plus their field names.
+    tail_size = 32768
+    with suppress(OSError, ValueError):
+        with path.open("rb") as log:
+            length = log.seek(0, os.SEEK_END)
+            log.seek(max(0, length - tail_size))
+            lines = log.read(tail_size).rsplit(b"\n", 2)
+        if len(lines) >= 2:
+            record = json.loads(lines[-2])
+            if (isinstance(record, dict) and set(record) == {"last_test", "last_completed_module"}
+                    and all(value is None or isinstance(value, str) and len(value) <= 512
+                            for value in record.values())):
+                return record
+    return None
+
+
+def _wait_for_windows_shards(processes, reports, group, deadline):
+    previous = {}
+    while True:
+        for shard, report in enumerate(reports, start=group * 2):
+            progress = _latest_windows_progress(report.with_suffix(".progress"))
+            if progress is not None and progress != previous.get(shard):
+                previous[shard] = progress
+                with suppress(OSError):
+                    print("provelume-windows-progress " + json.dumps({"shard": shard, **progress}),
+                          flush=True)
+
+        running = next((process for process in processes if process.poll() is None), None)
+        if running is None:
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(running.args, WINDOWS_CI_TIMEOUT)
+        with suppress(subprocess.TimeoutExpired):
+            running.wait(timeout=min(5, remaining))
+
+
 def windows_pytest(root, output, expected, *, mode, shard=None):
     import pytest
 
@@ -448,7 +519,15 @@ def windows_pytest(root, output, expected, *, mode, shard=None):
         args += [f"--provelume-shard-index={shard}", "--provelume-shard-count=4",
                  "-vv", "--durations=10", "-o", f"cache_dir={output.parent / 'pytest-cache'}",
                  f"--basetemp={output.parent / 'pytest-tmp'}"]
-    code = int(pytest.main(args, plugins=[recorder]))
+    plugins = [recorder]
+    with ExitStack() as stack:
+        if mode == "shard":
+            with suppress(OSError):
+                stream = stack.enter_context(output.with_suffix(".progress").open(
+                    "x", encoding="utf-8", buffering=1,
+                ))
+                plugins.append(_WindowsShardProgress(stream))
+        code = int(pytest.main(args, plugins=plugins))
     source.require(windows_identity(root, expected) == identity, "CI source changed during pytest")
     output.write_text(json.dumps(recorder.record(code), ensure_ascii=True) + "\n", encoding="utf-8")
     return code
@@ -500,9 +579,7 @@ def run_windows_group(root, output, expected, group):
             report = state / f"shard-{index}.json"
             reports.append(report)
             start("shard", index, report)
-        for process in processes[1:]:
-            process.wait(timeout=min(WINDOWS_CI_TIMEOUT,
-                                     max(0.01, deadline - time.monotonic())))
+        _wait_for_windows_shards(processes[1:], reports, group, deadline)
     except subprocess.TimeoutExpired:
         timed_out = True
     except (source.EvidenceError, OSError, ValueError) as error:
