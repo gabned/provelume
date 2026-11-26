@@ -57,7 +57,8 @@ class ReadAuthority:
         return False
 
 
-def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf")):
+def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"), copy_to=None):
+    """Verify the pinned model, optionally copying its verified stream into staging."""
     checkpoint(cancel, deadline)
     read_cancel = cancel.reading if type(cancel) is ReadAuthority else cancel
     before = file_identity(handle)
@@ -80,6 +81,8 @@ def verify_stream(handle, entry, *, cancel=lambda: False, deadline=float("inf"))
         count += len(block)
         check(count <= entry.model_size, "limit")
         digest.update(block)
+        if copy_to is not None:
+            check(copy_to.write(block) == len(block), "integrity")
     checkpoint(cancel, deadline)
     check(count == entry.model_size and digest.hexdigest() == entry.model_sha256, "integrity")
     check(file_identity(handle) == before, "integrity")
