@@ -39,7 +39,30 @@ jobs:
           python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build-lock/sbom-runtime-pip.requirements.txt
           python -m pip install -e ".[dev]" -r requirements-release.txt
       - name: Acquire exact optional libraries and public model, outside artifacts
-        run: python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/custodia-inputs" --platform all --accept-licenses --include-model
+        run: >-
+          python scripts/ai_runtime_acquire.py --directory "${{ runner.temp }}/custodia-inputs"
+          --platform all --accept-licenses --include-model
+          --evidence "${{ runner.temp }}/custodia-evidence/acquisition.json"
+      - name: Summarize optional input acquisition
+        if: always()
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'custodia-evidence/acquisition.json'
+          if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            Write-Warning 'Optional input acquisition receipt is unavailable.'
+            return
+          }
+          try {
+            $receipt = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $resources = @($receipt.resources | Select-Object artifact, result, mode, failure_reason,
+              deadline_seconds, expected_bytes, received_bytes, write_accepted_bytes, gate_elapsed_seconds,
+              response_read_seconds, stage_write_seconds)
+            $summary = @{ commit = $receipt.source.commit; tree = $receipt.source.tree
+              result = $receipt.result; resources = $resources }
+            Write-Output ('Custodia acquisition ' + (ConvertTo-Json -InputObject $summary -Depth 4 -Compress))
+          } catch {
+            Write-Warning 'Optional input acquisition receipt could not be summarized.'
+          }
       - name: Compose both verified native inputs and build twice
         shell: pwsh
         run: |
