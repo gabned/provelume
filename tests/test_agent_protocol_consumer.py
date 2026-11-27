@@ -10,6 +10,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from copy import deepcopy
 from datetime import UTC
 from pathlib import Path
 from types import SimpleNamespace
@@ -388,8 +389,7 @@ elif __name__ == "__main__":
     print("Native Agent Protocol dependency and engine conformance: PASS")
 
 
-@pytest.fixture
-def legacy_base_case(tmp_path, request):
+def create_legacy_base_case(tmp_path, *, production=False):
     """A real synthetic normal merge, with immutable birth and live base anchors."""
     import importlib.util
 
@@ -423,11 +423,12 @@ def legacy_base_case(tmp_path, request):
     git("config", "core.autocrlf", "false")
     git("remote", "add", "origin", "https://github.com/gabned/provelume.git")
     (repo / "marker").write_text("original\n")
+    (repo / "scripts").mkdir()
+    (repo / "scripts/ai_runtime_report.py").write_text("# synthetic evaluator\n")
     git("add", ".")
     git("commit", "-m", "synthetic birth base")
     original = git("rev-parse", "HEAD")
     git("checkout", "-b", "work")
-    production = getattr(request, "param", False)
     workstream_class = "PRODUCT" if production else "PROTOCOL"
     policy = "REPOSITORY_POLICY" if production else "NO_PRODUCTION"
     changed_name = "core/synthetic.txt" if production else "tests/test_agent_protocol_consumer.py"
@@ -563,6 +564,11 @@ def legacy_base_case(tmp_path, request):
     }
 
 
+@pytest.fixture
+def legacy_base_case(tmp_path, request):
+    return create_legacy_base_case(tmp_path, production=getattr(request, "param", False))
+
+
 def base_preflight(case):
     return case["adapter"].legacy_base_preflight(
         **{k: v for k, v in case.items() if k not in {"adapter", "native", "git"}}
@@ -588,6 +594,1243 @@ def test_legacy_base_advance_preserves_original_failure_and_all_input_bytes(lega
     assert result["new_capabilities"] == [] and result["binding_mutated"] is False
     assert result["lifecycle_v2_activated"] is False
     assert {k: json.dumps(case[k], sort_keys=True) for k in before} == before
+
+
+def prepare_s07_base_case(case, monkeypatch):
+    adapter = case["adapter"]
+    # Set synthetic ownership coordinates without replacing or resealing a live BIND.
+    workstream = "concordia-s07-cpu-recovery"
+    binding = case["native"].seal(
+        {
+            **case["binding"],
+            "active_pr": "#439",
+            "workstream": workstream,
+            "policy_resolution": {**case["binding"]["policy_resolution"], "workstream": workstream},
+        }
+    )
+    case["binding"] = binding
+    case["trusted_binding"] = binding["report_sha256"]
+    monkeypatch.setattr(adapter, "S07_BIND", case["trusted_binding"])
+    monkeypatch.setattr(
+        adapter, "S07_EVALUATOR", case["git"]("rev-parse", "HEAD:scripts/ai_runtime_report.py"),
+    )
+    case["snapshot"] = case["native"].seal(
+        {**case["snapshot"], "owner_pr": "#439", "technical_finding": "CURRENT"}
+    )
+    observations = case["observations"]
+    observations["pr"]["number"] = 439
+    observations["schema"] = "provelume-base-observations/v2"
+    findings = {
+        f"https://github.com/{adapter.REPOSITORY}/actions/runs/{run}/job/{job}": {
+            "source_commit": commit, "run_id": run, "job_id": job,
+            "result": "FAIL", "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+        }
+        for commit, (run, job) in adapter.S07_ORIGINAL_RUNS.items()
+    }
+    approval = {
+        "schema": "provelume-s07-approval/v1",
+        "repository": adapter.REPOSITORY,
+        "owner_pr": "#439",
+        "binding_sha256": case["trusted_binding"],
+        "release": "0.15.0",
+        "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+        "reference": "synthetic maintainer approval",
+        "historical_findings": sorted(findings),
+    }
+    report = {
+        "source_commit": case["expected_head"],
+        "status": "PASS",
+        "gates": dict.fromkeys(adapter.S07_CPU_GATES, "PASS"),
+    }
+    matrix_report = {
+        "source_commit": case["expected_head"], "automatic": "PASS", "installed_runtime": "PASS",
+    }
+    evidence = {
+        "snapshot_sha256": case["snapshot"]["report_sha256"],
+        "findings_complete": True,
+        "findings": findings,
+        "cpu_jobs": {
+            runner: {
+                "run_id": 1,
+                "attempt": 1,
+                "job_id": job,
+                "report": {**report, "gates": report["gates"].copy()},
+                "report_sha256": adapter.digest(report),
+                "workflow_path": ".github/workflows/ai-runtime-candidate.yml",
+                "event": "pull_request",
+                "job_name": f"measure ({runner})",
+                "conclusion": "success",
+            }
+            for job, runner in enumerate(("ubuntu-24.04", "windows-2025"), start=2)
+        },
+        "matrix": {"report": matrix_report, "sha256": adapter.digest(matrix_report)},
+    }
+    observations["s07_qualification"] = {"approval": approval, "evidence": evidence}
+    case["trusted_s07_approval"] = adapter.digest(approval)
+    seal_s07_evidence(case)
+    return case
+
+
+@pytest.fixture(scope="module")
+def s07_repository(tmp_path_factory):
+    return create_legacy_base_case(tmp_path_factory.mktemp("s07"))
+
+
+@pytest.fixture
+def s07_base_case(s07_repository, monkeypatch):
+    # S07 preflight reads Git, while each case mutates its own evidence.
+    case = s07_repository.copy()
+    for key in ("binding", "snapshot", "effects", "observations"):
+        case[key] = deepcopy(case[key])
+    observed_at = case["native"].now_utc()
+    case["snapshot"]["observed_at"] = observed_at
+    case["observations"]["observed_at"] = observed_at
+    return prepare_s07_base_case(case, monkeypatch)
+
+
+def seal_s07_evidence(case):
+    observations = case["observations"]
+    case["trusted_observations"] = case["adapter"].digest(observations)
+    case["trusted_s07_evidence"] = case["adapter"].digest(
+        observations["s07_qualification"]["evidence"]
+    )
+
+
+def prepare_s07_additional_case(case):
+    # These fixed coordinates are independent of the adapter's proposed allowlist.
+    # All authority and qualification reports in this fixture remain synthetic.
+    additional_runs = {
+        "f2cb84a60f3e5a268d8547285b5a360cbaef8a47": (42368608397, 128391869733),
+        "adb276c663007921658fb5dfc4173b7d62ace31d": (42369730479, 128395169479),
+        "3790f8afc50ef3a0c7162894e366b7e19b4ddc34": (42378818835, 128421899209),
+        "0cf30899fdf2c5b0607dc1ab6c7a5fe97f37f83f": (42382541331, 128433012483),
+        "61e8694dd7904de4de8c9295ca8301edf4a358df": (42389259695, 128453164193),
+    }
+    additional = {
+        f"https://github.com/gabned/provelume/actions/runs/{run}/job/{job}": {
+            "source_commit": commit, "run_id": run, "job_id": job,
+            "result": "FAIL", "status": "CURRENT", "cause": "NOT_DEMONSTRATED",
+        }
+        for commit, (run, job) in additional_runs.items()
+    }
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    approval.update(
+        schema="provelume-s07-approval/v2",
+        reference="synthetic maintainer addendum, not a live approval",
+        additional_historical_findings=sorted(additional),
+    )
+    evidence["findings"].update(additional)
+    case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    return case
+
+
+@pytest.fixture
+def s07_additional_case(s07_base_case):
+    return prepare_s07_additional_case(s07_base_case)
+
+
+S07_TEST_COLD_810_URL = (
+    "https://github.com/gabned/provelume/actions/runs/42290059975/job/128140838845"
+)
+S07_TEST_COLD_810_RECORD = {
+    "source_commit": "d5b2cc9f06c14be8c51a082d309dbde0358552e8",
+    "driver_commit": "358a19468f1e2db58b72212e8e36c102cbf522f6",
+    "run_id": 42290059975,
+    "attempt": 1,
+    "job_id": 128140838845,
+    "event": "workflow_dispatch",
+    "workflow_path": ".github/workflows/ai-runtime-candidate.yml",
+    "job_name": "concordia-capture-guard",
+    "job_conclusion": "success",
+    "arm": "A",
+    "arm_index": 3,
+    "phase": "cold",
+    "sample": 810,
+    "failed_gate": "s08_performance",
+    "qualification_eligible": False,
+    "result": "FAIL",
+    "status": "CURRENT",
+    "cause": "NOT_DEMONSTRATED",
+    "artifact_id": 13541917919,
+    "artifact_sha256": "5248db15078cf441570f114390e8030dc79e4f0065caa6b87172580f00cc7c2a",
+    "report_member": "capture-guard-comparison/arm-3/report.json",
+    "report_bytes_sha256": "63bc821aec9ad304da7e0fae0b09e57b4cf13d70758a54bd832d44977bd2ef83",
+}
+
+
+@pytest.fixture
+def s07_cold_810_case(s07_additional_case):
+    case = s07_additional_case
+    # Pin the original observation independently. The approval is only a test fixture.
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    approval.update(
+        schema="provelume-s07-approval/v3",
+        reference="https://github.com/gabned/provelume/issues/383#issuecomment-99999999999",
+        cold_810_finding=S07_TEST_COLD_810_URL,
+    )
+    evidence["findings"][S07_TEST_COLD_810_URL] = S07_TEST_COLD_810_RECORD.copy()
+    case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    return case
+
+
+@pytest.fixture(params=("v1", "v2"))
+def s07_qualified_case(request):
+    return request.getfixturevalue(
+        "s07_base_case" if request.param == "v1" else "s07_additional_case"
+    )
+
+
+def test_s07_preflight_keeps_original_snapshot_findings_and_refusal(s07_base_case):
+    case = s07_base_case
+    before = {
+        key: json.dumps(case[key], sort_keys=True)
+        for key in ("binding", "snapshot", "observations")
+    }
+    result = base_preflight(case)
+    assert result["schema"] == "provelume-legacy-base-preflight/v2"
+    assert result["merge_ready"] is True
+    assert result["binding_mutated"] is False
+    assert result["binding_sha256"] == case["trusted_binding"]
+    assert result["snapshot_sha256"] == case["snapshot"]["report_sha256"]
+    assert result["s07_qualification"] == {
+        "approval_sha256": case["trusted_s07_approval"],
+        "evidence_sha256": case["trusted_s07_evidence"],
+        "historical_findings": case["observations"]["s07_qualification"]["evidence"]["findings"],
+        "remaining_findings": {},
+        "candidate_finding": "NONE",
+    }
+    assert result["historical_preflight"]["merge_ready"] is False
+    assert "current technical finding blocks" in result["historical_preflight"]["errors"]
+    assert {key: json.dumps(case[key], sort_keys=True) for key in before} == before
+    case["native"].verify_seal(result)
+
+
+@pytest.mark.parametrize("finding", ["CURRENT", "UNKNOWN"])
+def test_s07_preflight_blocks_current_or_unknown_candidate_findings(s07_qualified_case, finding):
+    case = s07_qualified_case
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    current = {"status": finding, "source_commit": case["expected_head"]}
+    evidence["findings"]["https://example.invalid/new-finding"] = current
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    assert result["s07_qualification"]["candidate_finding"] == finding
+    assert result["s07_qualification"]["remaining_findings"] == {
+        "https://example.invalid/new-finding": current,
+    }
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("checks", "FAILURE"), ("unresolved_threads", 1), ("codex_review_state", "FINDINGS")],
+)
+def test_s07_preflight_leaves_ordinary_gate_blocking(s07_qualified_case, field, value):
+    case = s07_qualified_case
+    case["snapshot"] = case["native"].seal({**case["snapshot"], field: value})
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    evidence["snapshot_sha256"] = case["snapshot"]["report_sha256"]
+    seal_s07_evidence(case)
+    assert base_preflight(case)["merge_ready"] is False
+
+
+def test_s07_preflight_rejects_resealed_observations_with_untrusted_proofs(s07_qualified_case):
+    case = s07_qualified_case
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    approval["reference"] = "unrelated approval"
+    for job in evidence["cpu_jobs"].values():
+        job["report_sha256"] = "0" * 64
+    evidence["matrix"]["sha256"] = "0" * 64
+    case["trusted_observations"] = case["adapter"].digest(case["observations"])
+    with pytest.raises(ValueError, match="authenticated S07 approval differs"):
+        base_preflight(case)
+    del case["trusted_s07_approval"]
+    with pytest.raises(ValueError, match="authenticated S07 approval differs"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "mutation,expected",
+    [
+        ("missing_finding", "All four original S07 findings"),
+        ("historical_pass", "All four original S07 findings"),
+        ("other_binding", "original #439 BIND"),
+        ("stale_snapshot", "bind the current snapshot"),
+        ("incomplete_inventory", "complete finding inventory"),
+        ("other_head", "nonpassing S07 CPU report"),
+        ("nonpassing_gate", "nonpassing S07 CPU report"),
+        ("diagnostic_run", "nonpassing ordinary S07 CPU job"),
+        ("matrix_incomplete", "S07 automatic and installed runtime"),
+        ("missing_platform", "Both ordinary S07 CPU jobs"),
+        ("changed_evaluator", "evaluator differs"),
+        ("changed_digest", "Observed source bytes changed"),
+        ("wrong_approval_scope", "approval must cover exactly"),
+        ("altered_report", "altered or nonpassing S07 CPU report"),
+        ("altered_matrix", "Verified S07 automatic and installed runtime"),
+        ("altered_inventory_digest", "authenticated S07 evidence differs"),
+    ],
+)
+def test_s07_preflight_refuses_unbound_or_incomplete_evidence(
+    s07_qualified_case, monkeypatch, mutation, expected,
+):
+    case = s07_qualified_case
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    linux = evidence["cpu_jobs"]["ubuntu-24.04"]
+    matrix = evidence["matrix"]
+    if mutation == "missing_finding":
+        del evidence["findings"][approval["historical_findings"][0]]
+    elif mutation == "historical_pass":
+        next(iter(evidence["findings"].values()))["result"] = "PASS"
+    elif mutation == "other_binding":
+        monkeypatch.setattr(case["adapter"], "S07_BIND", "0" * 64)
+    elif mutation == "stale_snapshot":
+        evidence["snapshot_sha256"] = "0" * 64
+    elif mutation == "incomplete_inventory":
+        evidence["findings_complete"] = False
+    elif mutation == "other_head":
+        linux["report"]["source_commit"] = "0" * 40
+        linux["report_sha256"] = case["adapter"].digest(linux["report"])
+    elif mutation == "nonpassing_gate":
+        linux["report"]["gates"]["network"] = "FAIL"
+        linux["report_sha256"] = case["adapter"].digest(linux["report"])
+    elif mutation == "diagnostic_run":
+        linux["event"] = "workflow_dispatch"
+    elif mutation == "matrix_incomplete":
+        matrix["report"]["installed_runtime"] = "NOT_RUN"
+        matrix["sha256"] = case["adapter"].digest(matrix["report"])
+    elif mutation == "missing_platform":
+        del evidence["cpu_jobs"]["windows-2025"]
+    elif mutation == "changed_evaluator":
+        monkeypatch.setattr(case["adapter"], "S07_EVALUATOR", "0" * 40)
+    elif mutation == "wrong_approval_scope":
+        approval["historical_findings"].append("https://example.invalid/unrelated-finding")
+        case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    elif mutation == "altered_report":
+        linux["report_sha256"] = "0" * 64
+    elif mutation == "altered_matrix":
+        matrix["sha256"] = "0" * 64
+    elif mutation == "altered_inventory_digest":
+        evidence["findings"]["https://example.invalid/new-finding"] = {"status": "CURRENT"}
+
+    if mutation == "changed_digest":
+        approval["reference"] = "changed after the observations were sealed"
+    elif mutation == "altered_inventory_digest":
+        case["trusted_observations"] = case["adapter"].digest(case["observations"])
+    else:
+        seal_s07_evidence(case)
+    with pytest.raises(ValueError, match=expected):
+        base_preflight(case)
+
+
+def test_s07_addendum_preserves_binding_nine_findings_and_original_refusal(s07_additional_case):
+    case = s07_additional_case
+    before = {
+        key: json.dumps(case[key], sort_keys=True)
+        for key in ("binding", "snapshot", "effects", "observations")
+    }
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    original = {key: evidence["findings"][key] for key in approval["historical_findings"]}
+    additional = {
+        key: evidence["findings"][key] for key in approval["additional_historical_findings"]
+    }
+    assert len(original) == 4 and len(additional) == 5
+    result = base_preflight(case)
+    assert result["merge_ready"] is True and result["errors"] == []
+    assert result["s07_qualification"] == {
+        "approval_sha256": case["trusted_s07_approval"],
+        "evidence_sha256": case["trusted_s07_evidence"],
+        "historical_findings": original,
+        "additional_historical_findings": additional,
+        "remaining_findings": {},
+        "candidate_finding": "NONE",
+    }
+    assert result["binding_sha256"] == case["trusted_binding"]
+    assert result["snapshot_sha256"] == case["snapshot"]["report_sha256"]
+    assert result["binding_mutated"] is False
+    assert result["lifecycle_v2_activated"] is False and result["new_capabilities"] == []
+    assert result["historical_preflight"]["merge_ready"] is False
+    assert "current technical finding blocks" in result["historical_preflight"]["errors"]
+    assert {key: json.dumps(case[key], sort_keys=True) for key in before} == before
+    case["native"].verify_seal(result)
+
+
+def test_s07_v1_keeps_all_five_unapproved_findings_blocking(s07_additional_case):
+    case = s07_additional_case
+    qualification = case["observations"]["s07_qualification"]
+    approval, evidence = qualification["approval"], qualification["evidence"]
+    additional = approval.pop("additional_historical_findings")
+    approval["schema"] = "provelume-s07-approval/v1"
+    case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    retained = result["s07_qualification"]
+    assert retained["candidate_finding"] == "CURRENT"
+    assert retained["remaining_findings"] == {key: evidence["findings"][key] for key in additional}
+    assert "additional_historical_findings" not in retained
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("source_commit", "0" * 40), ("run_id", 1), ("job_id", 1),
+        ("result", "PASS"), ("status", "RESOLVED"), ("cause", "DEMONSTRATED"),
+        ("unapproved_field", False),
+    ],
+)
+def test_s07_addendum_refuses_changed_record_even_with_trusted_digest(
+    s07_additional_case, field, value,
+):
+    case = s07_additional_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["approval"]["additional_historical_findings"][0]
+    qualification["evidence"]["findings"][reference][field] = value
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize("field", ["run_id", "job_id"])
+def test_s07_addendum_requires_integer_ids(s07_additional_case, field):
+    case = s07_additional_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["approval"]["additional_historical_findings"][0]
+    record = qualification["evidence"]["findings"][reference]
+    record[field] = float(record[field])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="All five additional S07 findings"):
+        base_preflight(case)
+
+
+def test_s07_addendum_requires_every_fixed_record(s07_additional_case):
+    case = s07_additional_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["approval"]["additional_historical_findings"][0]
+    del qualification["evidence"]["findings"][reference]
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["v1", "unknown_schema", "v3_incomplete", "missing", "sixth", "reordered"],
+)
+def test_s07_addendum_refuses_other_scope_even_when_resealed(s07_additional_case, mutation):
+    case = s07_additional_case
+    approval = case["observations"]["s07_qualification"]["approval"]
+    if mutation == "v1":
+        approval["schema"] = "provelume-s07-approval/v1"
+    elif mutation == "unknown_schema":
+        approval["schema"] = "provelume-s07-approval/v4"
+    elif mutation == "v3_incomplete":
+        approval["schema"] = "provelume-s07-approval/v3"
+    elif mutation == "missing":
+        del approval["additional_historical_findings"]
+    elif mutation == "sixth":
+        approval["additional_historical_findings"].append("https://example.invalid/sixth")
+    else:
+        approval["additional_historical_findings"].reverse()
+    case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize("finding", ["CURRENT", "UNKNOWN"])
+def test_s07_addendum_cannot_exclude_diagnostics_by_metadata(s07_additional_case, finding):
+    case = s07_additional_case
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    reference = "https://example.invalid/unresolved-diagnostic"
+    record = {
+        "status": finding, "source_commit": case["expected_head"],
+        "qualification_eligible": False, "provenance": "nonqualifying_diagnostic",
+        "applicable": False, "disposition": "HISTORY_ONLY",
+    }
+    evidence["findings"][reference] = record
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    assert result["s07_qualification"]["candidate_finding"] == finding
+    assert result["s07_qualification"]["remaining_findings"] == {reference: record}
+
+
+@pytest.mark.parametrize("finding", ["CURRENT", "UNKNOWN"])
+def test_s07_addendum_does_not_cover_windows_sibling(s07_additional_case, finding):
+    case = s07_additional_case
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    # Same source/run as an admitted Linux finding, but a different, unapproved job.
+    # This synthetic observation preserves acquisition failure without a CPU score.
+    reference = "https://github.com/gabned/provelume/actions/runs/42368608397/job/128391870070"
+    record = {
+        "source_commit": "f2cb84a60f3e5a268d8547285b5a360cbaef8a47",
+        "run_id": 42368608397, "job_id": 128391870070,
+        "result": "FAIL", "status": finding, "inference": "NOT_RUN",
+        "provenance": "ordinary_qualification", "phase": "model_acquisition",
+    }
+    evidence["findings"][reference] = record
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    assert result["s07_qualification"]["candidate_finding"] == finding
+    assert result["s07_qualification"]["remaining_findings"] == {reference: record}
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "success"])
+def test_s07_addendum_cannot_accept_current_s08_failure(s07_additional_case, conclusion):
+    case = s07_additional_case
+    linux = case["observations"]["s07_qualification"]["evidence"]["cpu_jobs"]["ubuntu-24.04"]
+    linux["conclusion"] = conclusion
+    linux["report"]["status"] = "FAIL"
+    linux["report"]["gates"]["s08_performance"] = "FAIL"
+    linux["report_sha256"] = case["adapter"].digest(linux["report"])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="nonpassing"):
+        base_preflight(case)
+
+
+def test_s07_cold_810_preserves_all_ten_records_and_original_refusal(s07_cold_810_case):
+    case = s07_cold_810_case
+    observations = case["observations"]
+    before = {
+        key: json.dumps(case[key], sort_keys=True)
+        for key in ("binding", "snapshot", "effects", "observations")
+    }
+    case["observations"] = case["adapter"].parse_legacy_observations(
+        json.dumps(observations).encode("utf-8"),
+    )
+    qualification = observations["s07_qualification"]
+    approval, findings = qualification["approval"], qualification["evidence"]["findings"]
+    assert len(approval["historical_findings"]) == 4
+    assert len(approval["additional_historical_findings"]) == 5
+    result = base_preflight(case)
+    assert result["merge_ready"] is True and result["errors"] == []
+    assert result["s07_qualification"] == {
+        "approval_sha256": case["trusted_s07_approval"],
+        "evidence_sha256": case["trusted_s07_evidence"],
+        "historical_findings": {key: findings[key] for key in approval["historical_findings"]},
+        "additional_historical_findings": {
+            key: findings[key] for key in approval["additional_historical_findings"]
+        },
+        "cold_810_finding": {S07_TEST_COLD_810_URL: S07_TEST_COLD_810_RECORD},
+        "remaining_findings": {},
+        "candidate_finding": "NONE",
+    }
+    assert result["binding_sha256"] == case["trusted_binding"]
+    assert result["snapshot_sha256"] == case["snapshot"]["report_sha256"]
+    assert result["binding_mutated"] is False
+    assert result["historical_preflight"]["merge_ready"] is False
+    assert "current technical finding blocks" in result["historical_preflight"]["errors"]
+    assert {key: json.dumps(case[key], sort_keys=True) for key in before} == before
+    case["native"].verify_seal(result)
+
+
+def test_s07_legacy_approvals_keep_cold_810_blocking(s07_qualified_case):
+    case = s07_qualified_case
+    findings = case["observations"]["s07_qualification"]["evidence"]["findings"]
+    findings[S07_TEST_COLD_810_URL] = S07_TEST_COLD_810_RECORD.copy()
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    assert result["s07_qualification"]["candidate_finding"] == "CURRENT"
+    assert result["s07_qualification"]["remaining_findings"] == {
+        S07_TEST_COLD_810_URL: S07_TEST_COLD_810_RECORD,
+    }
+    assert "cold_810_finding" not in result["s07_qualification"]
+
+
+@pytest.mark.parametrize("status", ["CURRENT", "UNKNOWN"])
+def test_s07_cold_810_does_not_cover_another_observation_in_same_job(s07_cold_810_case, status):
+    case = s07_cold_810_case
+    findings = case["observations"]["s07_qualification"]["evidence"]["findings"]
+    reference = S07_TEST_COLD_810_URL + "#another-observation"
+    record = {
+        "source_commit": S07_TEST_COLD_810_RECORD["source_commit"],
+        "run_id": 42290059975, "attempt": 1, "job_id": 128140838845,
+        "phase": "warm", "sample": 811, "status": status,
+    }
+    findings[reference] = record
+    seal_s07_evidence(case)
+    result = base_preflight(case)
+    assert result["merge_ready"] is False
+    assert result["s07_qualification"]["candidate_finding"] == status
+    assert result["s07_qualification"]["remaining_findings"] == {reference: record}
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("source_commit", S07_TEST_COLD_810_RECORD["driver_commit"]),
+        ("driver_commit", S07_TEST_COLD_810_RECORD["source_commit"]),
+        ("attempt", 2), ("arm_index", 0), ("phase", "warm"), ("sample", 811),
+        ("failed_gate", "network"), ("result", "PASS"),
+        ("report_member", "capture-guard-comparison/arm-0/report.json"),
+        ("report_bytes_sha256", "0" * 64),
+        ("run_id", 42290059975.0), ("attempt", True), ("job_id", 128140838845.0),
+        ("arm_index", 3.0), ("sample", 810.0), ("artifact_id", 13541917919.0),
+        ("qualification_eligible", 0),
+    ],
+)
+def test_s07_cold_810_requires_exact_record_even_resealed(s07_cold_810_case, field, value):
+    case = s07_cold_810_case
+    findings = case["observations"]["s07_qualification"]["evidence"]["findings"]
+    findings[S07_TEST_COLD_810_URL][field] = value
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="The exact S07 cold 810 finding"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "https://github.com/gabned/provelume/issues/383#issuecomment-6960833812",
+        "https://github.com/gabned/provelume/issues/383#%69ssuecomment-6960833812",
+        "https://api.github.com/repos/gabned/provelume/issues/comments/6960833812",
+    ],
+)
+def test_s07_cold_810_needs_a_separate_decision_even_with_trusted_digest(
+    s07_cold_810_case, reference,
+):
+    case = s07_cold_810_case
+    approval = case["observations"]["s07_qualification"]["approval"]
+    approval["reference"] = reference
+    case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    with pytest.raises(
+        ValueError, match="S07 v3 requires a separate authenticated cold 810 decision",
+    ):
+        base_preflight(case)
+
+
+def test_s07_cold_810_refuses_duplicate_finding_before_reduction(s07_cold_810_case):
+    case = s07_cold_810_case
+    raw = json.dumps(case["observations"]).encode("utf-8")
+    key = (json.dumps(S07_TEST_COLD_810_URL) + ":").encode("utf-8")
+    assert raw.count(key) == 1
+    duplicate = raw.replace(key, key + b' {"status": "UNKNOWN"}, ' + key, 1)
+    # Ordinary JSON parsing would silently preserve only the authorized record.
+    assert json.loads(duplicate) == case["observations"]
+    with pytest.raises(ValueError, match="Duplicate JSON keys in S07 v3 observations"):
+        case["adapter"].parse_legacy_observations(duplicate)
+
+
+def test_s07_cold_810_cannot_accept_current_s08_failure(s07_cold_810_case):
+    case = s07_cold_810_case
+    linux = case["observations"]["s07_qualification"]["evidence"]["cpu_jobs"]["ubuntu-24.04"]
+    linux["report"]["status"] = "FAIL"
+    linux["report"]["gates"]["s08_performance"] = "FAIL"
+    linux["report_sha256"] = case["adapter"].digest(linux["report"])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="nonpassing"):
+        base_preflight(case)
+
+
+S07_TEST_WINDOWS_ACQUISITION_REFERENCE = (
+    "https://github.com/gabned/provelume/issues/383#issuecomment-7146731122"
+)
+S07_TEST_WINDOWS_ACQUISITION_RUNS = (
+    (
+        "da25e28564f70fc1bad59f624c5947e9fe2a3924", 42115157949, 127552732684,
+        "92d0fc5e1852bf700ff4553d3aeedb4b994a54735b6a5c865744aa54f6a61c3c",
+    ),
+    (
+        "f2cb84a60f3e5a268d8547285b5a360cbaef8a47", 42368608397, 128391870070,
+        "d06c2177e225b910ea0ff45b1fee6ec78416e3f55198f0536240bfa7564cb77e",
+    ),
+    (
+        "84826e69742e2a14bc5471a510925677ce9b2888", 42387171420, 128446896883,
+        "1cd4ab5de5f0bb36843e5d4eddb348e215669122c0917d8b288eea40c8bf0da2",
+    ),
+)
+
+
+def trust_s07_windows_acquisition(case):
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    case["trusted_s07_windows_acquisition_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+
+
+@pytest.fixture
+def s07_windows_acquisition_case(s07_cold_810_case, monkeypatch):
+    # The decision's field values come from #383 and the retained source evidence.
+    # Only its candidate tuple and original BIND are synthetic in this checkout.
+    case = s07_cold_810_case
+    observations = case["observations"]
+    qualification = observations["s07_qualification"]
+    head = case["expected_head"]
+    base = case["snapshot"]["base_sha"]
+    tree = observations["candidate"]["tree"]["sha"]
+    adapter = case["adapter"]
+    assert adapter.S07_WINDOWS_ACQUISITION_REFERENCE == S07_TEST_WINDOWS_ACQUISITION_REFERENCE
+    assert adapter.S07_WINDOWS_ACQUISITION_COORDINATES == (
+        "5f177ac68c1777843f5a97f1292b0848728ef974",
+        "3b9242fc6ce655a0f29c91d52a081d8cf6ed06b4",
+        "258ef309a75b0ec18c071d2d69d68cc37b890c88",
+    )
+    monkeypatch.setattr(adapter, "S07_WINDOWS_ACQUISITION_COORDINATES", (head, base, tree))
+    records = []
+    for commit, run, job, log_digest in S07_TEST_WINDOWS_ACQUISITION_RUNS:
+        reference = f"https://github.com/gabned/provelume/actions/runs/{run}/job/{job}"
+        identity = {"source_commit": commit, "run_id": run, "attempt": 1, "job_id": job}
+        records.append({"reference": reference, **identity})
+        qualification["evidence"]["findings"][reference] = {
+            **identity,
+            "result": "FAIL",
+            "status": "UNKNOWN",
+            "cause": "NOT_DEMONSTRATED",
+            "inference": "NOT_RUN",
+            "failure_phase": "immutable Windows model acquisition",
+            "connector_log_capture_sha256": log_digest,
+        }
+    qualification["windows_acquisition_approval"] = {
+        "schema": "provelume-s07-windows-acquisition-approval/v1",
+        "repository": "gabned/provelume",
+        "owner_pr": "#439",
+        "release": "0.15.0",
+        "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+        "binding_sha256": case["trusted_binding"],
+        "head_sha": head,
+        "base_sha": base,
+        "tree_sha": tree,
+        "windows_acquisition_findings": records,
+        "reference": S07_TEST_WINDOWS_ACQUISITION_REFERENCE,
+    }
+    trust_s07_windows_acquisition(case)
+    return case
+
+
+def test_s07_windows_acquisition_preserves_approved_records_and_unrelated_findings(
+    s07_windows_acquisition_case,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    findings = qualification["evidence"]["findings"]
+    approval = qualification["windows_acquisition_approval"]
+    approved = {record["reference"]: findings[record["reference"]]
+                for record in approval["windows_acquisition_findings"]}
+    unrelated = {
+        next(iter(approved)) + "#other-finding": {"result": "FAIL", "status": "CURRENT"},
+        "observer-77e80819/warm-first-index28": {"result": "FAIL", "status": "UNKNOWN"},
+        "https://github.com/gabned/provelume/pull/439#issuecomment-6669112520": {
+            "result": "STOPPED", "status": "UNKNOWN",
+        },
+    }
+    findings.update(unrelated)
+    seal_s07_evidence(case)
+    prior = deepcopy(case["observations"])
+    receipt = base_preflight(case)
+    qualified = receipt["s07_qualification"]
+    assert qualified["windows_acquisition_findings"] == approved
+    assert qualified["windows_acquisition_approval_sha256"] == (
+        case["trusted_s07_windows_acquisition_approval"]
+    )
+    assert len(qualified["historical_findings"]) == 4
+    assert len(qualified["additional_historical_findings"]) == 5
+    assert qualified["cold_810_finding"] == {S07_TEST_COLD_810_URL: S07_TEST_COLD_810_RECORD}
+    assert qualified["remaining_findings"] == unrelated
+    assert qualified["candidate_finding"] == "UNKNOWN"
+    assert receipt["merge_ready"] is False
+    assert receipt["binding_mutated"] is False
+    assert "current technical finding blocks" in receipt["historical_preflight"]["errors"]
+    assert case["observations"] == prior
+    case["native"].verify_seal(receipt)
+
+
+def test_s07_v3_keeps_windows_acquisition_findings_without_separate_decision(
+    s07_windows_acquisition_case,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    approval = qualification.pop("windows_acquisition_approval")
+    case.pop("trusted_s07_windows_acquisition_approval")
+    seal_s07_evidence(case)
+    receipt = base_preflight(case)
+    findings = qualification["evidence"]["findings"]
+    qualified = receipt["s07_qualification"]
+    assert receipt["merge_ready"] is False
+    assert qualified["remaining_findings"] == {
+        record["reference"]: findings[record["reference"]]
+        for record in approval["windows_acquisition_findings"]
+    }
+    assert "windows_acquisition_approval_sha256" not in qualified
+    assert "windows_acquisition_findings" not in qualified
+
+
+@pytest.mark.parametrize("mutation", ["missing_digest", "wrong_digest", "missing_approval", "v2"])
+def test_s07_windows_acquisition_requires_matching_independent_authority(
+    s07_windows_acquisition_case, mutation,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    if mutation == "missing_digest":
+        case.pop("trusted_s07_windows_acquisition_approval")
+    elif mutation == "wrong_digest":
+        case["trusted_s07_windows_acquisition_approval"] = "1" * 64
+    elif mutation == "missing_approval":
+        qualification.pop("windows_acquisition_approval")
+    else:
+        approval = qualification["approval"]
+        approval["schema"] = "provelume-s07-approval/v2"
+        approval.pop("cold_810_finding")
+        case["trusted_s07_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize("field", ["head_sha", "base_sha", "tree_sha"])
+def test_s07_windows_acquisition_rejects_stale_decision_tuple(
+    s07_windows_acquisition_case, field,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    qualification["windows_acquisition_approval"][field] = "1" * 40
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_public_decision_cannot_be_rebound(
+    s07_windows_acquisition_case, monkeypatch,
+):
+    case = s07_windows_acquisition_case
+    monkeypatch.setattr(
+        case["adapter"], "S07_WINDOWS_ACQUISITION_COORDINATES", ("1" * 40, "2" * 40, "3" * 40),
+    )
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_accepts_separately_authenticated_successor_tuple(
+    s07_windows_acquisition_case, monkeypatch,
+):
+    case = s07_windows_acquisition_case
+    monkeypatch.setattr(
+        case["adapter"], "S07_WINDOWS_ACQUISITION_COORDINATES", ("1" * 40, "2" * 40, "3" * 40),
+    )
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    approval["reference"] = "https://github.com/gabned/provelume/issues/383#issuecomment-99999999998"
+    trust_s07_windows_acquisition(case)
+
+    receipt = base_preflight(case)
+    qualified = receipt["s07_qualification"]
+    assert receipt["merge_ready"] is True
+    assert receipt["historical_preflight"]["merge_ready"] is False
+    assert qualified["candidate_finding"] == "NONE"
+    assert qualified["windows_acquisition_approval_sha256"] == (
+        case["trusted_s07_windows_acquisition_approval"]
+    )
+    assert sorted(qualified["windows_acquisition_findings"]) == [
+        record["reference"] for record in approval["windows_acquisition_findings"]
+    ]
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "https://github.com/gabned/provelume/issues/383#issuecomment-99999999999",  # v3 fixture
+        "https://github.com/gabned/provelume/issues/439#issuecomment-7146731122",
+        "https://api.github.com/repos/gabned/provelume/issues/comments/7146731122",
+    ],
+)
+def test_s07_windows_acquisition_requires_a_distinct_canonical_campaign_decision(
+    s07_windows_acquisition_case, reference,
+):
+    case = s07_windows_acquisition_case
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    approval["reference"] = reference
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing", "extra", "reordered", "same_run_linux", "attempt_bool", "job_float"],
+)
+def test_s07_windows_acquisition_requires_exact_approval_scope(
+    s07_windows_acquisition_case, mutation,
+):
+    case = s07_windows_acquisition_case
+    approval = case["observations"]["s07_qualification"]["windows_acquisition_approval"]
+    records = approval["windows_acquisition_findings"]
+    if mutation == "missing":
+        records.pop()
+    elif mutation == "extra":
+        records.append(records[0].copy())
+    elif mutation == "reordered":
+        records.reverse()
+    elif mutation == "same_run_linux":
+        records[1].update(
+            job_id=128391869733,
+            reference="https://github.com/gabned/provelume/actions/runs/42368608397/job/128391869733",
+        )
+    elif mutation == "attempt_bool":
+        records[0]["attempt"] = True
+    else:
+        records[0]["job_id"] = float(records[0]["job_id"])
+    trust_s07_windows_acquisition(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("source_commit", "0" * 40), ("run_id", 42115157949.0), ("attempt", True),
+        ("result", "PASS"), ("status", "CURRENT"), ("cause", "DEADLINE"),
+        ("inference", "PASS"), ("failure_phase", "runtime"),
+        ("connector_log_capture_sha256", "0" * 64),
+    ],
+)
+def test_s07_windows_acquisition_requires_exact_original_evidence(
+    s07_windows_acquisition_case, field, value,
+):
+    case = s07_windows_acquisition_case
+    qualification = case["observations"]["s07_qualification"]
+    reference = qualification["windows_acquisition_approval"]["windows_acquisition_findings"][0][
+        "reference"
+    ]
+    qualification["evidence"]["findings"][reference][field] = value
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="(?i)windows.acquisition"):
+        base_preflight(case)
+
+
+def test_s07_windows_acquisition_rejects_duplicate_finding_keys(s07_windows_acquisition_case):
+    case = s07_windows_acquisition_case
+    observations = case["observations"]
+    raw = json.dumps(observations).encode("utf-8")
+    reference = observations["s07_qualification"]["windows_acquisition_approval"][
+        "windows_acquisition_findings"
+    ][0]["reference"]
+    key = (json.dumps(reference) + ":").encode("utf-8")
+    assert raw.count(key) == 1
+    duplicate = raw.replace(key, key + b' {"status": "UNKNOWN"}, ' + key, 1)
+    assert json.loads(duplicate) == observations
+    with pytest.raises(ValueError, match="Duplicate JSON keys in S07 v3 observations"):
+        case["adapter"].parse_legacy_observations(duplicate)
+
+
+S07_TEST_DIAGNOSTIC_STOP_REFERENCES = {
+    "observer": "https://github.com/gabned/provelume/pull/439#issuecomment-6654278003",
+    "prefix": "https://github.com/gabned/provelume/pull/439#issuecomment-6669112520",
+}
+
+
+def seal_s07_diagnostic_stop_decisions(case):
+    qualification = case["observations"]["s07_qualification"]
+    for kind, approval in qualification.get("diagnostic_stop_approvals", {}).items():
+        case[f"trusted_s07_{kind}_approval"] = case["adapter"].digest(approval)
+    seal_s07_evidence(case)
+
+
+def diagnostic_stop_applicability(case):
+    snapshot = case["snapshot"]
+    observations = case["observations"]
+    head = case["expected_head"]
+    adapter = case["adapter"]
+    # Schema mutations exercise the qualification directly. The end-to-end
+    # cases below still prove the exact Git observations and receipt wiring.
+    lookups = {
+        ("rev-parse", head + "^{tree}"): observations["candidate"]["tree"]["sha"],
+        ("rev-parse", head + ":scripts/ai_runtime_report.py"): adapter.S07_EVALUATOR,
+    }
+
+    def git(*args):
+        assert args in lookups, args
+        return lookups[args]
+
+    return adapter.validate_s07_finding_applicability(
+        observations["s07_qualification"], snapshot, case["binding"],
+        case["native"].normalize_review_snapshot(snapshot), git,
+        trusted_approval=case["trusted_s07_approval"],
+        trusted_evidence=case["trusted_s07_evidence"],
+        trusted_windows_acquisition_approval=case["trusted_s07_windows_acquisition_approval"],
+        trusted_observer_approval=case.get("trusted_s07_observer_approval"),
+        trusted_prefix_approval=case.get("trusted_s07_prefix_approval"),
+    )
+
+
+@pytest.fixture
+def s07_diagnostic_stops_case(s07_windows_acquisition_case):
+    case = s07_windows_acquisition_case
+    observations = case["observations"]
+    qualification = observations["s07_qualification"]
+    findings = qualification["evidence"]["findings"]
+    # Keep these identities independent of the adapter and use synthetic replay evidence.
+    shared = {
+        "source_commit": "19249382a1bb9bfbe5ce7d15d00e2ac70a21c3f2",
+        "source_tree": "e5c104cf0b753d4da5326eda691703506f37d83b",
+        "result": "STOPPED",
+        "status": "UNKNOWN",
+        "cause": "NOT_DEMONSTRATED",
+        "qualification_eligible": False,
+    }
+    findings[S07_TEST_DIAGNOSTIC_STOP_REFERENCES["observer"]] = {
+        **shared,
+        "archive_sha256": "869a435628c383ac617d30a269f1568505babbcc27d259442d8a7755718429bf",
+        "diagnostic_evidence_sha256": "2" * 64,
+        "failure_phase": "s05_base",
+        "limit_scope": "DIAGNOSTIC_ARM",
+        "limit_seconds": 1200,
+        "cold_load_limit_seconds": 15,
+        "cold_first_limit_seconds": 20,
+        "failed_gates": ["cold_load", "cold_first"],
+    }
+    findings[S07_TEST_DIAGNOSTIC_STOP_REFERENCES["prefix"]] = {
+        **shared,
+        "archive_sha256": "a901e136a646ef93f387f5c6a0117401b9f71ace517a1c2f618ef8c577ff1dfb",
+        "diagnostic_evidence_sha256": "4" * 64,
+        "failure_phase": "native_prefill",
+        "limit_scope": "REQUEST",
+        "limit_seconds": 60,
+    }
+    for job in qualification["evidence"]["cpu_jobs"].values():
+        job["report"]["gates"].update(cold_load="PASS", cold_first="PASS", cold_total="PASS")
+        job["report_sha256"] = case["adapter"].digest(job["report"])
+    qualification["diagnostic_stop_approvals"] = {
+        kind: {
+            "schema": "provelume-s07-diagnostic-stop-approval/v1",
+            "repository": "gabned/provelume",
+            "owner_pr": "#439",
+            "release": "0.15.0",
+            "criterion": "QUALIFY_CANDIDATE_AND_MAIN_AT_EXISTING_THRESHOLDS",
+            "binding_sha256": case["trusted_binding"],
+            "head_sha": case["expected_head"],
+            "base_sha": case["snapshot"]["base_sha"],
+            "tree_sha": observations["candidate"]["tree"]["sha"],
+            "finding_reference": finding,
+            "finding_sha256": case["adapter"].digest(findings[finding]),
+            "reference": f"https://github.com/gabned/provelume/issues/383#issuecomment-{comment}",
+        }
+        for comment, (kind, finding) in enumerate(
+            S07_TEST_DIAGNOSTIC_STOP_REFERENCES.items(), start=99999999995,
+        )
+    }
+    seal_s07_diagnostic_stop_decisions(case)
+    return case
+
+
+@pytest.mark.parametrize("approved", [(), ("observer",), ("prefix",), ("observer", "prefix")])
+def test_s07_diagnostic_stops_apply_only_individually_approved_findings(
+    s07_diagnostic_stops_case, approved,
+):
+    case = s07_diagnostic_stops_case
+    qualification = case["observations"]["s07_qualification"]
+    findings = qualification["evidence"]["findings"]
+    for kind in S07_TEST_DIAGNOSTIC_STOP_REFERENCES.keys() - approved:
+        del qualification["diagnostic_stop_approvals"][kind]
+        del case[f"trusted_s07_{kind}_approval"]
+    if not approved:
+        del qualification["diagnostic_stop_approvals"]
+    seal_s07_diagnostic_stop_decisions(case)
+    before = {key: deepcopy(case[key]) for key in ("binding", "snapshot", "observations")}
+
+    receipt = base_preflight(case)
+    result = receipt["s07_qualification"]
+    assert len(result["historical_findings"]) == 4
+    assert len(result["additional_historical_findings"]) == 5
+    assert result["cold_810_finding"] == {S07_TEST_COLD_810_URL: S07_TEST_COLD_810_RECORD}
+    assert len(result["windows_acquisition_findings"]) == 3
+    assert result["remaining_findings"] == {
+        ref: findings[ref] for kind, ref in S07_TEST_DIAGNOSTIC_STOP_REFERENCES.items()
+        if kind not in approved
+    }
+    assert receipt["merge_ready"] == (len(approved) == 2)
+    assert result["candidate_finding"] == ("NONE" if len(approved) == 2 else "UNKNOWN")
+    if approved:
+        assert result["diagnostic_stop_approval_sha256"] == {
+            kind: case[f"trusted_s07_{kind}_approval"] for kind in approved
+        }
+        assert result["diagnostic_stop_findings"] == {
+            ref: findings[ref] for kind, ref in S07_TEST_DIAGNOSTIC_STOP_REFERENCES.items()
+            if kind in approved
+        }
+    else:
+        assert "diagnostic_stop_approval_sha256" not in result
+        assert "diagnostic_stop_findings" not in result
+    assert receipt["historical_preflight"]["merge_ready"] is False
+    assert "current technical finding blocks" in receipt["historical_preflight"]["errors"]
+    assert receipt["binding_mutated"] is False
+    assert {key: case[key] for key in before} == before
+    case["native"].verify_seal(receipt)
+
+
+@pytest.mark.parametrize("kind", ["observer", "prefix"])
+@pytest.mark.parametrize("mutation", ["missing_digest", "wrong_digest", "digest_without_decision"])
+def test_s07_diagnostic_stops_require_independent_approval_for_each_kind(
+    s07_diagnostic_stops_case, kind, mutation,
+):
+    case = s07_diagnostic_stops_case
+    observations = case["observations"]
+    if mutation == "missing_digest":
+        del case[f"trusted_s07_{kind}_approval"]
+    elif mutation == "wrong_digest":
+        case[f"trusted_s07_{kind}_approval"] = "0" * 64
+    else:
+        del observations["s07_qualification"]["diagnostic_stop_approvals"][kind]
+    seal_s07_evidence(case)
+    check = (
+        base_preflight if (kind, mutation) == ("observer", "missing_digest")
+        else diagnostic_stop_applicability
+    )
+    with pytest.raises(ValueError, match="(?i)S07"):
+        check(case)
+
+
+@pytest.mark.parametrize("field", ["head_sha", "base_sha", "tree_sha", "finding_sha256"])
+def test_s07_diagnostic_stops_reject_stale_decision_even_if_authenticated(
+    s07_diagnostic_stops_case, field,
+):
+    case = s07_diagnostic_stops_case
+    qualification = case["observations"]["s07_qualification"]
+    approval = qualification["diagnostic_stop_approvals"]["prefix"]
+    approval[field] = "0" * len(approval[field])
+    seal_s07_diagnostic_stop_decisions(case)
+    with pytest.raises(ValueError, match="(?i)S07"):
+        diagnostic_stop_applicability(case)
+
+
+@pytest.mark.parametrize("reused", ["other_stop", "windows", "v3", "proposal", "noncampaign"])
+def test_s07_diagnostic_stops_require_separate_campaign_decisions(
+    s07_diagnostic_stops_case, reused,
+):
+    case = s07_diagnostic_stops_case
+    qualification = case["observations"]["s07_qualification"]
+    approvals = qualification["diagnostic_stop_approvals"]
+    approvals["observer"]["reference"] = {
+        "other_stop": approvals["prefix"]["reference"],
+        "windows": qualification["windows_acquisition_approval"]["reference"],
+        "v3": qualification["approval"]["reference"],
+        "proposal": "https://github.com/gabned/provelume/issues/383#issuecomment-7018024149",
+        "noncampaign": "https://github.com/gabned/provelume/issues/999#issuecomment-99999999997",
+    }[reused]
+    seal_s07_diagnostic_stop_decisions(case)
+    with pytest.raises(ValueError, match="(?i)S07"):
+        diagnostic_stop_applicability(case)
+
+
+@pytest.mark.parametrize(
+    "kind,field,value",
+    [
+        ("observer", "result", "PASS"),
+        ("observer", "failed_gates", ["cold_first"]),
+        ("observer", "limit_seconds", 1200.0),
+        ("observer", "qualification_eligible", 0),
+        ("prefix", "failure_phase", "native_decode"),
+        ("prefix", "limit_seconds", 90),
+        ("prefix", "cause", "DEMONSTRATED"),
+        ("prefix", "diagnostic_evidence_sha256", "A" * 64),
+        ("observer", "archive_sha256", "1" * 64),
+        ("prefix", "archive_sha256", "3" * 64),
+        ("prefix", "diagnostic_evidence_sha256",
+         "a901e136a646ef93f387f5c6a0117401b9f71ace517a1c2f618ef8c577ff1dfb"),
+    ],
+)
+def test_s07_diagnostic_stops_cannot_replace_original_record(
+    s07_diagnostic_stops_case, kind, field, value,
+):
+    case = s07_diagnostic_stops_case
+    qualification = case["observations"]["s07_qualification"]
+    record = qualification["evidence"]["findings"][S07_TEST_DIAGNOSTIC_STOP_REFERENCES[kind]]
+    record[field] = value
+    approval = qualification["diagnostic_stop_approvals"][kind]
+    approval["finding_sha256"] = case["adapter"].digest(record)
+    seal_s07_diagnostic_stop_decisions(case)
+    with pytest.raises(ValueError, match="(?i)S07"):
+        diagnostic_stop_applicability(case)
+
+
+def test_s07_diagnostic_stops_require_unapproved_sibling_in_complete_inventory(
+    s07_diagnostic_stops_case,
+):
+    case = s07_diagnostic_stops_case
+    qualification = case["observations"]["s07_qualification"]
+    del qualification["diagnostic_stop_approvals"]["prefix"]
+    del case["trusted_s07_prefix_approval"]
+    del qualification["evidence"]["findings"][S07_TEST_DIAGNOSTIC_STOP_REFERENCES["prefix"]]
+    seal_s07_diagnostic_stop_decisions(case)
+    with pytest.raises(ValueError, match="(?i)S07"):
+        diagnostic_stop_applicability(case)
+
+
+def test_s07_diagnostic_stops_reject_additional_approval_scope(s07_diagnostic_stops_case):
+    case = s07_diagnostic_stops_case
+    approvals = case["observations"]["s07_qualification"]["diagnostic_stop_approvals"]
+    approvals["other"] = deepcopy(approvals["observer"])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="(?i)S07"):
+        diagnostic_stop_applicability(case)
+
+
+def test_s07_diagnostic_stops_reject_duplicate_finding_keys(s07_diagnostic_stops_case):
+    case = s07_diagnostic_stops_case
+    observations = case["observations"]
+    raw = json.dumps(observations).encode("utf-8")
+    key = (json.dumps(S07_TEST_DIAGNOSTIC_STOP_REFERENCES["observer"]) + ":").encode("utf-8")
+    assert raw.count(key) == 1
+    duplicate = raw.replace(key, key + b' {"status": "UNKNOWN"}, ' + key, 1)
+    assert json.loads(duplicate) == observations
+    with pytest.raises(ValueError, match="Duplicate JSON keys in S07 diagnostic STOP observations"):
+        case["adapter"].parse_legacy_observations(duplicate)
+
+
+@pytest.mark.parametrize("other_status", ["CURRENT", "UNKNOWN"])
+def test_s07_diagnostic_stops_preserve_unrelated_blocking_findings(
+    s07_diagnostic_stops_case, other_status,
+):
+    case = s07_diagnostic_stops_case
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    ref = S07_TEST_DIAGNOSTIC_STOP_REFERENCES["observer"] + "/other"
+    record = {"result": "STOPPED", "status": other_status}
+    evidence["findings"][ref] = record
+    seal_s07_evidence(case)
+    receipt = base_preflight(case)
+    assert receipt["merge_ready"] is False
+    assert receipt["s07_qualification"]["candidate_finding"] == other_status
+    assert receipt["s07_qualification"]["remaining_findings"] == {ref: record}
+
+
+@pytest.mark.parametrize("gate", ["cpu", "matrix"])
+def test_s07_diagnostic_stops_still_require_ordinary_qualification(s07_diagnostic_stops_case, gate):
+    case = s07_diagnostic_stops_case
+    adapter = case["adapter"]
+    evidence = case["observations"]["s07_qualification"]["evidence"]
+    if gate == "cpu":
+        job = evidence["cpu_jobs"]["ubuntu-24.04"]
+        job["report"]["gates"]["network"] = "NOT_RUN"
+        job["report_sha256"] = adapter.digest(job["report"])
+        error = "nonpassing S07 CPU report"
+    else:
+        evidence["matrix"]["report"]["installed_runtime"] = "NOT_RUN"
+        evidence["matrix"]["sha256"] = adapter.digest(evidence["matrix"]["report"])
+        error = "S07 automatic and installed runtime"
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match=error):
+        diagnostic_stop_applicability(case)
+
+
+@pytest.mark.parametrize("gate,status", [
+    ("cold_load", "FAIL"), ("cold_first", "NOT_RUN"), ("cold_total", None),
+])
+def test_s07_diagnostic_stops_require_explicit_cold_gates(s07_diagnostic_stops_case, gate, status):
+    case = s07_diagnostic_stops_case
+    job = case["observations"]["s07_qualification"]["evidence"]["cpu_jobs"]["windows-2025"]
+    gates = job["report"]["gates"]
+    if status is None:
+        del gates[gate]
+    else:
+        gates[gate] = status
+    assert job["report"]["status"] == "PASS"
+    job["report_sha256"] = case["adapter"].digest(job["report"])
+    seal_s07_evidence(case)
+    with pytest.raises(ValueError, match="nonpassing S07 CPU report"):
+        diagnostic_stop_applicability(case)
 
 
 @pytest.mark.parametrize(
