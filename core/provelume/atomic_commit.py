@@ -177,6 +177,14 @@ TRANSCRIPT_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
     ),
 )
 
+PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE = AtomicCommitProfile(
+    key="productivity-intake", kind="productivity.intake",
+    owner_id_pattern=r"productivity_[0-9a-f]{32}\Z",
+    limits=AtomicCommitLimits(max_entries=16, max_entry_bytes=2 * 1024 * 1024,
+        max_candidate_bytes=8 * 1024 * 1024, max_preimage_bytes=2 * 1024 * 1024,
+        max_journal_payload_bytes=10 * 1024 * 1024),
+)
+
 _ErrorType = type[Exception]
 _Replace = Callable[[Path, Path], None]
 _InterruptedHandler = Callable[[InstanceStore, str], None]
@@ -1252,6 +1260,7 @@ __all__ = [
     "ATOMIC_COMMIT_SCHEMA_VERSION",
     "EMAIL_INTAKE_TRANSACTION_PROFILE",
     "GOOGLE_INTAKE_TRANSACTION_PROFILE",
+    "PRODUCTIVITY_INTAKE_TRANSACTION_PROFILE",
     "MANUAL_WEB_TRANSACTION_PROFILE",
     "REVIEW_TRANSACTION_PROFILE",
     "AtomicCommitError",

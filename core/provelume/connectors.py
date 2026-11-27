@@ -377,6 +377,39 @@ class ConnectorManager:
             apply=apply,
         )
 
+    def upgrade_definition(self, instance_id, definition_id, *, confirmed):
+        """Explicit compatible declaration upgrade; never grants a new scope."""
+        if confirmed is not True:
+            raise ConnectorConflictError("Definition upgrade requires explicit confirmation")
+
+        def apply():
+            definitions, identities, sources = self._state()
+            identity = identities.get(instance_id)
+            target = definitions.get(definition_id)
+            if identity is None or target is None:
+                raise ConnectorNotFoundError("Connector definition or identity is unavailable")
+            original = definitions[identity["definition_id"]]
+            if original["id"] == target["id"]:
+                return self.get_instance(instance_id), (), {"configuration_records": 0}
+            if (original["provider"] != target["provider"]
+                    or not set(original["capabilities"]) <= set(target["capabilities"])
+                    or not set(original["source_kinds"]) <= set(target["source_kinds"])
+                    or not set(original["authorization_modes"]) <= set(
+                        target["authorization_modes"])
+                    or original["network_access"] != target["network_access"]
+                    or any(source["source_kind"] not in target["source_kinds"]
+                           for source in sources.values()
+                           if source["connector_instance_id"] == instance_id)):
+                raise ConnectorConflictError("Connector definition transition is incompatible")
+            self._assert_definition_supports(target, identity)
+            self.store.write_canonical("connector-instances", {
+                **identity, "definition_id": definition_id, "updated_at": utc_now()})
+            return self.get_instance(instance_id), ("definition_id",), {"configuration_records": 1}
+
+        return self._mutate(kind="connector.definition.upgrade",
+                            title="Upgrade connector declaration",
+                            related={"connector_instance_id": instance_id}, apply=apply)
+
     def list_definitions(self) -> list[dict[str, Any]]:
         definitions, _instances, _sources = self._state()
         return [dict(definitions[key]) for key in sorted(definitions)]

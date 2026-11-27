@@ -183,7 +183,8 @@ def write_hierarchy_object_locked(store, node):
 def _validate_proposed(store, entries):
     records = {
         k: {v["id"]: v for v in store.list_canonical(k)}
-        for k in (*OBJECT_CANONICAL_KINDS, "hierarchy", "documents", "versions", "originals")
+        for k in (*OBJECT_CANONICAL_KINDS, "hierarchy", "documents", "versions", "originals",
+                  "sources")
     }
     for selected, row, _immutable in entries:
         records[selected][row["id"]] = row
@@ -347,6 +348,23 @@ def object_findings(store, records, errors, warnings):
             relation=True,
             instance_id=instance_id,
         )
+        for obj in objects.values():
+            origin = obj["origin"]
+            if origin["kind"] == "connector":
+                source = records.get("sources", {}).get(origin["source_id"])
+                document = records.get("documents", {}).get(origin["document_id"])
+                _require(source is not None and source.get("kind") == "connector"
+                         and source.get("source_kind") in (
+                             {"tasks"} if obj["kind"] == "task" else {"calendar", "icalendar"}
+                         )
+                         and document is not None and document["source_id"] == source["id"]
+                         and document["locator"] == "productivity:sha256:" + origin[
+                             "remote_id_sha256"],
+                         "integrity")
+                for identity in obj["evidence_ids"]:
+                    evidence = selected["object-evidence"].get(identity)
+                    _require(evidence is not None and evidence["document_id"] == document["id"],
+                             "integrity")
         for ev in selected["object-evidence"].values():
             validate_evidence(ev)
             _require(ev["instance_id"] == instance_id)

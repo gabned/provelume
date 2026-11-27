@@ -75,7 +75,8 @@ def add_google_commands(subparsers: Any) -> None:
     source_create.add_argument("--name", required=True)
     source_create.add_argument("--capability", choices=GOOGLE_CAPABILITIES, required=True)
     source_create.add_argument(
-        "--selection-kind", choices=("mailbox", "label", "file", "folder"), required=True
+        "--selection-kind", choices=("mailbox", "label", "file", "folder", "calendar"),
+        required=True
     )
     source_create.add_argument("--selector", action="append", required=True)
 

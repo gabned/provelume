@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -19,6 +19,7 @@ from .action_center_activity import action_reason, attach_action_center_routes, 
 from .activity import attach_activity_routes
 from .annotation_activity import attach_annotation_routes
 from .api import attach_api, reject_client_installation_evidence
+from .asana_activity import attach_asana_routes
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .capture_http import attach_capture_routes
@@ -45,6 +46,7 @@ from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
 from .google_connection_activity import attach_google_connection_routes
 from .i18n import translator
+from .icalendar_activity import attach_icalendar_routes
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
@@ -617,11 +619,14 @@ def create_app(
     attach_perceptio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
+    attach_icalendar_routes(app, instance, TEMPLATES, _context)
     callback_host = "[::1]" if selected_host == "::1" else "127.0.0.1"
     attach_google_connection_routes(
         app, instance, TEMPLATES, _context,
         redirect_uri=f"http://{callback_host}:{selected_port}/google/oauth/callback",
     )
+    attach_asana_routes(app, instance, TEMPLATES, _context,
+                       redirect_uri=f"http://{callback_host}:{selected_port}/asana/oauth/callback")
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(
@@ -710,6 +715,7 @@ def create_app(
     ):
         from .instance_lifecycle import InstanceLifecycleBusy
         from .search_input import search_page_inputs
+        from .search_presentation import media_type_label, type_options
 
         inputs = search_page_inputs(q, date_from, date_to)
         effective_query = inputs["q"]
@@ -731,24 +737,38 @@ def create_app(
                 # A cold/stale index needs a writer. Keep read-only navigation
                 # available while another owner finishes; never imply zero hits.
                 search_pending = True
+        context = _context(
+            request,
+            instance,
+            include_summary=(bool(effective_query) and not inputs["search_errors"]
+                             and not search_pending),
+            retrieval_values=retrieval_values,
+            **inputs,
+            results=results,
+            search_pending=search_pending,
+            sources=instance.list_sources(),
+            media_types=instance.media_types(),
+            selected_source=source_id,
+            selected_media_type=media_type,
+        )
+        context["search_type_options"] = type_options(
+            context["media_types"], media_type, context["t"])
+        context["search_has_filters"] = any(
+            item["key"] in {"source_id", "media_type", "date_from", "date_to"}
+            for item in context["active_filters"])
+        context["search_remove_filters_url"] = None
+        if context["search_has_filters"]:
+            target = validated_return(context["filter_link"](
+                source_id=None, media_type=None, date_from=None, date_to=None))
+            if parse_qs(urlsplit(target).query).get("q") == [effective_query]:
+                context["search_remove_filters_url"] = target
+        for item in context["active_filters"]:
+            if item["key"] == "media_type":
+                item["technical_value"] = item["value"]
+                item["value"] = media_type_label(item["value"], context["t"])
         return _page(
-            request=request,
-            name="search.html",
+            request=request, name="search.html", context=context,
             status_code=400 if inputs["search_errors"] else 200,
-            context=_context(
-                request,
-                instance,
-                include_summary=(bool(effective_query) and not inputs["search_errors"]
-                                 and not search_pending),
-                retrieval_values=retrieval_values,
-                **inputs,
-                results=results,
-                search_pending=search_pending,
-                sources=instance.list_sources(),
-                media_types=instance.media_types(),
-                selected_source=source_id,
-                selected_media_type=media_type,
-            ),
         )
 
     @app.get("/management")
