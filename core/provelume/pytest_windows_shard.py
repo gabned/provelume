@@ -28,6 +28,8 @@ DISABLE_ENV = "PROVELUME_WINDOWS_SHARD_DISABLE"
 # Rounded setup/call/teardown milliseconds for 278 complete, non-failing modules.
 # All 5,960 node IDs retain native full/disjoint coverage verification. Five
 # unmeasured modules, new modules and count mismatches keep the count fallback.
+# The consumer row uses its 186 complete cases from 45513976149/a1,
+# job 138868531396, artifact 14976054149. The interrupted shard remains failed.
 # No failed/interrupted module, execution budget or CPU causal finding is used.
 # Original artifacts and exact-source proof: windows-ci-concordia-costs-20261108.md
 # under docs/qualification. Original accepted-main hints remain in Git history.
@@ -37,7 +39,7 @@ _MODULE_COST_HINTS = (
     ('tests/test_action_center_model.py', 37, 2529),
     ('tests/test_action_center_routes.py', 9, 8370),
     ('tests/test_action_notifications.py', 65, 982),
-    ('tests/test_agent_protocol_consumer.py', 60, 71730),
+    ('tests/test_agent_protocol_consumer.py', 186, 297137),
     ('tests/test_agent_protocol_consumer_scope.py', 37, 42),
     ('tests/test_agent_protocol_v1_2.py', 15, 121588),
     ('tests/test_agent_protocol_v1_2_1.py', 47, 209),

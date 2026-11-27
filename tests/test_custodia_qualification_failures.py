@@ -15,7 +15,10 @@ from provelume.scheduler_model import SchedulerError
 def classification_host(tmp_path, monkeypatch):
     from scripts import qualify_ai_classification as qualifier
 
-    state = SimpleNamespace(reads=[], closed=False, sequence=[], terminals=[], checkpoints=[])
+    state = SimpleNamespace(
+        reads=[], closed=False, sequence=[], terminals=[], checkpoints=[], events=[],
+        fail_refresh=False,
+    )
     runtime = SimpleNamespace(directory=tmp_path / "unused-native", loaded=False)
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     monkeypatch.setenv("S06_WFP_VERIFIED", "1")
@@ -25,9 +28,14 @@ def classification_host(tmp_path, monkeypatch):
         setup.save = lambda *_args: None
         setup.configuration = lambda: {"revision": 0}
         setup.begin_operation = lambda action: action
-        setup.run_operation = lambda action: setattr(setup, "operation", {"state": "completed"})
+        def run_operation(action):
+            state.events.append(action)
+            failed = state.fail_refresh and state.events.count("self_test") == 2
+            setup.operation = {"state": "failed" if failed else "completed"}
+
+        setup.run_operation = run_operation
         setup.self_test_evidence = SimpleNamespace(public_record=lambda: {"synthetic": True})
-        setup.enable = lambda: None
+        setup.enable = lambda: state.events.append("enable")
         setup.jobs = SimpleNamespace(status=lambda: {"mode": "off", "accounting": {}})
         setup.approve_generation = lambda _ref: None
         setup.enqueue = lambda _ref: {"id": "job_" + str(len(state.terminals))}
@@ -50,11 +58,16 @@ def classification_host(tmp_path, monkeypatch):
             state.closed = True
             runtime.loaded = False
 
+        def preview(*args):
+            state.events.append(f"preview_{args[-1]}")
+            return ("public-ref", None, None)
+
         instance.run_ai_job = execute
         setup.close = close
         setup.classification = SimpleNamespace(
-            preview=lambda *_args: ("public-ref", None, None), read=read,
-            discard=lambda _job: None, reference=lambda _job: ({"status": "succeeded"}, None, None),
+            preview=preview, read=read,
+            discard=lambda _job: state.events.append("discard"),
+            reference=lambda _job: ({"status": "succeeded"}, None, None),
             path=lambda _job: tmp_path / "absent-public-result",
         )
         return setup
@@ -105,7 +118,14 @@ def test_checkpoints_keep_both_successes_and_cleanup_without_claiming_accuracy(c
     host.sequence = [{"status": "succeeded", "ai": {"blocked": None}} for _ in range(2)]
     result = host.run(checkpoint=lambda row: host.checkpoints.append(copy.deepcopy(row)))
     assert result["status"] == "MEASURED" and len(host.reads) == 2 and host.closed
+    assert host.events == [
+        "self_test", "activate", "enable", "preview_en", "discard",
+        "self_test", "preview_it", "discard",
+    ]
     assert host.checkpoints[-1] == result
+    refresh, = (row for row in host.checkpoints if row["stage"] == "locality_refresh")
+    assert refresh["samples"][0]["receipt_bound"]
+    assert refresh["samples"][0]["accounting_preserved"]
     assert any(row.get("stage") == "result_read" and row["samples"] for row in host.checkpoints)
     assert all(row["quality"] == "NOT_EVALUATED" for row in host.checkpoints)
     assert all(sample["confidence"] is None and not sample["application_authorized"]
@@ -113,6 +133,29 @@ def test_checkpoints_keep_both_successes_and_cleanup_without_claiming_accuracy(c
     assert all(sample["assessment"] == "abstained"
                and sample["journey"]["destination_review"] == "NOT_APPLICABLE_ABSTENTION"
                for sample in result["samples"])
+
+
+@pytest.mark.parametrize("failed_control", ["self_test", "wfp"])
+def test_locality_refresh_failure_stops_before_the_italian_preview(
+    classification_host, monkeypatch, failed_control,
+):
+    from scripts import qualify_ai_classification as qualifier
+
+    host = classification_host
+    host.sequence = [{"status": "succeeded", "ai": {"blocked": None}}]
+    host.fail_refresh = failed_control == "self_test"
+    monkeypatch.setattr(qualifier, "os", SimpleNamespace(name="nt", environ=qualifier.os.environ))
+
+    def checkpoint(row):
+        if row["stage"] == "locality_refresh" and failed_control == "wfp":
+            monkeypatch.delenv("S06_WFP_VERIFIED")
+
+    result = host.run(checkpoint=checkpoint)
+    assert result["status"] == "FAIL" and result["failed_stage"] == "locality_refresh"
+    assert host.events == ["self_test", "activate", "enable", "preview_en", "discard", "self_test"]
+    english, = result["samples"]
+    assert english["language"] == "en" and english["receipt_bound"] and english["discarded"]
+    assert english["accounting_preserved"] and host.closed and result["final_off"]
 
 
 def test_other_job_cannot_supply_failure_attribution(classification_host):
