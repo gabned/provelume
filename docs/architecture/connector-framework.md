@@ -4,6 +4,11 @@
 > identity remains a separate ConnectorInstance; Gmail and Drive authorization and every selected
 > Source remain independently controlled. See
 > [Google read-only adapters](google-readonly-adapters.md).
+>
+> Concordia S10 adds the Source-scoped task/calendar read boundary, immutable
+> consent revisions and bounded provider-neutral projections described in
+> [connector conformance](concordia-connectors-s10.md). Registration and synthetic
+> conformance remain separate from provider qualification and live authority.
 
 Provelume `0.7/S01` introduces a provider-independent local configuration and conformance boundary.
 `0.7/S02` adds bounded multi-instance lifecycle mutations, path-redacted evidence and aligned

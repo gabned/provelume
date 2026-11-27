@@ -80,6 +80,12 @@ from .web_transport import GuardedWebRequest, GuardedWebResponse, GuardedWebTran
 
 
 class ProvelumeInstance:
+    def productivity_connectors(self):
+        """Explicit source-scoped read preview; no implicit network on construction."""
+        from .productivity_connectors import ProductivityConnectors
+
+        return ProductivityConnectors(self.store)
+
     @staticmethod
     def ai_provider_configuration(profile, config):
         """Internal local validation; no lookup, DNS or provider contact."""

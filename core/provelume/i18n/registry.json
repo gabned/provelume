@@ -16879,6 +16879,114 @@
       "rendering": "text",
       "sensitive_review_required": true,
       "linguistic_review": "UNVERIFIED"
+    },
+    "search.edit": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.remove_filters": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type_details": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.pdf": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.text": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.markdown": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.web": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.document": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.spreadsheet": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.presentation": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.image": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.audio": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.video": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.archive": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.email": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.other": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.type.format": {
+      "context": "Search B: ordinary type labels/format data and empty-result navigation; Current/Cura search_types.html and search_empty.html. MIME identity remains unchanged; type labels imply no extraction, indexing or OCR capability.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
+    },
+    "search.edit_before_remove": {
+      "context": "Search B: existing return-context bounds cannot retain exact words in the remove-filters link. Explain edit-first while preserving input, filters and all existing bounds. Ordinary navigation copy, no data deletion.",
+      "linguistic_review": "UNVERIFIED",
+      "rendering": "text",
+      "sensitive_review_required": false
     }
   },
   "schema_version": 1,
