@@ -1,0 +1,7 @@
+<div class="search-type-filter">
+  <label>{{ t('browse.type') }}<select id="search-type" name="media_type"{% if selected_media_type %} aria-describedby="search-type-details"{% endif %}>
+    <option value="">{{ t('browse.all') }}</option>
+    {% for option in search_type_options %}<option value="{{ option.value }}" title="{{ option.value }}"{% if option.value == selected_media_type %} selected{% endif %}>{{ option.label }}</option>{% endfor %}
+  </select></label>
+  {% if selected_media_type %}<details id="search-type-details" class="technical-note"><summary>{{ t('search.type_details') }}</summary><code>{{ selected_media_type }}</code></details>{% endif %}
+</div>
