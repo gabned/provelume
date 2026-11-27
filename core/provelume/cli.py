@@ -10,12 +10,14 @@ import uvicorn
 
 from . import __version__
 from .about import current_about
+from .asana_cli import add_asana_commands, handle_asana_command
 from .build_info import current_build_info
 from .connector_cli import add_connector_commands, handle_connector_command
 from .email_cli import add_email_commands, handle_email_command
 from .folder_source_cli import add_folder_source_commands, handle_folder_source_command
 from .google_cli import add_google_commands, handle_google_command
 from .hierarchy_cli import add_hierarchy_commands, handle_hierarchy_command
+from .icalendar_cli import add_icalendar_commands, handle_icalendar_command
 from .inbox_transit_cli import add_inbox_transit_commands, handle_inbox_transit_command
 from .ingest import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES, IngestionRetryError
 from .installation import verify_current_installation
@@ -26,6 +28,7 @@ from .instance_cli import (
 from .maintenance_cli import add_maintenance_commands, handle_maintenance_command
 from .ocr_cli import add_ocr_commands, handle_ocr_command
 from .operational_cli import add_operational_commands, handle_operational_command
+from .productivity_cli import add_productivity_commands, handle_productivity_command
 from .publication_cli import add_publication_commands, handle_publication_command
 from .qualification_cli import add_qualification_commands, handle_qualification_command
 from .scheduler_cli import add_scheduler_commands, handle_scheduler_command
@@ -39,6 +42,7 @@ from .shell_settings import (
     settings_path,
 )
 from .transcript_cli import add_transcript_commands, handle_transcript_command
+from .tududi_cli import add_tududi_commands, handle_tududi_command
 from .updates import UpdateError, check_for_updates
 from .web import create_app, create_recovery_app
 from .web_security import loopback_host
@@ -227,6 +231,10 @@ def _build_parser(command: str | None = None) -> argparse.ArgumentParser:
     add_instance_lifecycle_commands(subparsers)
     add_hierarchy_commands(subparsers)
     add_connector_commands(subparsers)
+    add_productivity_commands(subparsers)
+    add_icalendar_commands(subparsers)
+    add_asana_commands(subparsers)
+    add_tududi_commands(subparsers)
     add_folder_source_commands(subparsers)
     add_inbox_transit_commands(subparsers)
     add_scheduler_commands(subparsers)
@@ -271,6 +279,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     connector_result = handle_connector_command(args)
     if connector_result is not None:
         return connector_result
+    productivity_result = handle_productivity_command(args)
+    if productivity_result is not None:
+        return productivity_result
+    icalendar_result = handle_icalendar_command(args)
+    if icalendar_result is not None:
+        return icalendar_result
+    asana_result = handle_asana_command(args)
+    if asana_result is not None:
+        return asana_result
+    tududi_result = handle_tududi_command(args)
+    if tududi_result is not None:
+        return tududi_result
     folder_source_result = handle_folder_source_command(args)
     if folder_source_result is not None:
         return folder_source_result
