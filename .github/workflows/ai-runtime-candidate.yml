@@ -30,6 +30,10 @@ on:
         description: 'With observer study and exact main: one fixed nonqualifying light/rich pair'
         type: boolean
         default: false
+      concordia_measure_clock_only:
+        description: 'One diagnostic Linux measure of dc4c065 with caller clocks on EPYC 9V74'
+        type: boolean
+        default: false
       concordia_capture_guard:
         description: 'With observer study and exact main: one nonqualifying fixed Capture guard A/B/B/A'
         type: boolean
@@ -79,17 +83,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        os: ${{ fromJSON(inputs.concordia_measure_clock_only == true && '["ubuntu-24.04"]' || '["ubuntu-24.04","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.concordia_measure_clock_only == true && 'dc4c06588f0b2170b3a530548e7f475c1112ea42' || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
+      - name: Admit dc4c065 and EPYC 9V74 for clock-only measure
+        if: inputs.concordia_measure_clock_only == true
+        shell: bash
+        run: |
+          origin=$(git remote get-url origin)
+          test "${origin%.git}" = https://github.com/gabned/provelume
+          test "$(git rev-parse HEAD)" = dc4c06588f0b2170b3a530548e7f475c1112ea42
+          test "$(git rev-parse 'HEAD^{tree}')" = 448c9806bc124daab675605989fb7ab9bc4b7243
+          test -z "$(git status --porcelain)"
+          LC_ALL=C lscpu | sed -n '/^Model name:/p'
+          python scripts/diagnose_concordia_cpu.py smt-topology --require-original-cpu --output .agent/s05-clock-only/hardware.json
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
       - name: Explicit locked acquisition (no model in artifacts or Git)
@@ -97,7 +112,7 @@ jobs:
       - name: Build locked native input with notices and SBOM, offline
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/build_ai_runtime_input.py --directory "${{ runner.temp }}/s05-inputs/${{ runner.os == 'Windows' && 'windows' || 'linux' }}" --platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }} --output .agent/s05-native-input.zip
       - name: Real Linux execution with external syscall observation
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && inputs.concordia_measure_clock_only != true
         shell: bash
         run: |
           set +e
@@ -105,12 +120,49 @@ jobs:
           measurement=$?
           if test ! -f .agent/s05-real.json; then exit "$measurement"; fi
           .venv/bin/python scripts/ai_runtime_network.py --report .agent/s05-real.json --trace .agent/s05-network
+      - name: Real Linux execution with clock-only S06 profiling
+        if: inputs.concordia_measure_clock_only == true
+        shell: bash
+        run: |
+          output="$GITHUB_WORKSPACE/.agent/s05-clock-only"
+          env -i PATH="$PATH" HOME="$HOME" LANG=C.UTF-8 PYTHONNOUSERSITE=1 \
+            strace -ff -tt -e trace=network -o "$output/network" \
+            .venv/bin/python scripts/diagnose_concordia_cpu.py worker \
+            --source "$GITHUB_WORKSPACE" --artifacts "$RUNNER_TEMP/s05-inputs" \
+            --output "$output" --mode boundary --caller-spans --clock-only
+          .venv/bin/python scripts/diagnose_concordia_cpu.py observe --source "$GITHUB_WORKSPACE" --output "$output"
+          .venv/bin/python - "$output" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          from scripts.diagnose_concordia_cpu import verify_caller_collection
+
+          output = Path(sys.argv[1])
+          collection = verify_caller_collection(output, clock_only=True)
+          report = json.loads((output / "report.json").read_bytes())
+          if report["source_commit"] != "dc4c06588f0b2170b3a530548e7f475c1112ea42":
+              raise ValueError("clock-only report has a different source")
+          probes = [json.loads(line) for line in (output / "probe-accounting.jsonl").read_text().splitlines()]
+          governed = report["s06"]["deterministic_busy"]
+          if [row["sample"] for row in governed] != list(range(6)) or not all(
+              row["worker_observed"] and row["diagnostic_timeline"] in probes
+              and row["diagnostic_timeline"]["caller"] == "qualify_ai_jobs.py"
+              and row["diagnostic_timeline"]["sample"] == row["sample"]
+              for row in governed
+          ):
+              raise ValueError("incomplete S06 sample-to-span binding")
+          collection["s06_governed"] = report["gates"]["s06_governed"]
+          collection["original_evaluator_result"] = report["instrumented_evaluated_status"]
+          (output / "collection.json").write_text(json.dumps(collection, indent=2) + "\n", encoding="utf-8")
+          raise SystemExit(collection["original_evaluator_result"] != "PASS")
+          PY
       - name: Real Windows execution with disposable WFP control and audit
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/qualify_ai_runtime_windows.ps1 -Artifacts "${{ runner.temp }}/s05-inputs"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
+        if: always() && inputs.concordia_measure_clock_only != true
         with:
           name: s05-real-${{ matrix.os }}
           path: |
@@ -120,6 +172,16 @@ jobs:
             .agent/s05-wfp.json
           include-hidden-files: true
           if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always() && inputs.concordia_measure_clock_only == true
+        with:
+          name: s06-clock-only-ubuntu-24.04
+          path: |
+            .agent/s05-clock-only/
+            .agent/s05-acquisition.json
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 30
   concordia-diagnostic:
     if: ${{ inputs.concordia_kernel_control != true && (github.event_name == 'workflow_dispatch' && inputs.concordia_diagnostic == true && inputs.concordia_observer_study != true && inputs.concordia_smt_study != true && inputs.concordia_tracer_study != true) }}
