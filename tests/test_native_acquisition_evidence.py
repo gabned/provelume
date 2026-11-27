@@ -19,7 +19,8 @@ def acquisition(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     clock = SimpleNamespace(now=0)
-    monkeypatch.setattr(module, "time", SimpleNamespace(monotonic=lambda: clock.now))
+    monkeypatch.setattr(module, "time", SimpleNamespace(monotonic=lambda: clock.now,
+                                                       perf_counter=lambda: clock.now))
     return module, clock
 
 
@@ -75,6 +76,8 @@ def test_original_refusals_preserve_partial_input_and_closed_failure_metadata(
     assert records[0]["result"] == "FAIL" and records[0]["deadline_seconds"] == 300
     assert "DO_NOT_LOG" not in json.dumps(records) and "private-path" not in json.dumps(records)
     assert records[0]["final_origin"] == "https://us.aws.cdn.hf.co"
+    assert records[0]["response_read_seconds"] == (301 if kind == "deadline" else 1)
+    assert records[0]["stage_write_seconds"] == 0
     if kind == "deadline":
         assert records[0]["failure_reason"] == "DEADLINE_EXCEEDED"
         assert records[0]["gate_elapsed_seconds"] == 301
@@ -96,6 +99,8 @@ def test_locked_download_and_existing_input_are_verified_without_redownload(
     data, records = b"locked public synthetic bytes", []
     digest = hashlib.sha256(data).hexdigest()
     response(acquisition, monkeypatch, [data])
+    ticks = iter((0.0, 1.0, 1.0, 1.25, 1.25, 1.75))
+    monkeypatch.setattr(module.time, "perf_counter", lambda: next(ticks))
     target = tmp_path / "model.gguf"
     module.acquire("https://huggingface.co/locked", target, len(data), digest,
                    observations=records)
@@ -106,12 +111,20 @@ def test_locked_download_and_existing_input_are_verified_without_redownload(
                    observations=records)
     assert [row["mode"] for row in records] == ["DOWNLOADED_LOCKED_INPUT_VERIFIED",
                                                 "EXISTING_LOCKED_INPUT_VERIFIED"]
+    assert records[0]["response_read_seconds"] == 1.5
+    assert records[0]["stage_write_seconds"] == 0.25
+    assert "response_read_seconds" not in records[1] and "stage_write_seconds" not in records[1]
     target.write_bytes(b"corrupt")
     with pytest.raises(ValueError, match="existing artifact"):
         module.acquire("https://huggingface.co/locked", target, len(data), digest,
                        observations=records)
     assert target.read_bytes() == b"corrupt"
     assert records[-1]["failure_reason"] == "EXISTING_INPUT_NOT_LOCKED"
+
+    response(acquisition, monkeypatch, [data])
+    without_receipt = tmp_path / "without-receipt.gguf"
+    module.acquire("https://huggingface.co/locked", without_receipt, len(data), digest)
+    assert without_receipt.read_bytes() == data
 
 
 @pytest.mark.parametrize("cancelled", [False, True])

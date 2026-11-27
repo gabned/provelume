@@ -55,7 +55,8 @@ jobs:
           try {
             $receipt = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
             $resources = @($receipt.resources | Select-Object artifact, result, mode, failure_reason,
-              deadline_seconds, expected_bytes, received_bytes, write_accepted_bytes, gate_elapsed_seconds)
+              deadline_seconds, expected_bytes, received_bytes, write_accepted_bytes, gate_elapsed_seconds,
+              response_read_seconds, stage_write_seconds)
             $summary = @{ commit = $receipt.source.commit; tree = $receipt.source.tree
               result = $receipt.result; resources = $resources }
             Write-Output ('Custodia acquisition ' + (ConvertTo-Json -InputObject $summary -Depth 4 -Compress))

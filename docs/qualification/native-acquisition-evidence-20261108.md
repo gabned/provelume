@@ -10,7 +10,8 @@ refusal were not retained; those missing observations remain UNKNOWN.
 Linux's separate native result does not qualify Windows or replace this FAIL.
 
 This separate PRODUCT CI repair adds an optional, exclusive data-free receipt.
-Only the ordinary `measure` job requests and uploads it. Matrix,20minute job,
+The ordinary `measure` job and Custodia installed job request and upload it.
+The matrix, 20-minute measure job,
 300second per-resource acquisition gate,15second socket timeout,1MiB reads,
 single request/approved redirects, original exceptions, URL/size/hash locks,
 model, runtime, qualifier, evaluator and corpora remain unchanged. There is no
@@ -20,6 +21,9 @@ All S07 diagnostic selectors and their workflow commands remain unchanged.
 The receipt records actual local Git commit/tree, bounded run identity, resource
 name/expected hash/size, initial/final public origin, received bytes, bytes
 accepted by completed writer calls, and the existing gate's elapsed time.
+It also records the cumulative wall time of response `read` calls and staging
+file `write` calls, including calls that raise. Both counters apply to active
+transfers and the read counter includes the read at end of stream.
 Accepted writer bytes do not assert durability. Only the original whole-file
 size/SHA-256 verification permits the existing final rename. Deadline, size,
 integrity and corrupt-existing-input refusals retain their original exception;

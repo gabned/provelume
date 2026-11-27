@@ -66,6 +66,19 @@ def acquire(url, path, size, digest, *, observations=None):
         raise
 
 
+def _timed_io(operation, record, field):
+    record[field] = 0.0
+
+    def measured(argument):
+        started = time.perf_counter()
+        try:
+            return operation(argument)
+        finally:
+            record[field] += time.perf_counter() - started
+
+    return measured
+
+
 def _acquire(url, path, size, digest, *, record):
     if path.exists():
         if not verified(path, size, digest):
@@ -83,12 +96,15 @@ def _acquire(url, path, size, digest, *, record):
     started = time.monotonic()
     deadline = started + 300
     with opener.open(url, timeout=15) as response, stage.open("xb") as out:
+        read_block, write_block = response.read, out.write
         if record is not None:
             from ai_runtime_acquisition_evidence import origin
 
             record["final_origin"] = origin(response.geturl())
+            read_block = _timed_io(read_block, record, "response_read_seconds")
+            write_block = _timed_io(write_block, record, "stage_write_seconds")
         count = 0
-        while block := response.read(1024 * 1024):
+        while block := read_block(1024 * 1024):
             count += len(block)
             # Preserve the original check order, bytes, single request and cap.
             if record is not None:
@@ -104,7 +120,7 @@ def _acquire(url, path, size, digest, *, record):
                 if record is not None:
                     record["failure_reason"] = "DEADLINE_EXCEEDED"
                 raise ValueError("acquisition limit")
-            out.write(block)
+            write_block(block)
             if record is not None:
                 record["write_accepted_bytes"] = count
     if not verified(stage, size, digest):
