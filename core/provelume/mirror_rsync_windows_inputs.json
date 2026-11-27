@@ -1,0 +1,83 @@
+{
+  "schema": "concordia-rsync-windows-fixture/v1",
+  "repository": "git-for-windows/git-sdk-64",
+  "commit": "383ee9b79d34b8f0b9f9dd33f9c31d149603fbe6",
+  "tree": "8a272991af4ba7dde423d5c0bd253b1e16d44c1c",
+  "source_verification": "UNSIGNED_GIT_COMMIT",
+  "packaged_version": "3.5.2-2",
+  "package_validation_metadata": "PGP_REPORTED_NOT_INDEPENDENTLY_VERIFIED",
+  "distribution": "QUALIFICATION_INPUT_ONLY_NOT_BUNDLED",
+  "system_imports": [
+    "CRYPT32.dll",
+    "KERNEL32.dll",
+    "ntdll.dll"
+  ],
+  "entries": [
+    {
+      "name": "rsync.exe",
+      "bytes": 621851,
+      "sha256": "c07a14b79adf0ed5c304e983813279ed3ae1e557191b5d5d9a57e61b4d67b4e0",
+      "git_blob": "4c9dbeeac8998295904cbb87ad5e5af0cc21c46f"
+    },
+    {
+      "name": "msys-crypto-4.dll",
+      "bytes": 5540333,
+      "sha256": "f46e7ccd849771ca8f23abcf1c7b76bc6a68d9dfd1cbfa9535229a63d1b5ec47",
+      "git_blob": "084a88372ece6bf9a4a778f9f2f9762bb052be40"
+    },
+    {
+      "name": "msys-iconv-2.dll",
+      "bytes": 1104714,
+      "sha256": "26245bdadc04ef282ec7f64a434cb0390a1965da9c2e329cad546926c0510e36",
+      "git_blob": "a9f0453daf357ec1f0ac09034326f064cece2cd1"
+    },
+    {
+      "name": "msys-idn2-0.dll",
+      "bytes": 197084,
+      "sha256": "0ddf7bd2b0a7dffe80e64460f1df168a6947115a0ef636506dded262dea95b32",
+      "git_blob": "68f3f5ed773bfd2ed488cff51087d5ae7cc86b18"
+    },
+    {
+      "name": "msys-lz4-1.dll",
+      "bytes": 177258,
+      "sha256": "8d1ee7f6af24c8058cdf1de65c1e8e14ff2693dc7c3f8e6f32bb267fac1d9719",
+      "git_blob": "3a6b83a8e4a3c599fd84ff11357fec4a1e9fea50"
+    },
+    {
+      "name": "msys-2.0.dll",
+      "bytes": 3396703,
+      "sha256": "a0cd88f95779f6729dbc01414d8aefdb56f7ebcbdcd045986909f9b968efcfe1",
+      "git_blob": "a6764c24781e6f7856420b2f7d2b589829e64f93"
+    },
+    {
+      "name": "msys-popt-0.dll",
+      "bytes": 44099,
+      "sha256": "3d868d64558a966c3d308a54b3839cfdda76c96e76784462d2fb9d489454e7b1",
+      "git_blob": "41bd7272b3f4f34bb55294368af67855253d911c"
+    },
+    {
+      "name": "msys-xxhash-0.dll",
+      "bytes": 128139,
+      "sha256": "28c8710efd870cf54b6ab9def816af2760c8d495f8e32ec5fd1442fa1fb5ab92",
+      "git_blob": "580c03ed0f87fa48768e87e2a810d83bca11139f"
+    },
+    {
+      "name": "msys-zstd-1.dll",
+      "bytes": 1136580,
+      "sha256": "0ebf082dc73962688a14bd26465e05972a51a3ac5ef11fdf8cc71b93b89cea8d",
+      "git_blob": "d007b5c5c6f856fc2ee79ed7b333f3c0eb5d9a85"
+    },
+    {
+      "name": "msys-intl-8.dll",
+      "bytes": 111181,
+      "sha256": "50f7de0c712d867ddca2c9eb8562ca6ee2d69e120e798ec6126ad29dd1ed5402",
+      "git_blob": "d902951c9c7aa2ed8360b658ffdeff3b9ea70228"
+    },
+    {
+      "name": "msys-unistring-5.dll",
+      "bytes": 2178442,
+      "sha256": "85b07305faaaa54314553c36071c1c1cd7f27c29ee6a83bc47bda4955db53806",
+      "git_blob": "9956e11fbe0171bd5b47aa15d115215dc0dbb7b5"
+    }
+  ]
+}

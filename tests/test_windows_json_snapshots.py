@@ -14,6 +14,59 @@ from provelume import storage
 from provelume.paths import native_path
 
 
+@pytest.fixture(autouse=True)
+def isolated_snapshot_api():
+    # Synthetic bindings must never escape a test into a real Windows read.
+    api = getattr(storage, "_windows_snapshot_api", None)
+    if api is not None:
+        api.cache_clear()
+    yield
+    if api is not None:
+        api.cache_clear()
+
+
+def test_windows_binding_reuse_keeps_fresh_reads_errors_and_descriptor_ownership(
+    tmp_path, monkeypatch,
+):
+    path = tmp_path / "public.json"
+    loads, opens, descriptors = [], [], []
+
+    def create(name, access, sharing, security, disposition, flags, template):
+        opens.append((name, access, sharing, security, disposition, flags, template))
+        descriptor = os.open(path, os.O_RDONLY)
+        descriptors.append(descriptor)
+        return descriptor
+
+    def close(handle):
+        pytest.fail("the CRT descriptor owns every successfully converted handle")
+
+    def load(name, **options):
+        loads.append((name, options))
+        return SimpleNamespace(CreateFileW=create, CloseHandle=close)
+
+    monkeypatch.setattr(ctypes, "WinDLL", load, raising=False)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(
+        open_osfhandle=lambda handle, flags: handle))
+    monkeypatch.setattr(os, "O_BINARY", 0x8000, raising=False)
+    monkeypatch.setattr(os, "O_NOINHERIT", 0x80, raising=False)
+    path.write_bytes(b'{"revision":1}')
+    assert storage._windows_snapshot_bytes(path) == b'{"revision":1}'
+    replacement = tmp_path / "replacement.json"
+    replacement.write_bytes(b'{"revision":2}')
+    replacement.replace(path)
+    assert storage._windows_snapshot_bytes(path) == b'{"revision":2}'
+    path.unlink()
+    with pytest.raises(FileNotFoundError):
+        storage._windows_snapshot_bytes(path)
+    path.write_bytes(b'{"revision":3}')
+    assert storage._windows_snapshot_bytes(path) == b'{"revision":3}'
+    assert loads == [("kernel32", {"use_last_error": True})]
+    assert opens == [(str(native_path(path)), 0x80000000, 7, None, 3, 0x80, None)] * 4
+    for descriptor in descriptors:
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
+
+
 @pytest.mark.parametrize("failure", [None, "open", "convert", "wrap", "wrap_after_close", "read"])
 def test_windows_snapshot_handle_ownership_and_fail_closed_errors(tmp_path, monkeypatch, failure):
     path = tmp_path / "public.json"

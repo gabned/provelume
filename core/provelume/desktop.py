@@ -42,7 +42,7 @@ from .shell_settings import (
     state_directory,
     validate_port,
 )
-from .startup_process import ManagedStartup
+from .startup_process import ManagedStartup, startup_diagnostic_report
 from .startup_readiness import (
     ReadinessContext,
     StartupReadinessError,
@@ -680,6 +680,10 @@ class DesktopShell:
         identity = ttk.LabelFrame(outer, text=self.text["installed"], padding=14)
         identity.pack(fill="x", pady=(0, 14))
         about = current_about()
+        self._startup_diagnostics_build = {
+            "version": about["version"], "channel": about["channel"],
+            "commit": about["commit"], "identity_status": about["build_identity_status"],
+        }
         ttk.Label(
             identity,
             text=f"{about['version']} · {about['channel']}",
@@ -1194,8 +1198,20 @@ class DesktopShell:
             if "exit_code" in event:
                 body += f" · exit={event['exit_code']}"
             body += "\n"
+        try:
+            report = startup_diagnostic_report(
+                events, attempted=startup is not None,
+                build=getattr(self, "_startup_diagnostics_build", {
+                    "version": __version__, "channel": None, "commit": None,
+                    "identity_status": "identity_unavailable",
+                }),
+            )
+            copy_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        except ValueError:
+            copy_text = None
+            body += "\n" + self.text["startup_copy_failed"]
         self._show_local_modal(title=self.text["startup_details"], body=body,
-                               links=[], confirm=False)
+                               links=[], confirm=False, copy_text=copy_text)
 
     def open_shell_settings(self) -> None:
         target = f"/settings/shell?lang={self.settings.language}"
@@ -1604,11 +1620,12 @@ class DesktopShell:
         body: str,
         links: list[tuple[str, str]],
         confirm: bool,
+        copy_text: str | None = None,
     ) -> bool:
         dialog = self.tk.Toplevel(self.root)
         dialog.title(title)
         dialog.transient(self.root)
-        dialog.resizable(False, False)
+        dialog.resizable(copy_text is not None, copy_text is not None)
         icon = _versioned_icon_path()
         if icon is not None and os.name == "nt":
             with suppress(self.tk.TclError):
@@ -1616,12 +1633,20 @@ class DesktopShell:
 
         frame = self.ttk.Frame(dialog, padding=20)
         frame.pack(fill="both", expand=True)
-        self.ttk.Label(
-            frame,
-            text=body,
-            wraplength=520,
-            justify="left",
-        ).pack(anchor="w")
+        if copy_text is None:
+            self.ttk.Label(frame, text=body, wraplength=520, justify="left").pack(anchor="w")
+        else:
+            trace = self.ttk.Frame(frame)
+            trace.pack(fill="both", expand=True)
+            trace.columnconfigure(0, weight=1)
+            trace.rowconfigure(0, weight=1)
+            content = self.tk.Text(trace, width=64, height=12, wrap="word")
+            content.insert("1.0", body)
+            content.configure(state="disabled")
+            content.grid(row=0, column=0, sticky="nsew")
+            scroll = self.ttk.Scrollbar(trace, orient="vertical", command=content.yview)
+            scroll.grid(row=0, column=1, sticky="ns")
+            content.configure(yscrollcommand=scroll.set)
 
         if links:
             link_row = self.ttk.Frame(frame)
@@ -1642,6 +1667,23 @@ class DesktopShell:
 
         action_row = self.ttk.Frame(frame)
         action_row.pack(fill="x", pady=(18, 0))
+        if copy_text is not None:
+            copy_status = self.tk.StringVar(value="")
+            self.ttk.Label(frame, textvariable=copy_status, wraplength=520).pack(anchor="w")
+
+            def copy_diagnostics():
+                try:
+                    # The launcher owns the clipboard after the dialog closes.
+                    # This explicit action copies the reviewed snapshot only.
+                    self.root.clipboard_clear()
+                    self.root.clipboard_append(copy_text)
+                except self.tk.TclError:
+                    copy_status.set(self.text["startup_copy_failed"])
+                else:
+                    copy_status.set(self.text["startup_copied"])
+
+            self.ttk.Button(action_row, text=self.text["startup_copy"],
+                            command=copy_diagnostics).pack(side="left", padx=(0, 8))
         if confirm:
             cancel = self.ttk.Button(
                 action_row,

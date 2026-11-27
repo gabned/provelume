@@ -1784,6 +1784,30 @@ class SchedulerCoordinator:
                 False,
                 bool(progress.get("processed", 0)),
             )
+        if job["job_kind"] == "mirror.prepare":
+            from .mirror_contract import MirrorError
+            from .mirror_jobs import MirrorJobs
+
+            factory = getattr(self, "_mirror_manager_factory", MirrorJobs)
+            manager = factory(self.store)
+            try:
+                progress = manager.execute(job)
+            except (MirrorError, OSError, ValueError):
+                return (False, self._progress(errors=1), "manual_intervention",
+                        "executor_unavailable", False, False)
+            return (True, progress, "", "", False, False)
+        if job["job_kind"] == "productivity.intake":
+            from .productivity_contract import ProductivityError
+            from .productivity_jobs import ProductivityJobs
+
+            factory = getattr(self, "_productivity_manager_factory", ProductivityJobs)
+            manager = factory(self.store)
+            try:
+                progress = manager.execute(job)
+            except (ProductivityError, OSError, ValueError):
+                return (False, self._progress(errors=1), "manual_intervention",
+                        "source_refresh_failed", manager.network_used, manager.canonical_mutation)
+            return (True, progress, "", "", manager.network_used, manager.canonical_mutation)
         if job["job_kind"] == "google.intake":
             from .google_contract import GoogleContractError
             from .google_jobs import GoogleJobManager
@@ -1828,7 +1852,7 @@ class SchedulerCoordinator:
                         pass
                     error_class = "manual_intervention"
                 elif exc.code == "google_cursor_invalidated":
-                    manager.sources.reset_cursor(source_id)
+                    manager.sources.reset_cursor(source_id, invalidated=True)
                     error_class = "manual_intervention"
                 elif exc.code == "google_cancelled":
                     error_class = "cancelled"

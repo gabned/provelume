@@ -13,6 +13,8 @@ from uuid import uuid4
 class GoogleCredentialError(ValueError):
     """Closed diagnostic; backend exceptions and secret material never escape."""
 
+    code = "secure_store_unavailable"
+
 
 _SLOT = re.compile(r"google_[a-z0-9_]{1,160}\Z")
 MAX_SECRET_BYTES = 16 * 1024
@@ -62,7 +64,11 @@ class GoogleCredentialVault:
     Construction and status-page reads never unlock or read the vault.
     """
 
-    def __init__(self, *, windows_root: Path | None = None, forbidden_root: Path | None = None):
+    def __init__(self, *, windows_root: Path | None = None, forbidden_root: Path | None = None,
+                 namespace: str = "google"):
+        if namespace not in {"google", "productivity", "mirror"}:
+            raise GoogleCredentialError("google_secure_store_unavailable")
+        self.namespace = namespace
         self.windows_root = windows_root
         self.forbidden_root = forbidden_root
 
@@ -72,7 +78,7 @@ class GoogleCredentialVault:
             local = os.environ.get("LOCALAPPDATA")
             if not local or not Path(local).is_absolute():
                 raise GoogleCredentialError("google_secure_store_unavailable")
-            root = Path(local) / "Provelume" / "GoogleCredentials"
+            root = Path(local) / "Provelume" / (self.namespace.capitalize() + "Credentials")
         if not root.is_absolute() or any(
             p.is_symlink() or p.is_junction() for p in (root, *root.parents)
         ):
@@ -93,17 +99,19 @@ class GoogleCredentialVault:
         return Keyring()
 
     def _access(self, slot: str, action: str, value: str | None = None) -> str | None:
-        if not isinstance(slot, str) or not _SLOT.fullmatch(slot):
+        if not isinstance(slot, str) or not re.fullmatch(
+            self.namespace + r"_[a-z0-9_]{1,160}", slot
+        ):
             raise GoogleCredentialError("google_secure_store_unavailable")
         try:
             if os.name != "nt":
                 backend = self._backend()
                 if action == "read":
-                    return backend.get_password("provelume.google", slot)
+                    return backend.get_password("provelume." + self.namespace, slot)
                 if action == "write":
-                    backend.set_password("provelume.google", slot, value)
-                elif backend.get_password("provelume.google", slot) is not None:
-                    backend.delete_password("provelume.google", slot)
+                    backend.set_password("provelume." + self.namespace, slot, value)
+                elif backend.get_password("provelume." + self.namespace, slot) is not None:
+                    backend.delete_password("provelume." + self.namespace, slot)
                 return None
             path = self._path(slot)
             if action == "read":

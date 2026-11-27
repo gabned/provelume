@@ -377,6 +377,39 @@ class ConnectorManager:
             apply=apply,
         )
 
+    def upgrade_definition(self, instance_id, definition_id, *, confirmed):
+        """Explicit compatible declaration upgrade; never grants a new scope."""
+        if confirmed is not True:
+            raise ConnectorConflictError("Definition upgrade requires explicit confirmation")
+
+        def apply():
+            definitions, identities, sources = self._state()
+            identity = identities.get(instance_id)
+            target = definitions.get(definition_id)
+            if identity is None or target is None:
+                raise ConnectorNotFoundError("Connector definition or identity is unavailable")
+            original = definitions[identity["definition_id"]]
+            if original["id"] == target["id"]:
+                return self.get_instance(instance_id), (), {"configuration_records": 0}
+            if (original["provider"] != target["provider"]
+                    or not set(original["capabilities"]) <= set(target["capabilities"])
+                    or not set(original["source_kinds"]) <= set(target["source_kinds"])
+                    or not set(original["authorization_modes"]) <= set(
+                        target["authorization_modes"])
+                    or original["network_access"] != target["network_access"]
+                    or any(source["source_kind"] not in target["source_kinds"]
+                           for source in sources.values()
+                           if source["connector_instance_id"] == instance_id)):
+                raise ConnectorConflictError("Connector definition transition is incompatible")
+            self._assert_definition_supports(target, identity)
+            self.store.write_canonical("connector-instances", {
+                **identity, "definition_id": definition_id, "updated_at": utc_now()})
+            return self.get_instance(instance_id), ("definition_id",), {"configuration_records": 1}
+
+        return self._mutate(kind="connector.definition.upgrade",
+                            title="Upgrade connector declaration",
+                            related={"connector_instance_id": instance_id}, apply=apply)
+
     def list_definitions(self) -> list[dict[str, Any]]:
         definitions, _instances, _sources = self._state()
         return [dict(definitions[key]) for key in sorted(definitions)]
@@ -872,35 +905,17 @@ class ConnectorManager:
             "network_attempted": False,
         }
 
-    def _instance_view(
+    def _instance_policy_view(
         self,
         instance: Mapping[str, Any],
         definitions: Mapping[str, Mapping[str, Any]],
-        sources: Mapping[str, Mapping[str, Any]],
-        *,
-        document_counts: Mapping[str, int],
-        acquisition_counts: Mapping[str, int],
     ) -> dict[str, Any]:
         raw_network = self.store.read_config().get("network")
         network = raw_network if isinstance(raw_network, Mapping) else {}
         global_network = bool(network.get("external_access", False))
-        instance_id = str(instance["id"])
         lifecycle = connector_instance_lifecycle(instance)
         config = self._configuration(instance)
         authorization = connector_instance_authorization(instance)
-        selected_sources = [
-            self._source_view(
-                source,
-                instance,
-                document_counts=document_counts,
-                acquisition_counts=acquisition_counts,
-            )
-            for source in sources.values()
-            if source["connector_instance_id"] == instance_id
-        ]
-        selected_sources.sort(
-            key=lambda item: (str(item["name"]).casefold(), str(item["id"]))
-        )
         active = lifecycle["lifecycle_state"] == "active"
         configured_enabled = bool(lifecycle["enabled"] and active)
         effective_network = (
@@ -922,21 +937,12 @@ class ConnectorManager:
         else:
             health_status = "not_checked"
             health_code = "network_not_attempted"
-        active_sources = sum(
-            item["lifecycle_state"] == "active" for item in selected_sources
-        )
-        enabled_sources = sum(bool(item["effective_enabled"]) for item in selected_sources)
         return {
             **dict(instance),
             **config,
             **lifecycle,
             "authorization": authorization,
             "definition": dict(definitions[str(instance["definition_id"])]),
-            "sources": selected_sources,
-            "source_count": len(selected_sources),
-            "active_source_count": active_sources,
-            "enabled_source_count": enabled_sources,
-            "removed_source_count": len(selected_sources) - active_sources,
             "configured_enabled": configured_enabled,
             "effective_network": effective_network,
             "policy": {
@@ -960,6 +966,44 @@ class ConnectorManager:
             "credential_reference_configured": config["credential_reference"] is not None,
             "network_attempted": False,
         }
+
+    def _instance_view(
+        self,
+        instance: Mapping[str, Any],
+        definitions: Mapping[str, Mapping[str, Any]],
+        sources: Mapping[str, Mapping[str, Any]],
+        *,
+        document_counts: Mapping[str, int],
+        acquisition_counts: Mapping[str, int],
+    ) -> dict[str, Any]:
+        selected_sources = [
+            self._source_view(source, instance, document_counts=document_counts,
+                              acquisition_counts=acquisition_counts)
+            for source in sources.values()
+            if source["connector_instance_id"] == instance["id"]
+        ]
+        selected_sources.sort(key=lambda item: (str(item["name"]).casefold(), str(item["id"])))
+        active_sources = sum(item["lifecycle_state"] == "active" for item in selected_sources)
+        return {
+            **self._instance_policy_view(instance, definitions),
+            "sources": selected_sources,
+            "source_count": len(selected_sources),
+            "active_source_count": active_sources,
+            "enabled_source_count": sum(
+                bool(item["effective_enabled"]) for item in selected_sources
+            ),
+            "removed_source_count": len(selected_sources) - active_sources,
+        }
+
+    def get_instance_policy(self, instance_id: str) -> dict[str, Any] | None:
+        """Revalidate current policy without rebuilding archive/UI counts.
+
+        This is a fresh read, including the complete connector graph validation.
+        It deliberately exposes no source inventories or document counts.
+        """
+        definitions, instances, _sources = self._state()
+        instance = instances.get(instance_id)
+        return None if instance is None else self._instance_policy_view(instance, definitions)
 
     def _views(
         self,

@@ -194,14 +194,13 @@ def test_duplicate_callback_and_known_overrun_debt(case):
     assert "synthetic result" not in json.dumps(jobs.public(job["id"]))
 
 
-def _contend(root, job_id, ready, start, output):
+def _contend(root, job_id, ready, start, output, at):
     jobs, _ = manager(root)
     ready.put(True)
     start.wait(20)
     try:
         # Barrier/process startup is not part of the synthetic authorization clock.
-        now = utc_instant(jobs.journal.get_job(job_id)["created_at"])
-        result = claim(jobs, job_id, now=now)
+        result = claim(jobs, job_id, now=utc_instant(at))
         output.put("claimed" if result else "denied")
     except SchedulerBusyError:
         output.put("busy")
@@ -214,12 +213,13 @@ def test_real_process_contention(case, same_job):
     jobs.configure(mode="enabled", budget=budget)
     one = enqueue(jobs, "one")
     two = one if same_job else enqueue(jobs, "two")
+    at = instant_text(max(utc_instant(job["created_at"]) for job in (one, two)))
     ctx = multiprocessing.get_context("spawn")
     ready, output, start = ctx.Queue(), ctx.Queue(), ctx.Event()
     children = [
         ctx.Process(
             target=_contend,
-            args=(str(jobs.journal.store.paths.root), j["id"], ready, start, output),
+            args=(str(jobs.journal.store.paths.root), j["id"], ready, start, output, at),
         )
         for j in (one, two)
     ]

@@ -19,6 +19,7 @@ from .action_center_activity import action_reason, attach_action_center_routes, 
 from .activity import attach_activity_routes
 from .annotation_activity import attach_annotation_routes
 from .api import attach_api, reject_client_installation_evidence
+from .asana_activity import attach_asana_routes
 from .audio_activity import attach_audio_routes
 from .build_info import current_build_info
 from .capture_http import attach_capture_routes
@@ -45,10 +46,12 @@ from .folder_source_activity import attach_folder_source_routes
 from .google_activity import attach_google_routes
 from .google_connection_activity import attach_google_connection_routes
 from .i18n import translator
+from .icalendar_activity import attach_icalendar_routes
 from .installation import verify_current_installation
 from .installation_i18n import installation_translator
 from .maintenance_activity import attach_maintenance_routes
 from .markdown_viewer import DocumentContentError, safe_markdown_html
+from .mirror_activity import attach_mirror_routes
 from .ocr_activity import attach_ocr_routes
 from .operations_maintenance_activity import attach_operations_maintenance_routes
 from .perceptio_activity import attach_perceptio_routes
@@ -73,7 +76,9 @@ from .startup_readiness import (
 from .startup_readiness import (
     ROUTE as STARTUP_READINESS_ROUTE,
 )
+from .task_writeback_activity import attach_task_writeback_routes
 from .transcript_activity import attach_transcript_routes
+from .tududi_activity import attach_tududi_routes
 from .video_activity import attach_video_routes
 from .web_security import LocalWebSecurityMiddleware, loopback_host
 
@@ -593,6 +598,7 @@ def create_app(
         app,
         instance,
         installation_verification=installation_verification,
+        _reuse_static_routes=True,
     )
     from .ai_activity import attach_ai_routes
 
@@ -617,11 +623,17 @@ def create_app(
     attach_perceptio_routes(app, instance, TEMPLATES, _context)
     attach_email_routes(app, instance, TEMPLATES, _context)
     attach_google_routes(app, instance, TEMPLATES, _context)
+    attach_icalendar_routes(app, instance, TEMPLATES, _context)
     callback_host = "[::1]" if selected_host == "::1" else "127.0.0.1"
     attach_google_connection_routes(
         app, instance, TEMPLATES, _context,
         redirect_uri=f"http://{callback_host}:{selected_port}/google/oauth/callback",
     )
+    attach_asana_routes(app, instance, TEMPLATES, _context,
+                       redirect_uri=f"http://{callback_host}:{selected_port}/asana/oauth/callback")
+    attach_tududi_routes(app, instance, TEMPLATES, _context)
+    attach_task_writeback_routes(app, instance, TEMPLATES, _context)
+    attach_mirror_routes(app, instance, TEMPLATES, _context)
     attach_transcript_routes(app, instance, TEMPLATES, _context)
     attach_qualification_routes(app, instance, TEMPLATES, _context)
     attach_shell_routes(
