@@ -164,6 +164,12 @@ jobs:
           python-version: '3.12'
       - name: Canonical dependency bootstrap
         run: python scripts/bootstrap.py
+      - name: Verify the EPYC 9V74 host for the dc4c065 caller-span study
+        if: inputs.concordia_caller_spans == true && inputs.concordia_observer_source == 'dc4c06588f0b2170b3a530548e7f475c1112ea42'
+        shell: bash
+        run: |
+          LC_ALL=C lscpu | sed -n '/^Model name:/p'
+          .venv/bin/python scripts/diagnose_concordia_cpu.py smt-topology --require-original-cpu --output .agent/concordia-observer-admission.hardware.json
       - name: Admit the selected main observer control before acquisition
         if: inputs.concordia_observer_source != ''
         env:
