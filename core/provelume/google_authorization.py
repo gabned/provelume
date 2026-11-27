@@ -5,7 +5,13 @@ import hmac
 import json
 import re
 
-from .google_contract import GOOGLE_ALLOWED_ORIGINS, GOOGLE_CAPABILITY_SCOPES, normalise_capability
+from .google_contract import (
+    GOOGLE_ADAPTER_VERSION,
+    GOOGLE_ALLOWED_ORIGINS,
+    GOOGLE_CAPABILITY_SCOPES,
+    GOOGLE_DEFINITION_KEY,
+    normalise_capability,
+)
 from .google_sources import GoogleSourceManager
 from .instance_lifecycle import InstanceLifecycleManager
 from .oauth_authorization import OAuthPolicyError
@@ -20,9 +26,10 @@ class GoogleCapabilityAuthority:
     No global union grant or invented connector definition is created.
     """
 
-    def __init__(self, sources: GoogleSourceManager, capability: str):
+    def __init__(self, sources: GoogleSourceManager, capability: str, *, vault_provider=None):
         self.sources = sources
         self.capability = normalise_capability(capability)
+        self.vault_provider = vault_provider
 
     def authorization_policy(self, instance_id):
         record = self.sources._instance_record(instance_id)
@@ -33,8 +40,8 @@ class GoogleCapabilityAuthority:
             "enabled": connector["configured_enabled"],
             "effective_network": connector["effective_network"],
             "allowed_origins": connector["allowed_origins"],
-            "adapter_key": "google-readonly",
-            "adapter_version": "1.0.0",
+            "adapter_key": GOOGLE_DEFINITION_KEY,
+            "adapter_version": GOOGLE_ADAPTER_VERSION,
             "scopes": list(GOOGLE_CAPABILITY_SCOPES[self.capability]),
             "authorization": {"status": item["authorization_status"]},
         }
@@ -80,7 +87,9 @@ class GoogleCapabilityAuthority:
                 **item,
                 "state": "disabled",
                 "authorization_status": "authorized",
-                "credential_reference": grant["credential_reference"],
+                # The host publishes the grant link in the external vault. No
+                # secret/reference enters canonical, backup or portable data.
+                "credential_reference": None,
                 "consent": "explicit",
                 "authorized_at": authorized_at,
                 "revoked_at": None,
@@ -91,16 +100,36 @@ class GoogleCapabilityAuthority:
                     "checked_at": authorized_at,
                 },
             }
-            self.sources._write_instance_record(
-                {
+            from .google_credentials import GoogleCredentialVault
+
+            vault = (
+                self.vault_provider()
+                if self.vault_provider is not None
+                else GoogleCredentialVault(forbidden_root=self.sources.store.paths.root)
+            )
+            link_slot = f"google_link_{instance_id}_{self.capability}"
+            previous_link = vault.read(link_slot)
+            reference = grant["credential_reference"]
+            try:
+                # Publish the device link before making authorization visible.
+                vault.write(link_slot, reference)
+                self.sources.compare_write_instance({
                     **record,
                     "account_binding_sha256": binding,
                     "guided_provisional": False,
                     "guided_provisional_until": None,
                     "capabilities": {**record["capabilities"], self.capability: updated},
                     "updated_at": utc_now(),
-                }
-            )
+                }, expected=record)
+            except Exception:
+                # Compensate only this exact owned pointer. A newer link is
+                # never overwritten, and no provider mutation is attempted.
+                if vault.read(link_slot) == reference:
+                    if previous_link is None:
+                        vault.delete(link_slot)
+                    else:
+                        vault.write(link_slot, previous_link)
+                raise
         return {
             "id": instance_id,
             "capability": self.capability,

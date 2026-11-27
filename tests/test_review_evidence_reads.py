@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from provelume.review_decisions import read_bytes
+from provelume.paths import native_path
+from provelume.review_decisions import checked_path, read_bytes
 from provelume.review_effects import ReviewUnavailable
 
 
@@ -63,3 +65,19 @@ def test_review_evidence_rejects_linked_parent_without_reading_target(tmp_path):
         raise
     with pytest.raises(ReviewUnavailable, match="cannot traverse links"):
         read_bytes(_store(root), "linked/evidence.bin")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Uses Windows extended paths")
+def test_review_evidence_reads_long_windows_path(tmp_path):
+    root = tmp_path / "instance"
+    relative = "/".join(["a" * 90, "b" * 90, "c" * 90, "evidence.bin"])
+    path = root / relative
+    assert len(str(path)) > 260
+    extended = native_path(path)
+    extended.parent.mkdir(parents=True)
+    try:
+        extended.write_bytes(b"synthetic long-path evidence")
+        assert checked_path(_store(root), relative) == path
+        assert read_bytes(_store(root), relative) == b"synthetic long-path evidence"
+    finally:
+        shutil.rmtree(native_path(root))

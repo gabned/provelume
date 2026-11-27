@@ -240,6 +240,31 @@ Codes below are planning IDs, not prematurely created issues/owners. Allocate th
 actual owner PR just in time and accept actual main before the next owner. Existing
 #377/#381/#382/#379/#391 retain their scope; do not close #391 after A alone.
 
+On 6 November 2026 the maintainer explicitly authorized advancing **S08 development**
+before S07's still-incomplete automatic acceptance. The
+[sequencing decision](https://github.com/gabned/provelume/pull/439#issuecomment-6680960524)
+is limited to S08/#391-B. S07 remains NOT_ACCEPTED and the CPU finding remains
+CURRENT / NOT_DEMONSTRATED under its original owner #439. Its failures, BIND and
+diagnostic-only observations retain their original meaning. This exception changes
+the development order; it does not qualify S07, waive native/CI/review or release
+gates, or authorize later dependency exceptions. Final identity/publication and
+the manual DEFERRED_BY_MAINTAINER / NOT_RUN rows retain their existing conditions.
+
+On 7 November 2026 the maintainer explicitly authorized ordered **development and
+automatic testing of S09–S23** before S07/S08 acceptance, replying “procediamo”
+to that concrete sequencing proposal. The
+[additional sequencing decision](https://github.com/gabned/provelume/issues/383#issuecomment-6706150974)
+permits separate PR-local owners and successor candidates consuming explicitly
+identified, unaccepted predecessors. S09 combines S07 `efc915815bd5a1dcad3246c135043b6111394f47`
+and S08 `1bd87b2c3fb401f8192d4b8da981e119b6e7ce26` on accepted main
+`1711f037b1467d84eb5e145466dad6a6171643fc`, retaining both histories.
+This development exception does not change the acceptance dependencies below,
+the complete release perimeter, any original BIND/finding/experiment outcome,
+or native/CI/review/main/publication gates. Real-account and exact remote-destination
+authority remains specific. All manual checks remain DEFERRED_BY_MAINTAINER /
+NOT_RUN until the completed official release on his Windows 11 Pro 25H2 PC;
+no intermediate installation is requested.
+
 | Order / workstream | Dependency | Exit criteria and evidence |
 | --- | --- | --- |
 | S00 — this step | Published Entitas, authorized campaign | Common contracts, I/K/L decisions, complete manifest/matrix/authority/recovery accepted; PR qualification and actual-main reconciliation recorded separately. |
@@ -250,7 +275,7 @@ actual owner PR just in time and accept actual main before the next owner. Exist
 | S05 — #381 trigger/backlog | S04 accepted | Per-Source new-work consent, reliable-native skip, complete OCR selection, G proof including approved limited results, selective Original backlog, R1–R7 and catalog-limit reconciliation. |
 | S06 — #382 Inbox | S05 accepted | New/existing transit/keep behavior, I decision, guarded input exit, R8, conversion/recovery/races and no Original change/loss. |
 | S07 — #379 UI/setup | S06 accepted | K decision, three daily journeys, six setup screens, real runtime/status/counts; T01–T48 and all 15 requirements retain distinct automatic/runtime/human evidence. |
-| S08 — #391-B | S07 and A accepted | Friendly type labels/MIME stability; edit search/remove only filters with words/context preserved; no implicit OCR. |
+| S08 — #391-B | A accepted; development may precede S07 acceptance under the 6 November decision above | Friendly type labels/MIME stability; edit search/remove only filters with words/context preserved; no implicit OCR. S07/CPU and release acceptance remain pending independently. |
 | S09 — personal package qualification | S01–S08 accepted | Complete local path with AI off, OCR-ready/deferred, errors, recovery, exact Windows support/upgrade matrix; not qualification of all Concordia. |
 | S10 — connector conformance | S09, Entitas objects | Identity/Source/capability/consent/revision/cursor contracts and provider-neutral Task/CalendarEvent mapping; credential references outside canonical/backup/export data. |
 | S11 — Google adapter | S10 | Multiple identities with independently selected Gmail/Drive/Calendar capabilities and Sources; scope/revoke/reauthorize, page/cursor/reset, bounded resync and timezone/recurrence/cancellation. Existing read intake retained; no sending/calendar writes. |
