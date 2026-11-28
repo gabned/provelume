@@ -641,6 +641,20 @@ def observe_span(original, name, clock=None):
     return wrapped
 
 
+def observe_capture_commit(original, acquire_locked, clock):
+    observed = observe_span(original, "commit", clock)
+    acquire_code = acquire_locked.__code__
+
+    def wrapped(*args, **kwargs):
+        context = CURRENT.get()
+        if (context is not None and context.get("active_operation") == "process"
+                and sys._getframe(1).f_code is acquire_code):
+            return observed(*args, **kwargs)
+        return original(*args, **kwargs)
+
+    return wrapped
+
+
 class PrefixStop(BaseException):
     """Let the unchanged qualifier finalize its partial report and native cleanup."""
     def __init__(self, reason, evidence=None):
@@ -686,7 +700,9 @@ def prefix_environment():
 
 def worker(source, artifacts, output, mode="legacy", placement=None,
            inherited_affinity=None, tracer_cpu=None, pool_accounting=False, pool_prefix=False,
-           caller_spans=False, clock_only=False):
+           caller_spans=False, clock_only=False, *, capture_commit_span=False):
+    if capture_commit_span and not clock_only:
+        raise ValueError("capture commit span requires clock-only collection")
     if clock_only and (not caller_spans or pool_accounting or pool_prefix
                        or mode != "boundary" or placement is not None
                        or inherited_affinity is not None or tracer_cpu is not None):
@@ -823,6 +839,10 @@ def worker(source, artifacts, output, mode="legacy", placement=None,
                 for name in ("_prepare", "_publish_entries", "_shutdown_pool"):
                     stack.enter_context(patch.object(AtomicInstanceCommit, name,
                         observe_span(getattr(AtomicInstanceCommit, name), name, clock)))
+                if capture_commit_span:
+                    stack.enter_context(patch.object(AtomicInstanceCommit, "commit",
+                        observe_capture_commit(AtomicInstanceCommit.commit,
+                                               CaptureAdapter._acquire_locked, clock)))
             if pool_prefix:
                 from provelume.ai_model_store import ModelStore
 
@@ -904,18 +924,19 @@ def verify_digest_accounting(output, expected_probes=25):
             "pool_tasks": pool_count}
 
 
-def method_span_errors(rows):
+def method_span_errors(rows, *, capture_commit_span=False):
     """Require complete same-caller spans inside every original operation."""
     errors = []
+    expected = ["_prepare", "_publish_entries", "_shutdown_pool"]
+    process_expected = [*expected, "commit"] if capture_commit_span else expected
     for row in rows:
         spans = row.get("spans", [])
-        if sorted(s["span"] for s in spans) != sorted(
-                ["_prepare", "_publish_entries", "_shutdown_pool"] * 2):
+        if sorted(s["span"] for s in spans) != sorted([*expected, *process_expected]):
             errors.append("direct method spans incomplete")
             break
         operations = {op["operation"]: op for op in row["operations"]}
         if any(sorted(s["span"] for s in spans if s["operation"] == name)
-               != ["_prepare", "_publish_entries", "_shutdown_pool"] for name in operations):
+               != (process_expected if name == "process" else expected) for name in operations):
             errors.append("transaction span sequence incomplete")
         for span in spans:
             operation = operations.get(span["operation"])
@@ -925,16 +946,26 @@ def method_span_errors(rows):
                     or not operation["before"]["monotonic_ns"] <= before["monotonic_ns"]
                     <= after["monotonic_ns"] <= operation["after"]["monotonic_ns"]):
                 errors.append("direct span caller or interval mismatch")
+        if capture_commit_span:
+            commit = next(span for span in spans if span["span"] == "commit")
+            for span in spans:
+                if span["operation"] == "process" and not (
+                    commit["before"]["monotonic_ns"] <= span["before"]["monotonic_ns"]
+                    <= span["after"]["monotonic_ns"] <= commit["after"]["monotonic_ns"]
+                ):
+                    errors.append("direct span outside capture commit")
     return errors
 
 
-def verify_caller_collection(output, *, clock_only):
+def verify_caller_collection(output, *, clock_only, capture_commit_span=False):
     """Validate light observations without inventing absent kernel counters."""
+    if capture_commit_span and not clock_only:
+        raise ValueError("capture commit span requires clock-only collection")
     rows = [json.loads(line) for line in
             (output / "probe-accounting.jsonl").read_text().splitlines()]
     if [r["probe_id"] for r in rows] != list(range(1, 26)):
         raise ValueError("caller_probe_collection_incomplete")
-    if method_span_errors(rows):
+    if method_span_errors(rows, capture_commit_span=capture_commit_span):
         raise ValueError("caller_method_collection_incomplete")
     for row in rows:
         if sorted(op["operation"] for op in row["operations"]) != ["process", "submit"]:
@@ -975,7 +1006,7 @@ def verify_caller_collection(output, *, clock_only):
     if not exits or not all(exits.values()):
         raise ValueError("caller_native_exit_unobserved")
     return {"status": "CALLER_COLLECTION_COMPLETE", "probes": 25, "operations": 50,
-            "method_spans": 150, "qualification_eligible": False,
+            "method_spans": sum(len(row["spans"]) for row in rows), "qualification_eligible": False,
             "kernel_counters": "NOT_COLLECTED / CLOCK_ONLY" if clock_only else "RICH_BUNDLE",
             "native_exits": exits}
 
@@ -1327,6 +1358,7 @@ def main():
     measurement.add_argument("--pool-prefix", action="store_true")
     measurement.add_argument("--caller-spans", action="store_true")
     measurement.add_argument("--clock-only", action="store_true")
+    measurement.add_argument("--capture-commit-span", action="store_true")
     measurement.add_argument("--placement",
                              choices=("same_logical", "smt_sibling", "portable_foreground"))
     measurement.add_argument("--inherited-affinity", type=lambda raw: set(map(int, raw.split(","))))
@@ -1367,7 +1399,8 @@ def main():
     elif args.command == "worker":
         worker(args.source.resolve(), args.artifacts.resolve(), args.output.resolve(), args.mode,
                args.placement, args.inherited_affinity, args.tracer_cpu, args.pool_accounting,
-               args.pool_prefix, args.caller_spans, args.clock_only)
+               args.pool_prefix, args.caller_spans, args.clock_only,
+               capture_commit_span=args.capture_commit_span)
     elif args.command == "observer-admission":
         admit_observer(args.repository.resolve(), args.source, args.output)
     elif args.command == "portable-topology":

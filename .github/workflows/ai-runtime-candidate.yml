@@ -125,21 +125,24 @@ jobs:
         shell: bash
         run: |
           output="$GITHUB_WORKSPACE/.agent/s05-clock-only"
+          driver_dir=$(mktemp -d "$RUNNER_TEMP/s06-clock.XXXXXX")
+          git -c credential.helper= fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git show "$GITHUB_SHA:scripts/diagnose_concordia_cpu.py" > "$driver_dir/diagnose_concordia_cpu.py"
           env -i PATH="$PATH" HOME="$HOME" LANG=C.UTF-8 PYTHONNOUSERSITE=1 \
             strace -ff -tt -e trace=network -o "$output/network" \
-            .venv/bin/python scripts/diagnose_concordia_cpu.py worker \
+            .venv/bin/python "$driver_dir/diagnose_concordia_cpu.py" worker \
             --source "$GITHUB_WORKSPACE" --artifacts "$RUNNER_TEMP/s05-inputs" \
-            --output "$output" --mode boundary --caller-spans --clock-only
-          .venv/bin/python scripts/diagnose_concordia_cpu.py observe --source "$GITHUB_WORKSPACE" --output "$output"
-          .venv/bin/python - "$output" <<'PY'
+            --output "$output" --mode boundary --caller-spans --clock-only --capture-commit-span
+          .venv/bin/python "$driver_dir/diagnose_concordia_cpu.py" observe --source "$GITHUB_WORKSPACE" --output "$output"
+          PYTHONPATH="$driver_dir" .venv/bin/python - "$output" <<'PY'
           import json
           from pathlib import Path
           import sys
 
-          from scripts.diagnose_concordia_cpu import verify_caller_collection
+          from diagnose_concordia_cpu import verify_caller_collection
 
           output = Path(sys.argv[1])
-          collection = verify_caller_collection(output, clock_only=True)
+          collection = verify_caller_collection(output, clock_only=True, capture_commit_span=True)
           report = json.loads((output / "report.json").read_bytes())
           if report["source_commit"] != "dc4c06588f0b2170b3a530548e7f475c1112ea42":
               raise ValueError("clock-only report has a different source")
